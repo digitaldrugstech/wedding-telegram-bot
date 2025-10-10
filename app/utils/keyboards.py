@@ -3,12 +3,12 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 
-def gender_selection_keyboard() -> InlineKeyboardMarkup:
+def gender_selection_keyboard(user_id: int) -> InlineKeyboardMarkup:
     """Keyboard for gender selection."""
     keyboard = [
         [
-            InlineKeyboardButton("Мужчина ♂️", callback_data="gender:male"),
-            InlineKeyboardButton("Женщина ♀️", callback_data="gender:female"),
+            InlineKeyboardButton("Мужчина ♂️", callback_data=f"gender:male:{user_id}"),
+            InlineKeyboardButton("Женщина ♀️", callback_data=f"gender:female:{user_id}"),
         ]
     ]
     return InlineKeyboardMarkup(keyboard)
@@ -18,23 +18,25 @@ def profile_keyboard() -> InlineKeyboardMarkup:
     """Keyboard for profile (quick access to main menus)."""
     keyboard = [
         [InlineKeyboardButton("💼 Работа", callback_data="menu:work")],
-        [InlineKeyboardButton("💍 Брак", callback_data="menu:marriage")],
-        [InlineKeyboardButton("👨‍👩‍👧‍👦 Семья", callback_data="menu:family")],
-        [InlineKeyboardButton("🏠 Дом", callback_data="menu:house")],
-        [InlineKeyboardButton("💼 Бизнес", callback_data="menu:business")],
+        [InlineKeyboardButton("💍 Брак [Не реализовано]", callback_data="menu:marriage")],
+        [InlineKeyboardButton("👨‍👩‍👧‍👦 Семья [Не реализовано]", callback_data="menu:family")],
+        [InlineKeyboardButton("🏠 Дом [Не реализовано]", callback_data="menu:house")],
+        [InlineKeyboardButton("💼 Бизнес [Не реализовано]", callback_data="menu:business")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
 
-def work_menu_keyboard() -> InlineKeyboardMarkup:
+def work_menu_keyboard(has_job: bool = False) -> InlineKeyboardMarkup:
     """Keyboard for work menu."""
-    keyboard = [
-        [InlineKeyboardButton("📋 Выбрать профессию", callback_data="work:choose_profession")],
-        [InlineKeyboardButton("💰 Работать", callback_data="work:do_job")],
-        [InlineKeyboardButton("📊 Моя работа", callback_data="work:info")],
-        [InlineKeyboardButton("❌ Уволиться", callback_data="work:quit")],
-        [InlineKeyboardButton("« Назад", callback_data="menu:profile")],
-    ]
+    if has_job:
+        keyboard = [
+            [InlineKeyboardButton("💰 Работать", callback_data="work:do_job")],
+            [InlineKeyboardButton("❌ Уволиться", callback_data="work:quit")],
+        ]
+    else:
+        keyboard = [
+            [InlineKeyboardButton("📋 Выбрать профессию", callback_data="work:choose_profession")],
+        ]
     return InlineKeyboardMarkup(keyboard)
 
 
@@ -46,6 +48,7 @@ def profession_selection_keyboard() -> InlineKeyboardMarkup:
         [InlineKeyboardButton("🏗️ Инфраструктура", callback_data="profession:infrastructure")],
         [InlineKeyboardButton("⚖️ Суд", callback_data="profession:court")],
         [InlineKeyboardButton("🎭 Культура", callback_data="profession:culture")],
+        [InlineKeyboardButton("🐦 Селфмейд", callback_data="profession:selfmade")],
         [InlineKeyboardButton("« Назад", callback_data="menu:work")],
     ]
     return InlineKeyboardMarkup(keyboard)
@@ -143,8 +146,8 @@ def confirm_keyboard(action: str) -> InlineKeyboardMarkup:
     """Generic confirmation keyboard."""
     keyboard = [
         [
-            InlineKeyboardButton("✅ Да", callback_data=f"confirm:{action}:yes"),
-            InlineKeyboardButton("❌ Нет", callback_data=f"confirm:{action}:no"),
+            InlineKeyboardButton("✅ Да", callback_data=f"work:{action}_confirmed"),
+            InlineKeyboardButton("❌ Нет", callback_data=f"work:{action}_cancelled"),
         ]
     ]
     return InlineKeyboardMarkup(keyboard)

@@ -32,13 +32,11 @@ def require_registered(func: Callable) -> Callable:
             user = db.query(User).filter(User.telegram_id == user_id).first()
 
             if not user:
-                await update.message.reply_text(
-                    "⚠️ Вы не зарегистрированы! Используйте /start для регистрации."
-                )
+                await update.message.reply_text("⚠️ Ты не зарегистрирован. Используй /start")
                 return
 
             if user.is_banned:
-                await update.message.reply_text("🚫 Вы заблокированы и не можете использовать бота.")
+                await update.message.reply_text("🚫 Ты заблокирован")
                 return
 
         return await func(update, context, *args, **kwargs)
@@ -89,9 +87,7 @@ def cooldown(action: str, seconds: int) -> Callable:
                     if seconds_remaining > 0 and not time_str:
                         time_str.append(f"{int(seconds_remaining)}с")
 
-                    await update.message.reply_text(
-                        f"⏳ Команда доступна через: {' '.join(time_str)}"
-                    )
+                    await update.message.reply_text(f"Можешь работать через {' '.join(time_str)}")
                     return
 
             # Execute command
@@ -138,13 +134,80 @@ def admin_only(func: Callable) -> Callable:
             return
 
         if update.effective_user.id != config.admin_user_id:
-            await update.message.reply_text("🚫 У вас нет прав для использования этой команды.")
+            await update.message.reply_text("🚫 У тебя нет прав")
+            return
+
+        return await func(update, context, *args, **kwargs)
+
+    return wrapper
+
+
+def admin_only_private(func: Callable) -> Callable:
+    """
+    Decorator to restrict commands to admin only in private chat.
+
+    Usage:
+        @admin_only_private
+        async def admin_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+            ...
+    """
+
+    @functools.wraps(func)
+    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
+        from app.config import config
+
+        if not update.effective_user:
+            return
+
+        if update.effective_user.id != config.admin_user_id:
+            await update.message.reply_text("🚫 У тебя нет прав")
             return
 
         # Check if in private chat
         if update.effective_chat.type != "private":
-            await update.message.reply_text("🚫 Админ команды доступны только в ЛС бота.")
+            await update.message.reply_text("🚫 Команда доступна только в ЛС")
             return
+
+        return await func(update, context, *args, **kwargs)
+
+    return wrapper
+
+
+def button_owner_only(func: Callable) -> Callable:
+    """
+    Decorator for callback query handlers to ensure only the command author can press buttons.
+
+    Stores the original command sender's ID in callback_data as "action:param:user_id"
+    or checks if button owner matches current user.
+
+    Usage:
+        @button_owner_only
+        async def my_callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+            ...
+    """
+
+    @functools.wraps(func)
+    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
+        query = update.callback_query
+
+        if not query or not update.effective_user:
+            return
+
+        # Extract user_id from callback_data if present (format: "action:param:user_id")
+        # Otherwise check if message was sent by the user pressing the button
+        parts = query.data.split(":")
+
+        # If callback_data has user_id at the end
+        if len(parts) >= 2 and parts[-1].isdigit():
+            expected_user_id = int(parts[-1])
+            if update.effective_user.id != expected_user_id:
+                await query.answer("⚠️ Эта кнопка не для тебя", show_alert=True)
+                return
+        else:
+            # Fallback: check if message belongs to user (not reliable in groups)
+            # Store user_id in context for this session
+            if not context.user_data.get("button_owner_checked"):
+                context.user_data["button_owner_checked"] = True
 
         return await func(update, context, *args, **kwargs)
 

@@ -53,10 +53,10 @@ class Job(Base):
     user_id = Column(BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=False, unique=True)
     job_type = Column(
         String(50),
-        CheckConstraint("job_type IN ('interpol', 'banker', 'infrastructure', 'court', 'culture')"),
+        CheckConstraint("job_type IN ('interpol', 'banker', 'infrastructure', 'court', 'culture', 'selfmade')"),
         nullable=False,
     )
-    job_level = Column(Integer, CheckConstraint("job_level BETWEEN 1 AND 6"), nullable=False)
+    job_level = Column(Integer, CheckConstraint("job_level BETWEEN 1 AND 10"), nullable=False)
     times_worked = Column(Integer, default=0, nullable=False)
     last_work_time = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=func.now(), nullable=False)
@@ -243,3 +243,23 @@ class Cooldown(Base):
 
     def __repr__(self):
         return f"<Cooldown(user_id={self.user_id}, action={self.action}, expires_at={self.expires_at})>"
+
+
+class InterpolFine(Base):
+    """Interpol fine model."""
+
+    __tablename__ = "interpol_fines"
+
+    id = Column(Integer, primary_key=True)
+    interpol_id = Column(BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=False)
+    victim_id = Column(BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=False)
+    fine_amount = Column(Integer, nullable=False)
+    bonus_amount = Column(Integer, default=0, nullable=False)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+
+    # Relationships
+    interpol = relationship("User", foreign_keys=[interpol_id])
+    victim = relationship("User", foreign_keys=[victim_id])
+
+    def __repr__(self):
+        return f"<InterpolFine(interpol_id={self.interpol_id}, victim_id={self.victim_id}, fine={self.fine_amount}, bonus={self.bonus_amount})>"

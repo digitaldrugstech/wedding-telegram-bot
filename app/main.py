@@ -10,8 +10,10 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+from app.__version__ import __version__
 from app.bot import create_bot, post_init, post_shutdown
 from app.config import config
+from app.constants import DEBUG_CHAT_ID
 from app.database.connection import init_db
 
 # Configure structlog
@@ -65,8 +67,47 @@ async def main():
         logger.info("Starting bot")
         await application.initialize()
         await application.start()
-        await application.updater.start_polling(allowed_updates=["message", "callback_query"])
+        await application.updater.start_polling(
+            allowed_updates=["message", "callback_query"],
+            drop_pending_updates=True
+        )
         logger.info("Bot started successfully")
+
+        # Send debug message to chat with changelog (optional, may fail if no access)
+        try:
+            # Read changelog for current version
+            changelog_text = ""
+            try:
+                import os
+                changelog_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "CHANGELOG.md")
+                with open(changelog_path, "r", encoding="utf-8") as f:
+                    lines = f.readlines()
+                    in_current_version = False
+                    for line in lines:
+                        if line.startswith(f"## [{__version__}]"):
+                            in_current_version = True
+                            continue
+                        elif in_current_version and line.startswith("## ["):
+                            break
+                        elif in_current_version:
+                            changelog_text += line
+            except Exception as e:
+                logger.warning("Failed to read changelog", error=str(e))
+                changelog_text = ""
+
+            message = f"🤖 Wedding Bot started\n📦 Version: {__version__}"
+            if changelog_text.strip():
+                message += f"\n\n{changelog_text.strip()}"
+
+            try:
+                await application.bot.send_message(chat_id=DEBUG_CHAT_ID, text=message)
+                logger.info("Debug message sent to chat", chat_id=DEBUG_CHAT_ID)
+            except Exception as send_error:
+                # Bot may not have access to debug chat (e.g., in production)
+                logger.debug("Could not send debug message (bot may not have access)",
+                           chat_id=DEBUG_CHAT_ID, error=str(send_error))
+        except Exception as e:
+            logger.debug("Debug message routine failed", error=str(e))
 
         # Keep running
         while True:

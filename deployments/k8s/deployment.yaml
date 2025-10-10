@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: wedding-telegram-bot
-          image: wedding-telegram-bot:latest  # Update with your registry
+          image: wedding-telegram-bot:latest
           imagePullPolicy: IfNotPresent
           env:
             - name: TELEGRAM_BOT_TOKEN

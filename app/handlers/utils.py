@@ -6,6 +6,7 @@ from telegram.ext import CommandHandler, ContextTypes
 from app.database.connection import get_db
 from app.database.models import User
 from app.utils.decorators import require_registered
+from app.utils.formatters import format_diamonds
 
 
 @require_registered
@@ -22,7 +23,7 @@ async def balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not user:
             return
 
-        await update.message.reply_text(f"💎 Ваш баланс: {user.balance} алмазов")
+        await update.message.reply_text(f"💰 Баланс: {format_diamonds(user.balance)}")
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):

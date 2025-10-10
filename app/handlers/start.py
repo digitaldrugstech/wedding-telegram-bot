@@ -5,7 +5,8 @@ from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
 from app.database.connection import get_db
 from app.database.models import Job, User
-from app.utils.decorators import require_registered
+from app.utils.decorators import button_owner_only, require_registered
+from app.utils.formatters import format_diamonds
 from app.utils.keyboards import gender_selection_keyboard, profile_keyboard
 
 
@@ -23,26 +24,27 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if user:
             # User already registered
             await update.message.reply_text(
-                f"👋 С возвращением, {username}!\n\n"
-                f"💎 Баланс: {user.balance} алмазов\n\n"
-                f"Используйте /profile для просмотра профиля.",
+                f"👋 Снова привет, {username}\n\n"
+                f"💰 Баланс: {format_diamonds(user.balance)}\n\n"
+                f"Открой /profile",
                 reply_markup=profile_keyboard(),
             )
         else:
             # New user registration
             await update.message.reply_text(
-                f"👋 Привет, {username}!\n\n"
-                f"Добро пожаловать в Wedding Bot - симулятор семейной жизни!\n\n"
-                f"💍 Заключайте браки\n"
-                f"👶 Заводите детей\n"
-                f"💼 Работайте и зарабатывайте алмазы\n"
-                f"🏠 Покупайте дома\n"
-                f"💰 Открывайте бизнесы\n\n"
-                f"Для начала выберите ваш пол:",
-                reply_markup=gender_selection_keyboard(),
+                f"👋 Привет, {username}\n\n"
+                f"Это Wedding Bot — симулятор семейной жизни на сервере\n\n"
+                f"💍 Женись или выходи замуж\n"
+                f"👶 Заводи детей\n"
+                f"💼 Работай, получай зарплату\n"
+                f"🏠 Покупай дом\n"
+                f"💰 Открывай бизнес\n\n"
+                f"Выбери пол:",
+                reply_markup=gender_selection_keyboard(user_id),
             )
 
 
+@button_owner_only
 async def gender_selection_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle gender selection callback."""
     query = update.callback_query
@@ -53,7 +55,7 @@ async def gender_selection_callback(update: Update, context: ContextTypes.DEFAUL
 
     user_id = update.effective_user.id
     username = update.effective_user.username or update.effective_user.first_name
-    gender = query.data.split(":")[1]  # "gender:male" -> "male"
+    gender = query.data.split(":")[1]  # "gender:male:user_id" -> "male"
 
     with get_db() as db:
         user = db.query(User).filter(User.telegram_id == user_id).first()
@@ -69,10 +71,11 @@ async def gender_selection_callback(update: Update, context: ContextTypes.DEFAUL
 
     gender_emoji = "♂️" if gender == "male" else "♀️"
     await query.edit_message_text(
-        f"✅ Отлично! Ваш пол: {gender_emoji}\n\n"
-        f"Регистрация завершена!\n\n"
-        f"💎 Стартовый баланс: 0 алмазов\n\n"
-        f"Используйте /profile для просмотра профиля или /work чтобы устроиться на работу.",
+        f"✅ Готово {gender_emoji}\n\n"
+        f"Ты зарегистрирован\n"
+        f"Стартовый баланс: {format_diamonds(0)}\n\n"
+        f"/profile — твой профиль\n"
+        f"/work — устройся на работу",
         reply_markup=profile_keyboard(),
     )
 
@@ -116,12 +119,13 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         profile_text = (
             f"👤 Профиль: {user.username} {gender_emoji}\n"
-            f"🆔 ID: {user.telegram_id}\n\n"
-            f"💎 Баланс: {user.balance} алмазов\n"
+            f"🆔 ID: {user.telegram_id}\n"
+            f"🎮 Аккаунт на сервере: не привязан\n\n"
+            f"💰 Баланс: {format_diamonds(user.balance)}\n"
             f"💼 Работа: {job_info}\n"
             f"💍 Брак: {marriage_info}\n"
             f"👶 Детей: {children_count}\n\n"
-            f"📅 Зарегистрирован: {user.created_at.strftime('%d.%m.%Y')}"
+            f"📅 В игре с {user.created_at.strftime('%d.%m.%Y')}"
         )
 
         await update.message.reply_text(profile_text, reply_markup=profile_keyboard())
