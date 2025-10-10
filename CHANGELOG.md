@@ -1,5 +1,38 @@
 # Changelog
 
+## [1.0.0] - 2025-10-11
+
+### 🎉 First Stable Release
+Production-ready version with all core features, quality improvements, and UX enhancements.
+
+### ✅ Production Ready
+- Clean architecture with proper separation of concerns
+- Async/await pattern throughout
+- SQLAlchemy 2.0 with Alembic migrations
+- Structured logging with structlog (JSON format)
+- Docker + Kubernetes deployment
+- Comprehensive error handling
+- DRY principles applied
+
+### 🔧 Code Quality
+- **Bold formatting** added to important values (баланс, штраф, зарплата)
+- All magic numbers moved to `constants.py`
+- Removed code duplication (format_diamonds in formatters.py)
+- Fixed bare exceptions with proper logging
+- Strong writing principles applied to all texts
+
+### 📚 Documentation
+- CLAUDE.md - full project context
+- CODE_REVIEW.md - comprehensive quality review (8.5/10)
+- CHANGELOG.md - version history
+
+### 🚀 Features
+- 5 professions (Интерпол, Банкир, Инфраструктура, Суд, Культура) + Selfmade
+- 10 job levels with dynamic promotions
+- Interpol special mechanics (fines + patrol)
+- Cooldown system
+- Admin commands
+
 ## [0.1.3] - 2025-10-11
 
 ### Improved

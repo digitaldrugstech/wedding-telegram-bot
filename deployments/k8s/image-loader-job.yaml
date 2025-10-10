@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: image-loader
+  namespace: dev-backend-services
+spec:
+  containers:
+    - name: loader
+      image: alpine:3.18
+      command: ["/bin/sh", "-c", "sleep 3600"]
+      volumeMounts:
+        - name: images
+          mountPath: /images
+  volumes:
+    - name: images
+      emptyDir: {}
+  restartPolicy: Never

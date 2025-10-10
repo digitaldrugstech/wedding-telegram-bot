@@ -17,21 +17,10 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.create_table(
-        'interpol_fines',
-        sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('interpol_id', sa.BigInteger(), nullable=False),
-        sa.Column('victim_id', sa.BigInteger(), nullable=False),
-        sa.Column('fine_amount', sa.Integer(), nullable=False),
-        sa.Column('bonus_amount', sa.Integer(), nullable=False, server_default='0'),
-        sa.Column('created_at', sa.DateTime(), server_default=sa.func.now(), nullable=False),
-        sa.PrimaryKeyConstraint('id'),
-        sa.ForeignKeyConstraint(['interpol_id'], ['users.telegram_id'], ondelete='CASCADE'),
-        sa.ForeignKeyConstraint(['victim_id'], ['users.telegram_id'], ondelete='CASCADE'),
-    )
-    op.create_index('idx_interpol_fines_victim', 'interpol_fines', ['interpol_id', 'victim_id', 'created_at'])
+    # This migration is now a no-op since 000 already creates interpol_fines table
+    # Kept for backward compatibility
+    pass
 
 
 def downgrade() -> None:
-    op.drop_index('idx_interpol_fines_victim')
-    op.drop_table('interpol_fines')
+    pass

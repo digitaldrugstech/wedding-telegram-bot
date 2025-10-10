@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  postgres-prod:
+    image: postgres:15-alpine
+    container_name: wedding-bot-postgres-prod
+    environment:
+      POSTGRES_DB: wedding_bot_prod
+      POSTGRES_USER: wedding_bot_prod
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_PROD:-wedding_prod_secure_pass_2024}
+      TZ: Europe/Moscow
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    networks:
+      - wedding-bot-prod
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wedding_bot_prod -d wedding_bot_prod"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  bot-prod:
+    image: wedding-telegram-bot:1.0.0
+    container_name: wedding-bot-prod
+    depends_on:
+      postgres-prod:
+        condition: service_healthy
+    environment:
+      TELEGRAM_BOT_TOKEN: "8458433644:AAFGSsQE2-RrClEjVIc0ZymE-eHjBa1viEw"
+      DATABASE_URL: postgresql://wedding_bot_prod:${POSTGRES_PASSWORD_PROD:-wedding_prod_secure_pass_2024}@postgres-prod:5432/wedding_bot_prod
+      ADMIN_USER_ID: "710573786"
+      TZ: Europe/Moscow
+      LOG_LEVEL: INFO
+    networks:
+      - wedding-bot-prod
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  wedding-bot-prod:
+    name: wedding-bot-prod-network
+    driver: bridge
+
+volumes:
+  postgres_prod_data:
+    name: wedding-bot-postgres-prod-data
