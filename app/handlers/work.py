@@ -348,26 +348,26 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
                 # Response
                 response = f"🚔 Оштрафовал @{victim_username}\n\n"
-                response += f"💰 **Штраф:** {format_diamonds(fine_amount)}\n"
+                response += f"💰 <b>Штраф:</b> {format_diamonds(fine_amount)}\n"
                 if bonus_amount > 0:
-                    response += f"💎 **Доплата за говновызов:** +{format_diamonds(bonus_amount)}\n"
-                response += f"💰 **Итого:** {format_diamonds(fine_amount + bonus_amount)}\n"
-                response += f"💰 **Баланс:** {format_diamonds(user.balance)}"
+                    response += f"💎 <b>Доплата за говновызов:</b> +{format_diamonds(bonus_amount)}\n"
+                response += f"💰 <b>Итого:</b> {format_diamonds(fine_amount + bonus_amount)}\n"
+                response += f"💰 <b>Баланс:</b> {format_diamonds(user.balance)}"
 
                 if promoted:
                     new_title = JOB_TITLES[job.job_type][job.job_level - 1]
                     response += f"\n\n🎉 Повышение: {new_title} ({job.job_level} уровень)"
 
-                await update.message.reply_text(response, parse_mode="Markdown")
+                await update.message.reply_text(response, parse_mode="HTML")
 
                 # Notify victim
                 try:
                     victim_message = (
                         f"🚔 Интерпол оштрафовал тебя\n\n"
-                        f"💸 **Штраф:** -{format_diamonds(fine_amount)}\n"
-                        f"💰 **Баланс:** {format_diamonds(victim_user.balance)}"
+                        f"💸 <b>Штраф:</b> -{format_diamonds(fine_amount)}\n"
+                        f"💰 <b>Баланс:</b> {format_diamonds(victim_user.balance)}"
                     )
-                    await context.bot.send_message(chat_id=victim_id, text=victim_message, parse_mode="Markdown")
+                    await context.bot.send_message(chat_id=victim_id, text=victim_message, parse_mode="HTML")
                 except Exception as e:
                     logger.warning("Failed to notify victim about fine", victim_id=victim_id, error=str(e))
 
@@ -514,17 +514,17 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"📉 Уровень сброшен на: нищий"
             )
         else:
-            response = f"✅ {flavor}\n\n💰 **Заработал:** {format_diamonds(earned)}\n💰 **Баланс:** {format_diamonds(user.balance)}"
+            response = f"✅ {flavor}\n\n💰 <b>Заработал:</b> {format_diamonds(earned)}\n💰 <b>Баланс:</b> {format_diamonds(user.balance)}"
 
             if promoted:
                 new_title = JOB_TITLES[job.job_type][job.job_level - 1]
-                response += f"\n\n🎉 **Повышение:** {new_title} ({job.job_level} уровень)"
+                response += f"\n\n🎉 <b>Повышение:</b> {new_title} ({job.job_level} уровень)"
 
             # Add hint for Interpol patrol work
             if job.job_type == "interpol":
                 response += "\n\n💡 Чтобы оштрафовать, ответь на сообщение и напиши /job"
 
-        await update.message.reply_text(response, parse_mode="Markdown")
+        await update.message.reply_text(response, parse_mode="HTML")
 
 
 async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -703,13 +703,13 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"📉 Уровень сброшен на: нищий"
                 )
             else:
-                response = f"✅ {flavor}\n\n💰 **Заработал:** {format_diamonds(earned)}\n💰 **Баланс:** {format_diamonds(user.balance)}"
+                response = f"✅ {flavor}\n\n💰 <b>Заработал:</b> {format_diamonds(earned)}\n💰 <b>Баланс:</b> {format_diamonds(user.balance)}"
 
                 if promoted:
                     new_title = JOB_TITLES[job.job_type][job.job_level - 1]
-                    response += f"\n\n🎉 **Повышение:** {new_title} ({job.job_level} уровень)"
+                    response += f"\n\n🎉 <b>Повышение:</b> {new_title} ({job.job_level} уровень)"
 
-            await query.edit_message_text(response, parse_mode="Markdown")
+            await query.edit_message_text(response, parse_mode="HTML")
 
     elif action == "quit":
         # Show confirmation dialog
@@ -808,10 +808,10 @@ async def profession_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
             new_title = JOB_TITLES[profession][new_level - 1]
             await query.edit_message_text(
                 f"✅ Сменил профессию\n\n"
-                f"📋 **Должность:** {new_title} ({new_level} уровень)\n\n"
-                f"⚠️ **Потерял:** {level_penalty} {'уровень' if level_penalty == 1 else 'уровня'}",
+                f"📋 <b>Должность:</b> {new_title} ({new_level} уровень)\n\n"
+                f"⚠️ <b>Потерял:</b> {level_penalty} {'уровень' if level_penalty == 1 else 'уровня'}",
                 reply_markup=work_menu_keyboard(has_job=True),
-                parse_mode="Markdown"
+                parse_mode="HTML"
             )
         else:
             # First job
@@ -829,11 +829,11 @@ async def profession_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
 
             await query.edit_message_text(
                 f"✅ Принят на работу\n\n"
-                f"📋 **{job_title}** (1 уровень)\n"
-                f"💰 **Зарплата:** {min_sal}-{max_sal} алмазов\n\n"
+                f"📋 <b>{job_title}</b> (1 уровень)\n"
+                f"💰 <b>Зарплата:</b> {min_sal}-{max_sal} алмазов\n\n"
                 f"Используй /job",
                 reply_markup=work_menu_keyboard(has_job=True),
-                parse_mode="Markdown"
+                parse_mode="HTML"
             )
 
 
