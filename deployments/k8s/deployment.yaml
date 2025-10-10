@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wedding-telegram-bot
+  namespace: dev-backend-services
+  labels:
+    app: wedding-telegram-bot
+spec:
+  replicas: 1  # Must be 1 for APScheduler
+  selector:
+    matchLabels:
+      app: wedding-telegram-bot
+  template:
+    metadata:
+      labels:
+        app: wedding-telegram-bot
+    spec:
+      containers:
+        - name: wedding-telegram-bot
+          image: wedding-telegram-bot:latest  # Update with your registry
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: TELEGRAM_BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: wedding-telegram-bot-secret
+                  key: TELEGRAM_BOT_TOKEN
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: wedding-telegram-bot-secret
+                  key: DATABASE_URL
+            - name: ADMIN_USER_ID
+              valueFrom:
+                configMapKeyRef:
+                  name: wedding-telegram-bot-config
+                  key: ADMIN_USER_ID
+            - name: TZ
+              valueFrom:
+                configMapKeyRef:
+                  name: wedding-telegram-bot-config
+                  key: TZ
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: wedding-telegram-bot-config
+                  key: LOG_LEVEL
+            - name: BUSINESS_PAYOUT_DAY
+              valueFrom:
+                configMapKeyRef:
+                  name: wedding-telegram-bot-config
+                  key: BUSINESS_PAYOUT_DAY
+            - name: BUSINESS_PAYOUT_HOUR
+              valueFrom:
+                configMapKeyRef:
+                  name: wedding-telegram-bot-config
+                  key: BUSINESS_PAYOUT_HOUR
+            - name: BUSINESS_PAYOUT_MINUTE
+              valueFrom:
+                configMapKeyRef:
+                  name: wedding-telegram-bot-config
+                  key: BUSINESS_PAYOUT_MINUTE
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            exec:
+              command:
+                - pgrep
+                - -f
+                - "python -m app.main"
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - pgrep
+                - -f
+                - "python -m app.main"
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+      restartPolicy: Always

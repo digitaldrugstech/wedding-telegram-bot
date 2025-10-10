@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wedding-telegram-bot-config
+  namespace: dev-backend-services
+data:
+  ADMIN_USER_ID: "710573786"
+  TZ: "Europe/Moscow"
+  LOG_LEVEL: "INFO"
+  BUSINESS_PAYOUT_DAY: "4"  # Friday
+  BUSINESS_PAYOUT_HOUR: "18"
+  BUSINESS_PAYOUT_MINUTE: "0"

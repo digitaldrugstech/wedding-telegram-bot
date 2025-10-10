@@ -1,0 +1,39 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: wedding_bot
+      POSTGRES_USER: wedding_bot
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wedding_bot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  bot:
+    build:
+      context: ..
+      dockerfile: deployments/Dockerfile
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      DATABASE_URL: postgresql://wedding_bot:password@postgres:5432/wedding_bot
+      ADMIN_USER_ID: 710573786
+      TZ: Europe/Moscow
+      LOG_LEVEL: INFO
+      BUSINESS_PAYOUT_DAY: 4
+      BUSINESS_PAYOUT_HOUR: 18
+      BUSINESS_PAYOUT_MINUTE: 0
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
