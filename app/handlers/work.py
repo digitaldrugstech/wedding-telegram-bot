@@ -358,7 +358,7 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     new_title = JOB_TITLES[job.job_type][job.job_level - 1]
                     response += f"\n\n🎉 Повышение: {new_title} ({job.job_level} уровень)"
 
-                await update.message.reply_text(response)
+                await update.message.reply_text(response, parse_mode="Markdown")
 
                 # Notify victim
                 try:
@@ -367,7 +367,7 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         f"💸 **Штраф:** -{format_diamonds(fine_amount)}\n"
                         f"💰 **Баланс:** {format_diamonds(victim_user.balance)}"
                     )
-                    await context.bot.send_message(chat_id=victim_id, text=victim_message)
+                    await context.bot.send_message(chat_id=victim_id, text=victim_message, parse_mode="Markdown")
                 except Exception as e:
                     logger.warning("Failed to notify victim about fine", victim_id=victim_id, error=str(e))
 
@@ -524,7 +524,7 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if job.job_type == "interpol":
                 response += "\n\n💡 Чтобы оштрафовать, ответь на сообщение и напиши /job"
 
-        await update.message.reply_text(response)
+        await update.message.reply_text(response, parse_mode="Markdown")
 
 
 async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -709,7 +709,7 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     new_title = JOB_TITLES[job.job_type][job.job_level - 1]
                     response += f"\n\n🎉 **Повышение:** {new_title} ({job.job_level} уровень)"
 
-            await query.edit_message_text(response)
+            await query.edit_message_text(response, parse_mode="Markdown")
 
     elif action == "quit":
         # Show confirmation dialog
@@ -811,6 +811,7 @@ async def profession_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
                 f"📋 **Должность:** {new_title} ({new_level} уровень)\n\n"
                 f"⚠️ **Потерял:** {level_penalty} {'уровень' if level_penalty == 1 else 'уровня'}",
                 reply_markup=work_menu_keyboard(has_job=True),
+                parse_mode="Markdown"
             )
         else:
             # First job
@@ -832,6 +833,7 @@ async def profession_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
                 f"💰 **Зарплата:** {min_sal}-{max_sal} алмазов\n\n"
                 f"Используй /job",
                 reply_markup=work_menu_keyboard(has_job=True),
+                parse_mode="Markdown"
             )
 
 
