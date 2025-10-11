@@ -21,17 +21,21 @@ services:
       retries: 5
 
   bot-prod:
-    image: wedding-telegram-bot:latest
+    image: ghcr.io/digitaldrugstech/wedding-telegram-bot:latest
     container_name: wedding-bot-prod
     depends_on:
       postgres-prod:
         condition: service_healthy
     environment:
-      TELEGRAM_BOT_TOKEN: "7454412857:AAH_gW97e7CHEOeVgXfHsrPM0mhbCV0ojEY"
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN_PROD}
       DATABASE_URL: postgresql://wedding_bot_prod:${POSTGRES_PASSWORD_PROD:-wedding_prod_secure_pass_2024}@postgres-prod:5432/wedding_bot_prod
       ADMIN_USER_ID: "710573786"
       TZ: Europe/Moscow
-      LOG_LEVEL: DEBUG
+      LOG_LEVEL: INFO
+      DEBUG_CHAT_ID: -1003172144355
+      BUSINESS_PAYOUT_DAY: 4
+      BUSINESS_PAYOUT_HOUR: 18
+      BUSINESS_PAYOUT_MINUTE: 0
     networks:
       - wedding-bot-prod
     restart: unless-stopped

@@ -3,14 +3,17 @@ version: "3.8"
 services:
   postgres:
     image: postgres:15-alpine
+    container_name: wedding-bot-postgres-dev
     environment:
       POSTGRES_DB: wedding_bot
       POSTGRES_USER: wedding_bot
-      POSTGRES_PASSWORD: password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      TZ: Europe/Moscow
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - wedding-net
+    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U wedding_bot -d wedding_bot"]
       interval: 5s
@@ -19,13 +22,15 @@ services:
       start_period: 10s
 
   bot:
-    image: wedding-telegram-bot:latest
+    image: ghcr.io/digitaldrugstech/wedding-telegram-bot:latest
+    container_name: wedding-bot-dev
     environment:
-      TELEGRAM_BOT_TOKEN: "8458433644:AAFGSsQE2-RrClEjVIc0ZymE-eHjBa1viEw"
-      DATABASE_URL: postgresql://wedding_bot:password@postgres:5432/wedding_bot
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN_DEV}
+      DATABASE_URL: postgresql://wedding_bot:${POSTGRES_PASSWORD:-password}@postgres:5432/wedding_bot
       ADMIN_USER_ID: 710573786
       TZ: Europe/Moscow
-      LOG_LEVEL: INFO
+      LOG_LEVEL: DEBUG
+      DEBUG_CHAT_ID: -1003172144355
       BUSINESS_PAYOUT_DAY: 4
       BUSINESS_PAYOUT_HOUR: 18
       BUSINESS_PAYOUT_MINUTE: 0
@@ -34,6 +39,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    restart: unless-stopped
 
 networks:
   wedding-net:
