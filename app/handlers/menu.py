@@ -94,12 +94,12 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 keyboard = [
                     [
                         InlineKeyboardButton("💝 Подарить", callback_data=f"marriage_gift:{user_id}"),
-                        InlineKeyboardButton("💔 Развод", callback_data=f"marriage_divorce:{user_id}")
+                        InlineKeyboardButton("💔 Развод", callback_data=f"marriage_divorce:{user_id}"),
                     ],
                     [
                         InlineKeyboardButton("❤️ /makelove", callback_data=f"marriage_help_love:{user_id}"),
-                        InlineKeyboardButton("📅 /date", callback_data=f"marriage_help_date:{user_id}")
-                    ]
+                        InlineKeyboardButton("📅 /date", callback_data=f"marriage_help_date:{user_id}"),
+                    ],
                 ]
                 reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -118,10 +118,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
                 await query.edit_message_text(message, reply_markup=reply_markup, parse_mode="HTML")
             else:
-                await query.edit_message_text(
-                    "💔 Не в браке\n\n/propose — сделать предложение",
-                    parse_mode="HTML"
-                )
+                await query.edit_message_text("💔 Не в браке\n\n/propose — сделать предложение", parse_mode="HTML")
         return
 
     # Handle unimplemented menus
@@ -134,6 +131,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Handle profile menu (go back)
     if menu_type == "profile":
         from app.handlers.start import profile_command
+
         # Simulate a profile command
         if update.effective_message:
             # Create a fake message update to reuse profile_command

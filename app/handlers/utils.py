@@ -1,12 +1,11 @@
 """Utility command handlers (balance, help, transfer)."""
 
-from telegram import Update
-from telegram.ext import CommandHandler, ContextTypes
-
 from app.database.connection import get_db
 from app.database.models import User
 from app.utils.decorators import require_registered
 from app.utils.formatters import format_diamonds
+from telegram import Update
+from telegram.ext import CommandHandler, ContextTypes
 
 
 @require_registered

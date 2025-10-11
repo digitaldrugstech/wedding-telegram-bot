@@ -4,10 +4,9 @@ import os
 from contextlib import contextmanager
 from typing import Generator
 
+from app.database.models import Base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
-
-from app.database.models import Base
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://wedding_bot:password@localhost:5432/wedding_bot")
 

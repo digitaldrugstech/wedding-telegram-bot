@@ -9,13 +9,17 @@ from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
 logger = structlog.get_logger()
 
-from app.constants import INTERPOL_BONUS_MAX_PERCENTAGE, INTERPOL_MIN_VICTIM_BALANCE, INTERPOL_VICTIM_COOLDOWN_HOURS, SELFMADE_TRAP_LEVEL
+from app.constants import (
+    INTERPOL_BONUS_MAX_PERCENTAGE,
+    INTERPOL_MIN_VICTIM_BALANCE,
+    INTERPOL_VICTIM_COOLDOWN_HOURS,
+    SELFMADE_TRAP_LEVEL,
+)
 from app.database.connection import get_db
 from app.database.models import Cooldown, InterpolFine, Job, User
 from app.utils.decorators import require_registered, set_cooldown
 from app.utils.formatters import format_diamonds
 from app.utils.keyboards import profession_selection_keyboard, work_menu_keyboard
-
 
 # Job titles by profession and level
 JOB_TITLES = {
@@ -143,15 +147,15 @@ GUARANTEED_PROMOTION_WORKS = {
 
 # Cooldowns by level (in hours)
 COOLDOWN_BY_LEVEL = {
-    1: 1,    # 1 hour
+    1: 1,  # 1 hour
     2: 1,
     3: 1.5,  # 1.5 hours
     4: 1.5,
-    5: 2,    # 2 hours
+    5: 2,  # 2 hours
     6: 2,
-    7: 3,    # 3 hours
+    7: 3,  # 3 hours
     8: 3,
-    9: 4,    # 4 hours
+    9: 4,  # 4 hours
     10: 4,
 }
 
@@ -245,7 +249,7 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
             # Option 2: Username argument (@username)
             elif context.args and len(context.args) > 0:
-                username = context.args[0].lstrip('@')
+                username = context.args[0].lstrip("@")
                 victim_user_check = db.query(User).filter(User.username == username).first()
                 if not victim_user_check:
                     await update.message.reply_text(f"Пользователь @{username} не найден")
@@ -286,7 +290,9 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
 
                 if last_fine:
-                    remaining = (last_fine.created_at + timedelta(hours=INTERPOL_VICTIM_COOLDOWN_HOURS)) - datetime.utcnow()
+                    remaining = (
+                        last_fine.created_at + timedelta(hours=INTERPOL_VICTIM_COOLDOWN_HOURS)
+                    ) - datetime.utcnow()
                     minutes = int(remaining.total_seconds() / 60)
                     await update.message.reply_text(f"Можешь оштрафовать @{victim_username} через {minutes}м")
                     return
@@ -344,15 +350,9 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
                 db.commit()
 
-
-
                 # Set cooldown (skip for debug chat)
 
-
-
-
                 cooldown_hours = COOLDOWN_BY_LEVEL.get(job.job_level, 4)
-
 
                 set_cooldown(update, user_id, "job", cooldown_hours)
 
@@ -387,11 +387,7 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 pass
 
         # Check cooldown AFTER verifying user has a job
-        cooldown_entry = (
-            db.query(Cooldown)
-            .filter(Cooldown.user_id == user_id, Cooldown.action == "job")
-            .first()
-        )
+        cooldown_entry = db.query(Cooldown).filter(Cooldown.user_id == user_id, Cooldown.action == "job").first()
 
         if cooldown_entry and cooldown_entry.expires_at > datetime.utcnow():
             remaining = cooldown_entry.expires_at - datetime.utcnow()
@@ -411,9 +407,7 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Calculate salary based on profession
         if job.job_type == "selfmade":
-            min_salary, max_salary = SELFMADE_SALARY_RANGES.get(
-                job.job_level, (5, 10)
-            )
+            min_salary, max_salary = SELFMADE_SALARY_RANGES.get(job.job_level, (5, 10))
         else:
             min_salary, max_salary = SALARY_RANGES.get(job.job_level, (10, 20))
 
@@ -437,10 +431,7 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         guaranteed_works = GUARANTEED_PROMOTION_WORKS.get(job.job_level, 999)
 
         if job.job_level < max_level:  # Not max level
-            if (
-                random.random() < promotion_chance
-                or job.times_worked >= guaranteed_works
-            ):
+            if random.random() < promotion_chance or job.times_worked >= guaranteed_works:
                 # Selfmade trap: при попытке апа с максимального уровня
                 if job.job_type == "selfmade" and job.job_level == SELFMADE_TRAP_LEVEL:
                     # НАЕБАЛИ!
@@ -455,22 +446,15 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Set cooldown AFTER successful work (skip for debug chat)
 
-
         if job.job_type == "selfmade":
-
 
             cooldown_hours = SELFMADE_COOLDOWN
 
-
         else:
-
 
             cooldown_hours = COOLDOWN_BY_LEVEL.get(job.job_level, 4)
 
-
-
         set_cooldown(update, user_id, "job", cooldown_hours)
-
 
         db.commit()
 
@@ -575,21 +559,12 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Interpol must use /job with reply
             if job.job_type == "interpol":
                 await query.edit_message_text(
-                    "🚔 Интерпол\n\n"
-                    "💡 Штраф:\n"
-                    "• /job (ответь)\n"
-                    "• /job @username\n\n"
-                    "💡 Охрана:\n"
-                    "/job"
+                    "🚔 Интерпол\n\n" "💡 Штраф:\n" "• /job (ответь)\n" "• /job @username\n\n" "💡 Охрана:\n" "/job"
                 )
                 return
 
             # Check cooldown
-            cooldown_entry = (
-                db.query(Cooldown)
-                .filter(Cooldown.user_id == user_id, Cooldown.action == "job")
-                .first()
-            )
+            cooldown_entry = db.query(Cooldown).filter(Cooldown.user_id == user_id, Cooldown.action == "job").first()
 
             if cooldown_entry and cooldown_entry.expires_at > datetime.utcnow():
                 remaining = cooldown_entry.expires_at - datetime.utcnow()
@@ -645,22 +620,15 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             # Set cooldown (skip for debug chat)
 
-
             if job.job_type == "selfmade":
-
 
                 cooldown_hours = SELFMADE_COOLDOWN
 
-
             else:
-
 
                 cooldown_hours = COOLDOWN_BY_LEVEL.get(job.job_level, 4)
 
-
-
             set_cooldown(update, user_id, "job", cooldown_hours)
-
 
             db.commit()
 
@@ -819,7 +787,7 @@ async def profession_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
                 f"📋 {new_title} ({new_level} ур.)\n\n"
                 f"⚠️ Потерял {level_penalty} {'уровень' if level_penalty == 1 else 'уровня'}",
                 reply_markup=work_menu_keyboard(has_job=True),
-                parse_mode="HTML"
+                parse_mode="HTML",
             )
         else:
             # First job
@@ -836,12 +804,9 @@ async def profession_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
                 min_sal, max_sal = SALARY_RANGES[1]
 
             await query.edit_message_text(
-                f"✅ Принят\n\n"
-                f"📋 {job_title} (1 ур.)\n"
-                f"💰 {min_sal}-{max_sal} алмазов\n\n"
-                f"/job — работать",
+                f"✅ Принят\n\n" f"📋 {job_title} (1 ур.)\n" f"💰 {min_sal}-{max_sal} алмазов\n\n" f"/job — работать",
                 reply_markup=work_menu_keyboard(has_job=True),
-                parse_mode="HTML"
+                parse_mode="HTML",
             )
 
 
@@ -850,6 +815,4 @@ def register_work_handlers(application):
     application.add_handler(CommandHandler("work", work_menu_command))
     application.add_handler(CommandHandler("job", job_command))
     application.add_handler(CallbackQueryHandler(work_callback, pattern="^work:"))
-    application.add_handler(
-        CallbackQueryHandler(profession_callback, pattern="^profession:")
-    )
+    application.add_handler(CallbackQueryHandler(profession_callback, pattern="^profession:"))

@@ -4,11 +4,10 @@ import functools
 from datetime import datetime, timedelta
 from typing import Callable
 
-from telegram import Update
-from telegram.ext import ContextTypes
-
 from app.database.connection import get_db
 from app.database.models import Cooldown, User
+from telegram import Update
+from telegram.ext import ContextTypes
 
 
 def set_cooldown(update: Update, user_id: int, action: str, hours: float):
@@ -29,11 +28,7 @@ def set_cooldown(update: Update, user_id: int, action: str, hours: float):
 
     with get_db() as db:
         expires_at = datetime.utcnow() + timedelta(hours=hours)
-        cooldown_entry = (
-            db.query(Cooldown)
-            .filter(Cooldown.user_id == user_id, Cooldown.action == action)
-            .first()
-        )
+        cooldown_entry = db.query(Cooldown).filter(Cooldown.user_id == user_id, Cooldown.action == action).first()
 
         if cooldown_entry:
             cooldown_entry.expires_at = expires_at
@@ -117,9 +112,7 @@ def cooldown(action: str, seconds: int) -> Callable:
             with get_db() as db:
                 # Check cooldown
                 cooldown_entry = (
-                    db.query(Cooldown)
-                    .filter(Cooldown.user_id == user_id, Cooldown.action == action)
-                    .first()
+                    db.query(Cooldown).filter(Cooldown.user_id == user_id, Cooldown.action == action).first()
                 )
 
                 if cooldown_entry and cooldown_entry.expires_at > datetime.utcnow():
@@ -146,9 +139,7 @@ def cooldown(action: str, seconds: int) -> Callable:
                 expires_at = datetime.utcnow() + timedelta(seconds=seconds)
 
                 cooldown_entry = (
-                    db.query(Cooldown)
-                    .filter(Cooldown.user_id == user_id, Cooldown.action == action)
-                    .first()
+                    db.query(Cooldown).filter(Cooldown.user_id == user_id, Cooldown.action == action).first()
                 )
 
                 if cooldown_entry:

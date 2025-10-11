@@ -1,13 +1,12 @@
 """Start and profile handlers."""
 
-from telegram import Update
-from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
-
 from app.database.connection import get_db
 from app.database.models import Job, User
 from app.utils.decorators import button_owner_only, require_registered
 from app.utils.formatters import format_diamonds
 from app.utils.keyboards import gender_selection_keyboard, profile_keyboard
+from telegram import Update
+from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
 
 @button_owner_only
@@ -37,9 +36,7 @@ async def gender_selection_callback(update: Update, context: ContextTypes.DEFAUL
 
     gender_emoji = "♂️" if gender == "male" else "♀️"
     await query.edit_message_text(
-        f"✅ {gender_emoji} Регистрация завершена\n\n"
-        f"/profile — профиль\n"
-        f"/work — работа",
+        f"✅ {gender_emoji} Регистрация завершена\n\n" f"/profile — профиль\n" f"/work — работа",
         reply_markup=profile_keyboard(),
     )
 

@@ -1,13 +1,12 @@
 """Marriage service for Wedding Telegram Bot."""
 
+import random
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
-import random
 
 import structlog
+from app.database.models import FamilyMember, Marriage, User
 from sqlalchemy.orm import Session
-
-from app.database.models import Marriage, User, FamilyMember
 
 logger = structlog.get_logger()
 
@@ -41,13 +40,14 @@ class MarriageService:
             return False, "Сначала выбери пол в /start"
 
         # Check existing marriage
-        existing = db.query(Marriage).filter(
-            Marriage.is_active == True,
-            (
-                (Marriage.partner1_id == proposer_id) |
-                (Marriage.partner2_id == proposer_id)
+        existing = (
+            db.query(Marriage)
+            .filter(
+                Marriage.is_active == True,
+                ((Marriage.partner1_id == proposer_id) | (Marriage.partner2_id == proposer_id)),
             )
-        ).first()
+            .first()
+        )
 
         if existing:
             return False, "Ты уже женат/замужем"
@@ -74,13 +74,14 @@ class MarriageService:
             return False, "Можно жениться только на противоположном поле"
 
         # Check existing marriage
-        existing = db.query(Marriage).filter(
-            Marriage.is_active == True,
-            (
-                (Marriage.partner1_id == acceptor_id) |
-                (Marriage.partner2_id == acceptor_id)
+        existing = (
+            db.query(Marriage)
+            .filter(
+                Marriage.is_active == True,
+                ((Marriage.partner1_id == acceptor_id) | (Marriage.partner2_id == acceptor_id)),
             )
-        ).first()
+            .first()
+        )
 
         if existing:
             return False, "Ты уже женат/замужем"
@@ -97,11 +98,7 @@ class MarriageService:
         # Create marriage (smaller ID first for uniqueness)
         p1, p2 = min(partner1_id, partner2_id), max(partner1_id, partner2_id)
 
-        marriage = Marriage(
-            partner1_id=p1,
-            partner2_id=p2,
-            is_active=True
-        )
+        marriage = Marriage(partner1_id=p1, partner2_id=p2, is_active=True)
         db.add(marriage)
         db.commit()
         db.refresh(marriage)
@@ -112,13 +109,11 @@ class MarriageService:
     @staticmethod
     def get_active_marriage(db: Session, user_id: int) -> Optional[Marriage]:
         """Get user's active marriage."""
-        return db.query(Marriage).filter(
-            Marriage.is_active == True,
-            (
-                (Marriage.partner1_id == user_id) |
-                (Marriage.partner2_id == user_id)
-            )
-        ).first()
+        return (
+            db.query(Marriage)
+            .filter(Marriage.is_active == True, ((Marriage.partner1_id == user_id) | (Marriage.partner2_id == user_id)))
+            .first()
+        )
 
     @staticmethod
     def get_partner_id(marriage: Marriage, user_id: int) -> int:
@@ -257,8 +252,16 @@ class MarriageService:
 
         # Random date location
         locations = [
-            "кафе", "кинотеатр", "парк", "ресторан", "боулинг",
-            "каток", "пляж", "музей", "выставка", "концерт"
+            "кафе",
+            "кинотеатр",
+            "парк",
+            "ресторан",
+            "боулинг",
+            "каток",
+            "пляж",
+            "музей",
+            "выставка",
+            "концерт",
         ]
         location = random.choice(locations)
 
@@ -311,10 +314,11 @@ class MarriageService:
             success
         """
         # Check if already member
-        existing = db.query(FamilyMember).filter(
-            FamilyMember.marriage_id == marriage_id,
-            FamilyMember.user_id == user_id
-        ).first()
+        existing = (
+            db.query(FamilyMember)
+            .filter(FamilyMember.marriage_id == marriage_id, FamilyMember.user_id == user_id)
+            .first()
+        )
 
         if existing:
             return False
@@ -329,6 +333,4 @@ class MarriageService:
     @staticmethod
     def get_family_members(db: Session, marriage_id: int) -> list:
         """Get all family members."""
-        return db.query(FamilyMember).filter(
-            FamilyMember.marriage_id == marriage_id
-        ).all()
+        return db.query(FamilyMember).filter(FamilyMember.marriage_id == marriage_id).all()

@@ -68,8 +68,7 @@ async def main():
         await application.initialize()
         await application.start()
         await application.updater.start_polling(
-            allowed_updates=["message", "callback_query"],
-            drop_pending_updates=True
+            allowed_updates=["message", "callback_query"], drop_pending_updates=True
         )
         logger.info("Bot started successfully")
 
@@ -79,6 +78,7 @@ async def main():
             changelog_text = ""
             try:
                 import os
+
                 changelog_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "CHANGELOG.md")
                 with open(changelog_path, "r", encoding="utf-8") as f:
                     lines = f.readlines()
@@ -104,8 +104,11 @@ async def main():
                 logger.info("Debug message sent to chat", chat_id=DEBUG_CHAT_ID)
             except Exception as send_error:
                 # Bot may not have access to debug chat (e.g., in production)
-                logger.debug("Could not send debug message (bot may not have access)",
-                           chat_id=DEBUG_CHAT_ID, error=str(send_error))
+                logger.debug(
+                    "Could not send debug message (bot may not have access)",
+                    chat_id=DEBUG_CHAT_ID,
+                    error=str(send_error),
+                )
         except Exception as e:
             logger.debug("Debug message routine failed", error=str(e))
 

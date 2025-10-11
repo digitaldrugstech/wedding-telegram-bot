@@ -36,9 +36,7 @@ class Config:
         """Load configuration from environment variables."""
         return cls(
             telegram_bot_token=os.getenv("TELEGRAM_BOT_TOKEN", ""),
-            database_url=os.getenv(
-                "DATABASE_URL", "postgresql://wedding_bot:password@localhost:5432/wedding_bot"
-            ),
+            database_url=os.getenv("DATABASE_URL", "postgresql://wedding_bot:password@localhost:5432/wedding_bot"),
             admin_user_id=int(os.getenv("ADMIN_USER_ID", "710573786")),
             timezone=os.getenv("TZ", "Europe/Moscow"),
             business_payout_day=int(os.getenv("BUSINESS_PAYOUT_DAY", "4")),
