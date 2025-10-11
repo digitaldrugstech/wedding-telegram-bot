@@ -142,15 +142,20 @@ async def propose_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             proposer = db.query(User).filter(User.telegram_id == proposer_id).first()
             target_user = db.query(User).filter(User.telegram_id == target_id).first()
 
+            # Extract data before session closes
+            proposer_username = proposer.username or 'User'
+            target_username = target_user.username or 'User'
+            marriage_id = marriage.id
+
         await query.edit_message_text(
             f"🎉 <b>Поздравляем!</b>\n\n"
-            f"💍 {proposer.username or 'User'} и {target_user.username or 'User'} теперь муж и жена!\n\n"
+            f"💍 {proposer_username} и {target_username} теперь муж и жена!\n\n"
             f"💰 Потрачено: {PROPOSE_COST} алмазов\n\n"
             f"Используй /marriage для управления браком",
             parse_mode="HTML"
         )
 
-        logger.info("Proposal accepted", proposer_id=proposer_id, target_id=target_id, marriage_id=marriage.id)
+        logger.info("Proposal accepted", proposer_id=proposer_id, target_id=target_id, marriage_id=marriage_id)
 
     elif action == "propose_reject":
         await query.edit_message_text(
