@@ -35,11 +35,11 @@ async def reset_cooldown_command(update: Update, context: ContextTypes.DEFAULT_T
 
         if deleted_count > 0:
             await update.message.reply_text(
-                f"✅ Сброшено {deleted_count} кулдаунов для пользователя {target_username} (ID: {target_user_id})"
+                f"✅ Сброшено {deleted_count} кулдаунов\n{target_username} (ID: {target_user_id})"
             )
         else:
             await update.message.reply_text(
-                f"⚠️ У пользователя {target_username} (ID: {target_user_id}) нет активных кулдаунов"
+                f"⚠️ Нет активных кулдаунов\n{target_username} (ID: {target_user_id})"
             )
 
 

@@ -23,35 +23,30 @@ async def balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not user:
             return
 
-        await update.message.reply_text(f"💰 Баланс: {format_diamonds(user.balance)}")
+        await update.message.reply_text(f"💰 {format_diamonds(user.balance)}")
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /help command."""
     help_text = (
-        "🤖 *Wedding Bot - Справка*\n\n"
-        "*Основные команды:*\n"
-        "/start - Начать работу с ботом\n"
-        "/profile - Показать профиль\n"
-        "/balance - Показать баланс алмазов\n\n"
-        "*Работа:*\n"
-        "/work - Меню управления работой\n"
-        "/job - Работать (получить зарплату)\n\n"
-        "*Брак и семья:*\n"
-        "/propose - Предложить брак (ответом на сообщение)\n"
-        "/marriage - Меню брака и семьи\n"
-        "/family - Меню семьи и детей\n\n"
-        "*Экономика:*\n"
-        "/house - Меню покупки и продажи дома\n"
-        "/business - Меню бизнесов\n"
-        "/casino [ставка] - Играть в казино\n\n"
-        "*Другое:*\n"
-        "/help - Справка по командам\n\n"
-        "💎 *Валюта:* Алмазы\n\n"
-        "Для навигации используйте кнопки под сообщениями!"
+        "<b>Команды</b>\n\n"
+        "<b>Профиль</b>\n"
+        "/start — начать\n"
+        "/profile — профиль\n"
+        "/balance — баланс\n\n"
+        "<b>Работа</b>\n"
+        "/work — меню\n"
+        "/job — работать\n\n"
+        "<b>Брак</b>\n"
+        "/propose @username — предложить\n"
+        "/marriage — меню\n"
+        "/makelove — любовь\n"
+        "/date — свидание\n"
+        "/cheat @username — измена\n\n"
+        "💎 Валюта — алмазы"
     )
 
-    await update.message.reply_text(help_text, parse_mode="Markdown")
+    await update.message.reply_text(help_text, parse_mode="HTML")
 
 
 def register_utils_handlers(application):

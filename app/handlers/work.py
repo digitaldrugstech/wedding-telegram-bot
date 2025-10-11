@@ -12,7 +12,7 @@ logger = structlog.get_logger()
 from app.constants import INTERPOL_BONUS_MAX_PERCENTAGE, INTERPOL_MIN_VICTIM_BALANCE, INTERPOL_VICTIM_COOLDOWN_HOURS, SELFMADE_TRAP_LEVEL
 from app.database.connection import get_db
 from app.database.models import Cooldown, InterpolFine, Job, User
-from app.utils.decorators import require_registered
+from app.utils.decorators import require_registered, set_cooldown
 from app.utils.formatters import format_diamonds
 from app.utils.keyboards import profession_selection_keyboard, work_menu_keyboard
 
@@ -197,22 +197,20 @@ async def work_menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             max_level = 6 if job.job_type == "selfmade" else 10
             if job.job_level < max_level:
                 next_title = JOB_TITLES[job.job_type][job.job_level]
-                next_level_text = f"📈 Следующая должность: {next_title}"
+                next_level_text = f"📈 {next_title}"
             else:
-                next_level_text = "🏆 Максимальный уровень достигнут"
+                next_level_text = "🏆 Максимум"
 
             await update.message.reply_text(
-                f"💼 Твоя работа\n\n"
-                f"🎯 {track_name}\n"
+                f"💼 {track_name}\n"
                 f"{emoji} {job_name} ({job.job_level}/{max_level})\n"
-                f"📊 Отработано: {job.times_worked}\n"
+                f"📊 {job.times_worked}\n"
                 f"{next_level_text}",
                 reply_markup=work_menu_keyboard(has_job=True),
             )
         else:
             await update.message.reply_text(
-                "💼 У тебя нет работы\n\n"
-                "Выбери профессию:",
+                "💼 Нет работы\n\nВыбери профессию:",
                 reply_markup=work_menu_keyboard(has_job=False),
             )
 
@@ -230,7 +228,7 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         job = db.query(Job).filter(Job.user_id == user_id).first()
 
         if not job:
-            await update.message.reply_text("⚠️ У тебя нет работы. Используй /work")
+            await update.message.reply_text("⚠️ Нет работы. Используй /work")
             return
 
         # Interpol special mechanics: reply = fine, no reply = patrol
@@ -272,7 +270,7 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 # Check if victim has enough balance
                 if victim_user.balance < INTERPOL_MIN_VICTIM_BALANCE:
                     await update.message.reply_text(
-                        f"У @{victim_username} мало алмазов (баланс < {format_diamonds(INTERPOL_MIN_VICTIM_BALANCE)})"
+                        f"У @{victim_username} мало алмазов (< {format_diamonds(INTERPOL_MIN_VICTIM_BALANCE)})"
                     )
                     return
 
@@ -344,42 +342,39 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         job.times_worked = 0
                         promoted = True
 
-                # Set cooldown
-                cooldown_hours = COOLDOWN_BY_LEVEL.get(job.job_level, 4)
-                expires_at = datetime.utcnow() + timedelta(hours=cooldown_hours)
-                cooldown_entry = (
-                    db.query(Cooldown)
-                    .filter(Cooldown.user_id == user_id, Cooldown.action == "job")
-                    .first()
-                )
-
-                if cooldown_entry:
-                    cooldown_entry.expires_at = expires_at
-                else:
-                    cooldown_entry = Cooldown(user_id=user_id, action="job", expires_at=expires_at)
-                    db.add(cooldown_entry)
-
                 db.commit()
 
+
+
+                # Set cooldown (skip for debug chat)
+
+
+
+
+                cooldown_hours = COOLDOWN_BY_LEVEL.get(job.job_level, 4)
+
+
+                set_cooldown(update, user_id, "job", cooldown_hours)
+
                 # Response
-                response = f"🚔 Оштрафовал @{victim_username}\n\n"
-                response += f"💰 <b>Штраф:</b> {format_diamonds(fine_amount)}\n"
+                response = f"🚔 @{victim_username} оштрафован\n\n"
+                response += f"💰 {format_diamonds(fine_amount)}\n"
                 if bonus_amount > 0:
-                    response += f"💎 <b>Доплата за говновызов:</b> +{format_diamonds(bonus_amount)}\n"
+                    response += f"💎 <b>За говновызов:</b> +{format_diamonds(bonus_amount)}\n"
                 response += f"💰 <b>Итого:</b> {format_diamonds(fine_amount + bonus_amount)}"
 
                 if promoted:
                     new_title = JOB_TITLES[job.job_type][job.job_level - 1]
-                    response += f"\n\n🎉 Повышение: {new_title} ({job.job_level} уровень)"
+                    response += f"\n\n🎉 {new_title} ({job.job_level} ур.)"
 
                 await update.message.reply_text(response, parse_mode="HTML")
 
                 # Notify victim
                 try:
                     victim_message = (
-                        f"🚔 Интерпол оштрафовал тебя\n\n"
-                        f"💸 <b>Штраф:</b> -{format_diamonds(fine_amount)}\n"
-                        f"💰 <b>Баланс:</b> {format_diamonds(victim_user.balance)}"
+                        f"🚔 Штраф\n\n"
+                        f"💸 -{format_diamonds(fine_amount)}\n"
+                        f"💰 {format_diamonds(victim_user.balance)}"
                     )
                     await context.bot.send_message(chat_id=victim_id, text=victim_message, parse_mode="HTML")
                 except Exception as e:
@@ -458,24 +453,24 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     job.times_worked = 0  # Reset counter
                     promoted = True
 
-        # Set cooldown AFTER successful work (based on level and profession)
+        # Set cooldown AFTER successful work (skip for debug chat)
+
+
         if job.job_type == "selfmade":
+
+
             cooldown_hours = SELFMADE_COOLDOWN
+
+
         else:
+
+
             cooldown_hours = COOLDOWN_BY_LEVEL.get(job.job_level, 4)
 
-        expires_at = datetime.utcnow() + timedelta(hours=cooldown_hours)
-        cooldown_entry = (
-            db.query(Cooldown)
-            .filter(Cooldown.user_id == user_id, Cooldown.action == "job")
-            .first()
-        )
 
-        if cooldown_entry:
-            cooldown_entry.expires_at = expires_at
-        else:
-            cooldown_entry = Cooldown(user_id=user_id, action="job", expires_at=expires_at)
-            db.add(cooldown_entry)
+
+        set_cooldown(update, user_id, "job", cooldown_hours)
+
 
         db.commit()
 
@@ -528,15 +523,15 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"📉 Уровень сброшен на: нищий"
             )
         else:
-            response = f"✅ {flavor}\n\n💰 <b>Заработал:</b> {format_diamonds(earned)}"
+            response = f"✅ {flavor}\n\n💰 {format_diamonds(earned)}"
 
             if promoted:
                 new_title = JOB_TITLES[job.job_type][job.job_level - 1]
-                response += f"\n\n🎉 <b>Повышение:</b> {new_title} ({job.job_level} уровень)"
+                response += f"\n\n🎉 {new_title} ({job.job_level} ур.)"
 
             # Add hint for Interpol patrol work
             if job.job_type == "interpol":
-                response += "\n\n💡 Чтобы оштрафовать:\n• /job (ответь на сообщение)\n• /job @username"
+                response += "\n\n💡 Штраф:\n• /job (ответь)\n• /job @username"
 
         await update.message.reply_text(response, parse_mode="HTML")
 
@@ -554,12 +549,12 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if action == "choose_profession":
         await query.edit_message_text(
-            "💼 Выбери профессию\n\n"
-            "🚔 Интерпол — штрафуй нарушителей\n"
-            "💳 Банкир — обслуживай клиентов\n"
-            "🏗️ Инфраструктура — собирай ресурсы\n"
-            "⚖️ Суд — рассматривай дела\n"
-            "🎭 Культура — проводи ивенты\n"
+            "💼 Профессия\n\n"
+            "🚔 Интерпол — штрафы\n"
+            "💳 Банкир — транзакции\n"
+            "🏗️ Инфраструктура — ресурсы\n"
+            "⚖️ Суд — приговоры\n"
+            "🎭 Культура — ивенты\n"
             "🐦 Селфмейд — крути каз и забирай муку",
             reply_markup=profession_selection_keyboard(),
         )
@@ -574,18 +569,18 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             job = db.query(Job).filter(Job.user_id == user_id).first()
 
             if not job:
-                await query.edit_message_text("⚠️ У тебя нет работы. Используй /work")
+                await query.edit_message_text("⚠️ Нет работы. Используй /work")
                 return
 
             # Interpol must use /job with reply
             if job.job_type == "interpol":
                 await query.edit_message_text(
-                    "🚔 Интерпол работает особым образом\n\n"
-                    "💡 Оштрафовать:\n"
-                    "• /job (ответь на сообщение)\n"
+                    "🚔 Интерпол\n\n"
+                    "💡 Штраф:\n"
+                    "• /job (ответь)\n"
                     "• /job @username\n\n"
-                    "💡 Работа на охране:\n"
-                    "Просто /job"
+                    "💡 Охрана:\n"
+                    "/job"
                 )
                 return
 
@@ -648,24 +643,24 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         job.times_worked = 0
                         promoted = True
 
-            # Set cooldown
+            # Set cooldown (skip for debug chat)
+
+
             if job.job_type == "selfmade":
+
+
                 cooldown_hours = SELFMADE_COOLDOWN
+
+
             else:
+
+
                 cooldown_hours = COOLDOWN_BY_LEVEL.get(job.job_level, 4)
 
-            expires_at = datetime.utcnow() + timedelta(hours=cooldown_hours)
-            cooldown_entry = (
-                db.query(Cooldown)
-                .filter(Cooldown.user_id == user_id, Cooldown.action == "job")
-                .first()
-            )
 
-            if cooldown_entry:
-                cooldown_entry.expires_at = expires_at
-            else:
-                cooldown_entry = Cooldown(user_id=user_id, action="job", expires_at=expires_at)
-                db.add(cooldown_entry)
+
+            set_cooldown(update, user_id, "job", cooldown_hours)
+
 
             db.commit()
 
@@ -718,11 +713,11 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"📉 Уровень сброшен на: нищий"
                 )
             else:
-                response = f"✅ {flavor}\n\n💰 <b>Заработал:</b> {format_diamonds(earned)}"
+                response = f"✅ {flavor}\n\n💰 {format_diamonds(earned)}"
 
                 if promoted:
                     new_title = JOB_TITLES[job.job_type][job.job_level - 1]
-                    response += f"\n\n🎉 <b>Повышение:</b> {new_title} ({job.job_level} уровень)"
+                    response += f"\n\n🎉 {new_title} ({job.job_level} ур.)"
 
             await query.edit_message_text(response, parse_mode="HTML")
 
@@ -731,8 +726,7 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         from app.utils.keyboards import confirm_keyboard
 
         await query.edit_message_text(
-            "⚠️ Точно хочешь уволиться?\n\n"
-            "Потеряешь должность и прогресс",
+            "⚠️ Точно?\n\nПотеряешь должность и прогресс",
             reply_markup=confirm_keyboard("quit_job"),
         )
 
@@ -742,9 +736,9 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if job:
                 db.delete(job)
                 db.commit()
-                await query.edit_message_text("❌ Ты уволился", reply_markup=work_menu_keyboard(has_job=False))
+                await query.edit_message_text("❌ Уволен", reply_markup=work_menu_keyboard(has_job=False))
             else:
-                await query.edit_message_text("⚠️ У тебя нет работы", reply_markup=work_menu_keyboard(has_job=False))
+                await query.edit_message_text("⚠️ Нет работы", reply_markup=work_menu_keyboard(has_job=False))
 
     elif action == "quit_job_cancelled":
         # Go back to work menu
@@ -776,21 +770,20 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 max_level = 6 if job.job_type == "selfmade" else 10
                 if job.job_level < max_level:
                     next_title = JOB_TITLES[job.job_type][job.job_level]
-                    next_level_text = f"📈 Следующая должность: {next_title}"
+                    next_level_text = f"📈 {next_title}"
                 else:
-                    next_level_text = "🏆 Максимальный уровень достигнут"
+                    next_level_text = "🏆 Максимум"
 
                 await query.edit_message_text(
-                    f"💼 Твоя работа\n\n"
-                    f"🎯 {track_name}\n"
+                    f"💼 {track_name}\n"
                     f"{emoji} {job_name} ({job.job_level}/{max_level})\n"
-                    f"📊 Отработано: {job.times_worked}\n"
+                    f"📊 {job.times_worked}\n"
                     f"{next_level_text}",
                     reply_markup=work_menu_keyboard(has_job=True),
                 )
             else:
                 await query.edit_message_text(
-                    "💼 У тебя нет работы\n\nВыбери профессию:",
+                    "💼 Нет работы\n\nВыбери профессию:",
                     reply_markup=work_menu_keyboard(has_job=False),
                 )
 
@@ -822,9 +815,9 @@ async def profession_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
 
             new_title = JOB_TITLES[profession][new_level - 1]
             await query.edit_message_text(
-                f"✅ Сменил профессию\n\n"
-                f"📋 <b>Должность:</b> {new_title} ({new_level} уровень)\n\n"
-                f"⚠️ <b>Потерял:</b> {level_penalty} {'уровень' if level_penalty == 1 else 'уровня'}",
+                f"✅ Профессия сменена\n\n"
+                f"📋 {new_title} ({new_level} ур.)\n\n"
+                f"⚠️ Потерял {level_penalty} {'уровень' if level_penalty == 1 else 'уровня'}",
                 reply_markup=work_menu_keyboard(has_job=True),
                 parse_mode="HTML"
             )
@@ -843,10 +836,10 @@ async def profession_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
                 min_sal, max_sal = SALARY_RANGES[1]
 
             await query.edit_message_text(
-                f"✅ Принят на работу\n\n"
-                f"📋 <b>{job_title}</b> (1 уровень)\n"
-                f"💰 <b>Зарплата:</b> {min_sal}-{max_sal} алмазов\n\n"
-                f"Используй /job",
+                f"✅ Принят\n\n"
+                f"📋 {job_title} (1 ур.)\n"
+                f"💰 {min_sal}-{max_sal} алмазов\n\n"
+                f"/job — работать",
                 reply_markup=work_menu_keyboard(has_job=True),
                 parse_mode="HTML"
             )

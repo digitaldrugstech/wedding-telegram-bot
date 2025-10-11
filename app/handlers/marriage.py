@@ -48,7 +48,7 @@ async def propose_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             target = FakeUser(target_id, username, username)
     else:
         await update.message.reply_text(
-            "Используй одну из команд:\n"
+            "Как использовать:\n"
             "• /propose (ответь на сообщение)\n"
             "• /propose @username"
         )
@@ -94,10 +94,9 @@ async def propose_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     proposal_text = (
-        f"💍 <b>Предложение руки и сердца!</b>\n\n"
-        f"<b>{proposer_name}</b> делает предложение <b>{target_name}</b>\n\n"
-        f"💰 Стоимость: {PROPOSE_COST} алмазов\n\n"
-        f"Ты согласен/согласна?"
+        f"💍 <b>Предложение</b>\n\n"
+        f"<b>{proposer_name}</b> → <b>{target_name}</b>\n\n"
+        f"💰 {PROPOSE_COST} алмазов"
     )
 
     await update.message.reply_text(proposal_text, reply_markup=reply_markup, parse_mode="HTML")
@@ -124,43 +123,51 @@ async def propose_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if action == "propose_accept":
-        with get_db() as db:
-            # Double-check conditions
-            can_accept, error = MarriageService.can_accept_proposal(db, target_id, proposer_id)
-            if not can_accept:
-                await query.edit_message_text(f"❌ Не получилось: {error}")
-                return
+        try:
+            with get_db() as db:
+                # Double-check conditions
+                can_accept, error = MarriageService.can_accept_proposal(db, target_id, proposer_id)
+                if not can_accept:
+                    await query.edit_message_text(f"❌ Не получилось: {error}")
+                    return
 
-            can_propose, error = MarriageService.can_propose(db, proposer_id)
-            if not can_propose:
-                await query.edit_message_text(f"❌ Не получилось: {error}")
-                return
+                can_propose, error = MarriageService.can_propose(db, proposer_id)
+                if not can_propose:
+                    await query.edit_message_text(f"❌ Не получилось: {error}")
+                    return
 
-            # Create marriage
-            marriage = MarriageService.create_marriage(db, proposer_id, target_id)
+                # Create marriage
+                marriage = MarriageService.create_marriage(db, proposer_id, target_id)
 
-            proposer = db.query(User).filter(User.telegram_id == proposer_id).first()
-            target_user = db.query(User).filter(User.telegram_id == target_id).first()
+                proposer = db.query(User).filter(User.telegram_id == proposer_id).first()
+                target_user = db.query(User).filter(User.telegram_id == target_id).first()
 
-            # Extract data before session closes
-            proposer_username = proposer.username or 'User'
-            target_username = target_user.username or 'User'
-            marriage_id = marriage.id
+                # Extract data before session closes
+                proposer_username = proposer.username or 'User'
+                target_username = target_user.username or 'User'
+                marriage_id = marriage.id
 
-        await query.edit_message_text(
-            f"🎉 <b>Поздравляем!</b>\n\n"
-            f"💍 {proposer_username} и {target_username} теперь муж и жена!\n\n"
-            f"💰 Потрачено: {PROPOSE_COST} алмазов\n\n"
-            f"Используй /marriage для управления браком",
-            parse_mode="HTML"
-        )
+            await query.edit_message_text(
+                f"🎉 <b>Поздравляем</b>\n\n"
+                f"💍 {proposer_username} и {target_username} — муж и жена\n\n"
+                f"💰 Потрачено: {PROPOSE_COST} алмазов\n\n"
+                f"/marriage — управление браком",
+                parse_mode="HTML"
+            )
 
-        logger.info("Proposal accepted", proposer_id=proposer_id, target_id=target_id, marriage_id=marriage_id)
+            logger.info("Proposal accepted", proposer_id=proposer_id, target_id=target_id, marriage_id=marriage_id)
+        except Exception as e:
+            logger.error("Failed to accept proposal", proposer_id=proposer_id, target_id=target_id, error=str(e))
+            await query.edit_message_text(
+                f"❌ Ошибка\n\n"
+                f"Возможно, кто-то уже женат",
+                parse_mode="HTML"
+            )
 
     elif action == "propose_reject":
         await query.edit_message_text(
-            f"❌ <b>Предложение отклонено</b>\n\n"
-            f"Может, в следующий раз повезет...",
+            f"❌ <b>Отказ</b>\n\n"
+            f"В следующий раз повезет",
             parse_mode="HTML"
         )
 
@@ -180,8 +187,8 @@ async def marriage_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if not marriage:
             await update.message.reply_text(
-                "💔 Ты не женат/замужем\n\n"
-                "Используй /propose чтобы сделать предложение"
+                "💔 Не женат\n\n"
+                "/propose — сделать предложение"
             )
             return
 
@@ -208,12 +215,12 @@ async def marriage_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         partner_name = partner.username or f"User{partner.telegram_id}"
 
         message = (
-            f"💍 <b>Твой брак</b>\n\n"
-            f"👫 <b>Супруг/Супруга:</b> @{partner_name}\n"
-            f"📅 <b>В браке:</b> {days_married} дней\n"
-            f"❤️ <b>Занимались любовью:</b> {marriage.love_count} раз\n\n"
-            f"💰 <b>Твой баланс:</b> {format_diamonds(user.balance)}\n"
-            f"💰 <b>Баланс супруга:</b> {format_diamonds(partner.balance)}"
+            f"💍 <b>Брак</b>\n\n"
+            f"👫 @{partner_name}\n"
+            f"📅 Дней: {days_married}\n"
+            f"❤️ Любовь: {marriage.love_count} раз\n\n"
+            f"💰 Ты: {format_diamonds(user.balance)}\n"
+            f"💰 Супруг: {format_diamonds(partner.balance)}"
         )
 
         await update.message.reply_text(message, reply_markup=reply_markup, parse_mode="HTML")
@@ -247,8 +254,8 @@ async def marriage_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await query.edit_message_text(
             f"⚠️ <b>Развод</b>\n\n"
-            f"Точно хочешь развестись?\n\n"
-            f"💰 <b>Стоимость:</b> {DIVORCE_COST} алмазов",
+            f"Точно?\n\n"
+            f"💰 {DIVORCE_COST} алмазов",
             reply_markup=reply_markup,
             parse_mode="HTML"
         )
@@ -259,8 +266,8 @@ async def marriage_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             if success:
                 await query.edit_message_text(
-                    f"💔 <b>Вы развелись</b>\n\n"
-                    f"💰 Потрачено: {DIVORCE_COST} алмазов",
+                    f"💔 <b>Развод</b>\n\n"
+                    f"💰 {DIVORCE_COST} алмазов",
                     parse_mode="HTML"
                 )
             else:
@@ -273,20 +280,20 @@ async def marriage_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif action == "marriage_gift":
         await query.edit_message_text(
-            f"💝 <b>Подарить алмазы супругу</b>\n\n"
-            f"Напиши: /gift [количество]\n\n"
-            f"Минимум: {GIFT_MIN} алмазов"
+            f"💝 <b>Подарок</b>\n\n"
+            f"/gift [количество]\n\n"
+            f"Минимум {GIFT_MIN} алмазов"
         )
 
     elif action == "marriage_help_love":
         await query.answer(
-            "Используй /makelove чтобы заняться любовью с супругом (20% шанс зачатия ребенка)",
+            "/makelove — любовь (20% шанс ребенка)",
             show_alert=True
         )
 
     elif action == "marriage_help_date":
         await query.answer(
-            "Используй /date чтобы сходить на свидание (заработок 10-50 алмазов)",
+            "/date — свидание (10-50 алмазов)",
             show_alert=True
         )
 
@@ -295,7 +302,7 @@ async def marriage_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def gift_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /gift command."""
     if not update.effective_user or not update.message or not context.args:
-        await update.message.reply_text(f"Используй: /gift [количество]\n\nМинимум: {GIFT_MIN} алмазов")
+        await update.message.reply_text(f"/gift [количество]\n\nМинимум {GIFT_MIN} алмазов")
         return
 
     user_id = update.effective_user.id
@@ -303,7 +310,7 @@ async def gift_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         amount = int(context.args[0])
     except (ValueError, IndexError):
-        await update.message.reply_text("Укажи правильное количество алмазов")
+        await update.message.reply_text("Укажи количество")
         return
 
     with get_db() as db:
@@ -332,7 +339,7 @@ async def makelove_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not can_love:
             if cooldown:
                 time_remaining = format_time_remaining(cooldown)
-                await update.message.reply_text(f"❤️ Можешь заняться любовью через {time_remaining}")
+                await update.message.reply_text(f"❤️ Через {time_remaining}")
             else:
                 await update.message.reply_text(error)
             return
@@ -341,16 +348,16 @@ async def makelove_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if conceived:
             await update.message.reply_text(
-                "❤️ <b>Вы занялись любовью</b>\n\n"
-                "🎉 <b>Поздравляем!</b> Ваша жена забеременела!\n\n"
-                "Ребенок родится через 9 дней (скоро в обновлении)",
+                "❤️ <b>Любовь</b>\n\n"
+                "🎉 Зачатие!\n\n"
+                "Ребенок — через 9 дней",
                 parse_mode="HTML"
             )
         else:
             await update.message.reply_text(
-                "❤️ <b>Вы занялись любовью</b>\n\n"
-                "Было приятно, но зачатие не произошло\n\n"
-                "Попробуй еще раз через 24 часа",
+                "❤️ <b>Любовь</b>\n\n"
+                "Зачатия нет\n\n"
+                "Следующая попытка — через 24 часа",
                 parse_mode="HTML"
             )
 
@@ -371,7 +378,7 @@ async def date_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not can_date:
             if cooldown:
                 time_remaining = format_time_remaining(cooldown)
-                await update.message.reply_text(f"📅 Можешь сходить на свидание через {time_remaining}")
+                await update.message.reply_text(f"📅 Через {time_remaining}")
             else:
                 await update.message.reply_text(error)
             return
@@ -380,9 +387,9 @@ async def date_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await update.message.reply_text(
             f"📅 <b>Свидание</b>\n\n"
-            f"Вы сходили в <b>{location}</b>\n\n"
-            f"💰 <b>Заработали:</b> {format_diamonds(earned)}\n\n"
-            f"Следующее свидание через 12 часов",
+            f"{location}\n\n"
+            f"💰 {format_diamonds(earned)}\n\n"
+            f"Следующее — через 12 часов",
             parse_mode="HTML"
         )
 
@@ -424,10 +431,10 @@ async def cheat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text(
             "⚠️ <b>Измена</b>\n\n"
-            "Используй одну из команд:\n"
+            "Как использовать:\n"
             "• /cheat (ответь на сообщение)\n"
             "• /cheat @username\n\n"
-            "⚠️ Риск: 30% что поймают и разведут с конфискацией 50% баланса",
+            "⚠️ Риск 30%: развод + штраф 50% баланса",
             parse_mode="HTML"
         )
         return
@@ -439,7 +446,7 @@ async def cheat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     with get_db() as db:
         marriage = MarriageService.get_active_marriage(db, user_id)
         if not marriage:
-            await update.message.reply_text("Ты не женат/замужем, измена невозможна")
+            await update.message.reply_text("Не женат — измена невозможна")
             return
 
         partner_id = MarriageService.get_partner_id(marriage, user_id)
@@ -449,12 +456,11 @@ async def cheat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if caught:
             await update.message.reply_text(
-                f"💔 <b>ТЕБЯ ПОЙМАЛИ!</b>\n\n"
-                f"Супруг/Супруга узнал(а) об измене\n\n"
-                f"💔 <b>Развод:</b> Да\n"
-                f"💸 <b>Конфискация:</b> {format_diamonds(fine)} (50% баланса)\n"
-                f"💰 <b>Супруг получил:</b> {format_diamonds(fine)}\n\n"
-                f"@{partner.username or 'Partner'} подал(а) на развод",
+                f"💔 <b>Поймали</b>\n\n"
+                f"Развод\n\n"
+                f"💸 Штраф: {format_diamonds(fine)} (50% баланса)\n"
+                f"💰 Супруг получил: {format_diamonds(fine)}\n\n"
+                f"@{partner.username or 'Partner'} подал развод",
                 parse_mode="HTML"
             )
 
@@ -462,18 +468,18 @@ async def cheat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             try:
                 await context.bot.send_message(
                     chat_id=partner_id,
-                    text=f"💔 <b>Твой супруг изменил тебе!</b>\n\n"
-                         f"Вы разведены\n"
-                         f"💰 Получено: {format_diamonds(fine)} (50% его баланса)",
+                    text=f"💔 <b>Измена</b>\n\n"
+                         f"Развод\n"
+                         f"💰 Получено: {format_diamonds(fine)} (50% баланса)",
                     parse_mode="HTML"
                 )
             except Exception as e:
                 logger.warning("Failed to notify partner about cheat", partner_id=partner_id, error=str(e))
         else:
             await update.message.reply_text(
-                "🤫 <b>Измена прошла успешно</b>\n\n"
-                "Никто ничего не узнал...\n\n"
-                "Тебе повезло",
+                "🤫 <b>Успех</b>\n\n"
+                "Никто не узнал\n\n"
+                "Повезло",
                 parse_mode="HTML"
             )
 
@@ -488,5 +494,5 @@ def register_marriage_handlers(application):
     application.add_handler(CommandHandler("makelove", makelove_command))
     application.add_handler(CommandHandler("date", date_command))
     application.add_handler(CommandHandler("cheat", cheat_command))
-    application.add_handler(CallbackQueryHandler(propose_callback, pattern="^propose_(accept|reject):"))
+    application.add_handler(CallbackQueryHandler(propose_callback, pattern="^propose_"))
     application.add_handler(CallbackQueryHandler(marriage_callback, pattern="^(marriage_|divorce_)"))

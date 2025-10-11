@@ -53,23 +53,20 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 max_level = 6 if job.job_type == "selfmade" else 10
                 if job.job_level < max_level:
                     next_title = JOB_TITLES[job.job_type][job.job_level]
-                    next_level_text = f"📈 Следующая должность: {next_title}"
+                    next_level_text = f"📈 {next_title}"
                 else:
-                    next_level_text = "🏆 Максимальный уровень достигнут"
+                    next_level_text = "🏆 Максимум"
 
                 await query.edit_message_text(
-                    f"💼 Твоя работа:\n\n"
-                    f"🎯 Трек: {track_name}\n"
-                    f"{emoji} Должность: {job_name} (уровень {job.job_level}/{max_level})\n"
-                    f"📊 Отработано смен: {job.times_worked}\n"
-                    f"{next_level_text}\n\n"
-                    f"Выбери действие:",
+                    f"💼 {track_name}\n"
+                    f"{emoji} {job_name} ({job.job_level}/{max_level})\n"
+                    f"📊 {job.times_worked}\n"
+                    f"{next_level_text}",
                     reply_markup=work_menu_keyboard(has_job=True),
                 )
             else:
                 await query.edit_message_text(
-                    "💼 У тебя нет работы!\n\n"
-                    "Выберите профессию чтобы начать работать:",
+                    "💼 Нет работы\n\nВыбери профессию:",
                     reply_markup=work_menu_keyboard(has_job=False),
                 )
         return
@@ -111,19 +108,18 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 partner_name = partner.username or f"User{partner.telegram_id}"
 
                 message = (
-                    f"💍 <b>Твой брак</b>\n\n"
-                    f"👫 <b>Супруг/Супруга:</b> @{partner_name}\n"
-                    f"📅 <b>В браке:</b> {days_married} дней\n"
-                    f"❤️ <b>Занимались любовью:</b> {marriage.love_count} раз\n\n"
-                    f"💰 <b>Твой баланс:</b> {format_diamonds(user.balance)}\n"
-                    f"💰 <b>Баланс супруга:</b> {format_diamonds(partner.balance)}"
+                    f"💍 <b>Брак</b>\n\n"
+                    f"👫 @{partner_name}\n"
+                    f"📅 {days_married} дней\n"
+                    f"❤️ Любовь: {marriage.love_count} раз\n\n"
+                    f"💰 Ты: {format_diamonds(user.balance)}\n"
+                    f"💰 Партнёр: {format_diamonds(partner.balance)}"
                 )
 
                 await query.edit_message_text(message, reply_markup=reply_markup, parse_mode="HTML")
             else:
                 await query.edit_message_text(
-                    "💔 Ты не женат/замужем\n\n"
-                    "Используй /propose чтобы сделать предложение",
+                    "💔 Не в браке\n\n/propose — сделать предложение",
                     parse_mode="HTML"
                 )
         return
@@ -141,7 +137,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Simulate a profile command
         if update.effective_message:
             # Create a fake message update to reuse profile_command
-            await update.effective_message.reply_text("Используйте /profile для просмотра профиля.")
+            await update.effective_message.reply_text("/profile — профиль")
 
 
 def register_menu_handlers(application):

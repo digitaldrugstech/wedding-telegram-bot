@@ -28,6 +28,9 @@ class Config:
     # Logging
     log_level: str
 
+    # Debug
+    debug_chat_id: int  # Chat ID for debug purposes (no cooldowns)
+
     @classmethod
     def from_env(cls) -> "Config":
         """Load configuration from environment variables."""
@@ -42,6 +45,7 @@ class Config:
             business_payout_hour=int(os.getenv("BUSINESS_PAYOUT_HOUR", "18")),
             business_payout_minute=int(os.getenv("BUSINESS_PAYOUT_MINUTE", "0")),
             log_level=os.getenv("LOG_LEVEL", "INFO"),
+            debug_chat_id=int(os.getenv("DEBUG_CHAT_ID", "-1003172144355")),
         )
 
     def validate(self):

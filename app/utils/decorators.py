@@ -11,6 +11,37 @@ from app.database.connection import get_db
 from app.database.models import Cooldown, User
 
 
+def set_cooldown(update: Update, user_id: int, action: str, hours: float):
+    """
+    Set cooldown for a user action (skips for debug chat).
+
+    Args:
+        update: Telegram update
+        user_id: User ID
+        action: Cooldown action name
+        hours: Cooldown duration in hours
+    """
+    from app.config import config
+
+    # Skip cooldown for debug chat
+    if update.effective_chat and update.effective_chat.id == config.debug_chat_id:
+        return
+
+    with get_db() as db:
+        expires_at = datetime.utcnow() + timedelta(hours=hours)
+        cooldown_entry = (
+            db.query(Cooldown)
+            .filter(Cooldown.user_id == user_id, Cooldown.action == action)
+            .first()
+        )
+
+        if cooldown_entry:
+            cooldown_entry.expires_at = expires_at
+        else:
+            cooldown_entry = Cooldown(user_id=user_id, action=action, expires_at=expires_at)
+            db.add(cooldown_entry)
+
+
 def require_registered(func: Callable) -> Callable:
     """
     Decorator to require user registration.
@@ -23,16 +54,28 @@ def require_registered(func: Callable) -> Callable:
 
     @functools.wraps(func)
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
+        from app.utils.keyboards import gender_selection_keyboard
+
         if not update.effective_user:
             return
 
         user_id = update.effective_user.id
+        username = update.effective_user.username or update.effective_user.first_name
 
         with get_db() as db:
             user = db.query(User).filter(User.telegram_id == user_id).first()
 
             if not user:
-                await update.message.reply_text("⚠️ Ты не зарегистрирован. Используй /start")
+                # Show registration instead of asking to use /start
+                await update.message.reply_text(
+                    f"👋 Привет, {username}\n\n"
+                    f"Wedding Bot — семейная жизнь на сервере\n\n"
+                    f"💍 Женись, заводи детей\n"
+                    f"💼 Работай, покупай дом\n"
+                    f"💰 Открывай бизнес\n\n"
+                    f"Выбери пол:",
+                    reply_markup=gender_selection_keyboard(user_id),
+                )
                 return
 
             if user.is_banned:
