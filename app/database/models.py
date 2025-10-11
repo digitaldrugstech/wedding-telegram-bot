@@ -74,10 +74,13 @@ class Marriage(Base):
     __tablename__ = "marriages"
 
     id = Column(Integer, primary_key=True)
-    partner1_id = Column(BigInteger, ForeignKey("users.telegram_id"), nullable=False)
-    partner2_id = Column(BigInteger, ForeignKey("users.telegram_id"), nullable=False)
+    partner1_id = Column(BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=False)
+    partner2_id = Column(BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=False)
     family_name = Column(String(255), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
+    love_count = Column(Integer, default=0, nullable=False)
+    last_love_at = Column(DateTime, nullable=True)
+    last_date_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=func.now(), nullable=False)
     ended_at = Column(DateTime, nullable=True)
 

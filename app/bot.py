@@ -5,6 +5,7 @@ from telegram.ext import Application
 
 from app.config import config
 from app.handlers.admin import register_admin_handlers
+from app.handlers.marriage import register_marriage_handlers
 from app.handlers.menu import register_menu_handlers
 from app.handlers.start import register_start_handlers
 from app.handlers.utils import register_utils_handlers
@@ -25,6 +26,7 @@ def create_bot() -> Application:
     register_utils_handlers(application)
     register_menu_handlers(application)
     register_work_handlers(application)
+    register_marriage_handlers(application)
     register_admin_handlers(application)
 
     logger.info("Bot handlers registered")
