@@ -25,7 +25,7 @@ vim .env.dev
 
 Edit `.env.dev`:
 ```bash
-TELEGRAM_BOT_TOKEN_DEV=8458433644:AAHR3rA2Gid1drSz31z2AYcWTp7hshNT0Gc
+TELEGRAM_BOT_TOKEN_DEV=your_dev_bot_token_here
 POSTGRES_PASSWORD=password
 ```
 
@@ -76,7 +76,7 @@ vim .env.prod
 
 Edit `.env.prod`:
 ```bash
-TELEGRAM_BOT_TOKEN_PROD=7454412857:AAF3xeUc-ptIbkmCcOGVg3Rc4P26R0NyNZE
+TELEGRAM_BOT_TOKEN_PROD=your_prod_bot_token_here
 POSTGRES_PASSWORD_PROD=your_secure_password_here
 ```
 
