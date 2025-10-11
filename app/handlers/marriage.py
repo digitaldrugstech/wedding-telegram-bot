@@ -1,18 +1,14 @@
 """Marriage handlers for Wedding Telegram Bot."""
 
 import structlog
-from app.database.connection import get_db
-from app.database.models import User
-from app.services.marriage_service import (
-    DIVORCE_COST,
-    GIFT_MIN,
-    PROPOSE_COST,
-    MarriageService,
-)
-from app.utils.decorators import require_registered
-from app.utils.formatters import format_diamonds, format_time_remaining
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
+
+from app.database.connection import get_db
+from app.database.models import User
+from app.services.marriage_service import DIVORCE_COST, GIFT_MIN, PROPOSE_COST, MarriageService
+from app.utils.decorators import require_registered
+from app.utils.formatters import format_diamonds, format_time_remaining
 
 logger = structlog.get_logger()
 
@@ -158,10 +154,10 @@ async def propose_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.info("Proposal accepted", proposer_id=proposer_id, target_id=target_id, marriage_id=marriage_id)
         except Exception as e:
             logger.error("Failed to accept proposal", proposer_id=proposer_id, target_id=target_id, error=str(e))
-            await query.edit_message_text(f"❌ Ошибка\n\n" f"Возможно, кто-то уже женат", parse_mode="HTML")
+            await query.edit_message_text("❌ Ошибка\n\nВозможно, кто-то уже женат", parse_mode="HTML")
 
     elif action == "propose_reject":
-        await query.edit_message_text(f"❌ <b>Отказ</b>\n\n" f"В следующий раз повезет", parse_mode="HTML")
+        await query.edit_message_text("❌ <b>Отказ</b>\n\nВ следующий раз повезет", parse_mode="HTML")
 
         logger.info("Proposal rejected", proposer_id=proposer_id, target_id=target_id)
 

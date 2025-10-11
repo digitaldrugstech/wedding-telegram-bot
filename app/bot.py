@@ -1,6 +1,8 @@
 """Bot initialization and setup."""
 
 import structlog
+from telegram.ext import Application
+
 from app.config import config
 from app.handlers.admin import register_admin_handlers
 from app.handlers.marriage import register_marriage_handlers
@@ -8,7 +10,6 @@ from app.handlers.menu import register_menu_handlers
 from app.handlers.start import register_start_handlers
 from app.handlers.utils import register_utils_handlers
 from app.handlers.work import register_work_handlers
-from telegram.ext import Application
 
 logger = structlog.get_logger()
 

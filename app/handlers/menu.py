@@ -73,11 +73,12 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Handle marriage menu
     if menu_type == "marriage":
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
         from app.database.connection import get_db
-        from app.database.models import Marriage, User
+        from app.database.models import User
         from app.services.marriage_service import MarriageService
         from app.utils.formatters import format_diamonds
-        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
         user_id = update.effective_user.id
 
@@ -130,11 +131,8 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Handle profile menu (go back)
     if menu_type == "profile":
-        from app.handlers.start import profile_command
-
         # Simulate a profile command
         if update.effective_message:
-            # Create a fake message update to reuse profile_command
             await update.effective_message.reply_text("/profile — профиль")
 
 

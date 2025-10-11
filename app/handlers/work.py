@@ -7,8 +7,6 @@ import structlog
 from telegram import Update
 from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
-logger = structlog.get_logger()
-
 from app.constants import (
     INTERPOL_BONUS_MAX_PERCENTAGE,
     INTERPOL_MIN_VICTIM_BALANCE,
@@ -20,6 +18,8 @@ from app.database.models import Cooldown, InterpolFine, Job, User
 from app.utils.decorators import require_registered, set_cooldown
 from app.utils.formatters import format_diamonds
 from app.utils.keyboards import profession_selection_keyboard, work_menu_keyboard
+
+logger = structlog.get_logger()
 
 # Job titles by profession and level
 JOB_TITLES = {
@@ -768,7 +768,6 @@ async def profession_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
     profession = query.data.split(":")[1]
 
     with get_db() as db:
-        user = db.query(User).filter(User.telegram_id == user_id).first()
         existing_job = db.query(Job).filter(Job.user_id == user_id).first()
 
         if existing_job:

@@ -1,8 +1,5 @@
 """SQLAlchemy database models for Wedding Telegram Bot."""
 
-from datetime import datetime
-from typing import List
-
 from sqlalchemy import (
     BigInteger,
     Boolean,
@@ -94,7 +91,10 @@ class Marriage(Base):
     children = relationship("Child", back_populates="marriage", cascade="all, delete-orphan")
 
     def __repr__(self):
-        return f"<Marriage(id={self.id}, partner1_id={self.partner1_id}, partner2_id={self.partner2_id}, is_active={self.is_active})>"
+        return (
+            f"<Marriage(id={self.id}, partner1_id={self.partner1_id}, "
+            f"partner2_id={self.partner2_id}, is_active={self.is_active})>"
+        )
 
 
 class FamilyMember(Base):
@@ -188,7 +188,10 @@ class Kidnapping(Base):
     victim = relationship("User", foreign_keys=[victim_id])
 
     def __repr__(self):
-        return f"<Kidnapping(id={self.id}, child_id={self.child_id}, kidnapper_id={self.kidnapper_id}, is_active={self.is_active})>"
+        return (
+            f"<Kidnapping(id={self.id}, child_id={self.child_id}, "
+            f"kidnapper_id={self.kidnapper_id}, is_active={self.is_active})>"
+        )
 
 
 class Business(Base):
@@ -265,4 +268,7 @@ class InterpolFine(Base):
     victim = relationship("User", foreign_keys=[victim_id])
 
     def __repr__(self):
-        return f"<InterpolFine(interpol_id={self.interpol_id}, victim_id={self.victim_id}, fine={self.fine_amount}, bonus={self.bonus_amount})>"
+        return (
+            f"<InterpolFine(interpol_id={self.interpol_id}, victim_id={self.victim_id}, "
+            f"fine={self.fine_amount}, bonus={self.bonus_amount})>"
+        )

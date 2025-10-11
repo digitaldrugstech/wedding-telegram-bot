@@ -10,11 +10,11 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-from app.__version__ import __version__
-from app.bot import create_bot, post_init, post_shutdown
-from app.config import config
-from app.constants import DEBUG_CHAT_ID
-from app.database.connection import init_db
+from app.__version__ import __version__  # noqa: E402
+from app.bot import create_bot, post_init, post_shutdown  # noqa: E402
+from app.config import config  # noqa: E402
+from app.constants import DEBUG_CHAT_ID  # noqa: E402
+from app.database.connection import init_db  # noqa: E402
 
 # Configure structlog
 structlog.configure(
