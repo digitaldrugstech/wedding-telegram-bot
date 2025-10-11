@@ -112,7 +112,7 @@ Required environment variables:
 ```env
 TELEGRAM_BOT_TOKEN=<bot token from @BotFather>
 DATABASE_URL=postgresql://user:pass@host:5432/wedding_bot
-ADMIN_USER_ID=710573786
+ADMIN_USER_ID=<your telegram user id>
 TZ=Europe/Moscow
 BUSINESS_PAYOUT_DAY=4  # Friday
 BUSINESS_PAYOUT_HOUR=18
@@ -135,7 +135,7 @@ User commands:
 - `/balance` - Показать баланс алмазов
 - `/help` - Справка по командам
 
-Admin commands (only for user_id: 710573786 in DM):
+Admin commands (configured via ADMIN_USER_ID environment variable):
 - `/admin` - Админ-панель
 - `/stats` - Статистика бота
 - `/user_info` - Информация о пользователе
@@ -147,14 +147,30 @@ Admin commands (only for user_id: 710573786 in DM):
 
 ## Contributing
 
-See [REQUIREMENTS.md](REQUIREMENTS.md) for detailed technical requirements.
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
 
-Development process:
-1. Create feature branch from `main`
-2. Implement feature according to issues
-3. Write tests
-4. Create pull request
+Quick start:
+1. Fork the repository
+2. Create feature branch from `master`
+3. Follow the coding standards (pre-commit hooks will help)
+4. Write tests for new functionality
+5. Create a pull request
+
+See [REQUIREMENTS.md](REQUIREMENTS.md) for detailed technical requirements.
 
 ## License
 
-Private project.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Support
+
+- Create an [Issue](https://github.com/digitaldrugstech/wedding-telegram-bot/issues) for bugs or feature requests
+- Join [Discussions](https://github.com/digitaldrugstech/wedding-telegram-bot/discussions) for questions
+
+## Acknowledgments
+
+Built with:
+- [python-telegram-bot](https://github.com/python-telegram-bot/python-telegram-bot) - Telegram Bot API wrapper
+- [SQLAlchemy](https://www.sqlalchemy.org/) - SQL toolkit and ORM
+- [Alembic](https://alembic.sqlalchemy.org/) - Database migrations
+- [APScheduler](https://apscheduler.readthedocs.io/) - Task scheduling
