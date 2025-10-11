@@ -74,8 +74,62 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
         return
 
+    # Handle marriage menu
+    if menu_type == "marriage":
+        from app.database.connection import get_db
+        from app.database.models import Marriage, User
+        from app.services.marriage_service import MarriageService
+        from app.utils.formatters import format_diamonds
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+        user_id = update.effective_user.id
+
+        with get_db() as db:
+            marriage = MarriageService.get_active_marriage(db, user_id)
+
+            if marriage:
+                # Get partner info
+                partner_id = MarriageService.get_partner_id(marriage, user_id)
+                partner = db.query(User).filter(User.telegram_id == partner_id).first()
+                user = db.query(User).filter(User.telegram_id == user_id).first()
+
+                # Build keyboard
+                keyboard = [
+                    [
+                        InlineKeyboardButton("💝 Подарить", callback_data=f"marriage_gift:{user_id}"),
+                        InlineKeyboardButton("💔 Развод", callback_data=f"marriage_divorce:{user_id}")
+                    ],
+                    [
+                        InlineKeyboardButton("❤️ /makelove", callback_data=f"marriage_help_love:{user_id}"),
+                        InlineKeyboardButton("📅 /date", callback_data=f"marriage_help_date:{user_id}")
+                    ]
+                ]
+                reply_markup = InlineKeyboardMarkup(keyboard)
+
+                # Build message
+                days_married = (marriage.created_at - marriage.created_at).days  # Will be calculated properly
+                partner_name = partner.username or f"User{partner.telegram_id}"
+
+                message = (
+                    f"💍 <b>Твой брак</b>\n\n"
+                    f"👫 <b>Супруг/Супруга:</b> @{partner_name}\n"
+                    f"📅 <b>В браке:</b> {days_married} дней\n"
+                    f"❤️ <b>Занимались любовью:</b> {marriage.love_count} раз\n\n"
+                    f"💰 <b>Твой баланс:</b> {format_diamonds(user.balance)}\n"
+                    f"💰 <b>Баланс супруга:</b> {format_diamonds(partner.balance)}"
+                )
+
+                await query.edit_message_text(message, reply_markup=reply_markup, parse_mode="HTML")
+            else:
+                await query.edit_message_text(
+                    "💔 Ты не женат/замужем\n\n"
+                    "Используй /propose чтобы сделать предложение",
+                    parse_mode="HTML"
+                )
+        return
+
     # Handle unimplemented menus
-    unimplemented_menus = ["marriage", "family", "house", "business"]
+    unimplemented_menus = ["family", "house", "business"]
 
     if menu_type in unimplemented_menus:
         await query.answer("⚠️ Эта функция пока не реализована", show_alert=True)

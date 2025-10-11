@@ -351,8 +351,7 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 response += f"💰 <b>Штраф:</b> {format_diamonds(fine_amount)}\n"
                 if bonus_amount > 0:
                     response += f"💎 <b>Доплата за говновызов:</b> +{format_diamonds(bonus_amount)}\n"
-                response += f"💰 <b>Итого:</b> {format_diamonds(fine_amount + bonus_amount)}\n"
-                response += f"💰 <b>Баланс:</b> {format_diamonds(user.balance)}"
+                response += f"💰 <b>Итого:</b> {format_diamonds(fine_amount + bonus_amount)}"
 
                 if promoted:
                     new_title = JOB_TITLES[job.job_type][job.job_level - 1]
@@ -514,7 +513,7 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"📉 Уровень сброшен на: нищий"
             )
         else:
-            response = f"✅ {flavor}\n\n💰 <b>Заработал:</b> {format_diamonds(earned)}\n💰 <b>Баланс:</b> {format_diamonds(user.balance)}"
+            response = f"✅ {flavor}\n\n💰 <b>Заработал:</b> {format_diamonds(earned)}"
 
             if promoted:
                 new_title = JOB_TITLES[job.job_type][job.job_level - 1]
@@ -703,7 +702,7 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"📉 Уровень сброшен на: нищий"
                 )
             else:
-                response = f"✅ {flavor}\n\n💰 <b>Заработал:</b> {format_diamonds(earned)}\n💰 <b>Баланс:</b> {format_diamonds(user.balance)}"
+                response = f"✅ {flavor}\n\n💰 <b>Заработал:</b> {format_diamonds(earned)}"
 
                 if promoted:
                     new_title = JOB_TITLES[job.job_type][job.job_level - 1]

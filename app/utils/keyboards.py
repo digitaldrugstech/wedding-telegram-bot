@@ -18,7 +18,7 @@ def profile_keyboard() -> InlineKeyboardMarkup:
     """Keyboard for profile (quick access to main menus)."""
     keyboard = [
         [InlineKeyboardButton("💼 Работа", callback_data="menu:work")],
-        [InlineKeyboardButton("💍 Брак [Не реализовано]", callback_data="menu:marriage")],
+        [InlineKeyboardButton("💍 Брак", callback_data="menu:marriage")],
         [InlineKeyboardButton("👨‍👩‍👧‍👦 Семья [Не реализовано]", callback_data="menu:family")],
         [InlineKeyboardButton("🏠 Дом [Не реализовано]", callback_data="menu:house")],
         [InlineKeyboardButton("💼 Бизнес [Не реализовано]", callback_data="menu:business")],
