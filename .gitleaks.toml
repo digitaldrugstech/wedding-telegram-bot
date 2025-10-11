@@ -33,6 +33,9 @@ paths = [
   '''CLAUDE.md''',
   '''SECURITY_INCIDENT.md''',
   '''DEPLOYMENT_GUIDE.md''',
+  '''deployments/README.md''',
+  '''deployments/.env.dev.example''',
+  '''deployments/.env.prod.example''',
   '''deployments/k8s/secret-prod.yaml.example''',
   '''deployments/k8s/secret-dev.yaml.example''',
 ]
