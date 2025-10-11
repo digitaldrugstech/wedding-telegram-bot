@@ -37,18 +37,15 @@ async def propose_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_text(f"Пользователь @{username} не найден")
                 return
             target_id = target_user.telegram_id
-            # Get target info for display
-            try:
-                target_chat = await context.bot.get_chat(target_id)
-                target = target_chat
-            except Exception:
-                # Fallback to DB data
-                class FakeUser:
-                    def __init__(self, user_id, username):
-                        self.id = user_id
-                        self.first_name = username
-                        self.is_bot = False
-                target = FakeUser(target_id, username)
+
+            # Create simple target object
+            class FakeUser:
+                def __init__(self, user_id, username, first_name):
+                    self.id = user_id
+                    self.first_name = first_name
+                    self.is_bot = False
+
+            target = FakeUser(target_id, username, username)
     else:
         await update.message.reply_text(
             "Используй одну из команд:\n"
@@ -411,12 +408,14 @@ async def cheat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_text(f"Пользователь @{username} не найден")
                 return
             target_id = target_user.telegram_id
+
             # Simple target object
             class FakeUser:
-                def __init__(self, user_id, username):
+                def __init__(self, user_id):
                     self.id = user_id
                     self.is_bot = False
-            target = FakeUser(target_id, username)
+
+            target = FakeUser(target_id)
     else:
         await update.message.reply_text(
             "⚠️ <b>Измена</b>\n\n"
