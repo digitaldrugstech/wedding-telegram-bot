@@ -3,43 +3,67 @@
 ## Project Overview
 Telegram bot для симуляции семейной жизни на игровом сервере. Боты на Python 3.11+ с async/await, PostgreSQL, SQLAlchemy 2.0, python-telegram-bot 20.7.
 
+**Current Version**: v1.1.0 (2025-10-11)
+**Repository**: https://github.com/digitaldrugstech/wedding-telegram-bot
+**Docker Image**: ghcr.io/digitaldrugstech/wedding-telegram-bot:latest
+
 ## Key Technologies
 - **Framework**: python-telegram-bot 20.7 (async)
-- **Database**: PostgreSQL + SQLAlchemy 2.0 ORM
+- **Database**: PostgreSQL 15+ + SQLAlchemy 2.0 ORM
 - **Migrations**: Alembic
 - **Logging**: structlog (JSON)
 - **Scheduler**: APScheduler
-- **Code Quality**: black (120 chars), isort, flake8, pre-commit hooks
+- **Code Quality**: black (120 chars), isort, flake8
+- **CI/CD**: GitHub Actions (tests, lint, security, Docker builds)
+- **Deployment**: Docker + Kubernetes, GHCR registry
 
 ## Project Structure
 ```
 wedding-telegram-bot/
+├── .github/workflows/          # CI/CD pipelines
+│   ├── ci.yml                  # Tests (pytest + coverage)
+│   ├── lint.yml                # Code quality (black, isort, flake8)
+│   ├── docker-publish.yml      # Multi-platform Docker builds → GHCR
+│   └── security.yml            # Security scanning (safety, bandit, CodeQL)
 ├── app/
-│   ├── __version__.py          # Version: "0.1.2"
+│   ├── __version__.py          # Version: "1.1.0"
 │   ├── main.py                 # Entry point
 │   ├── bot.py                  # Bot initialization
 │   ├── config.py               # Config dataclass
+│   ├── constants.py            # Game constants (cooldowns, salaries, etc.)
 │   ├── database/
-│   │   ├── models.py           # SQLAlchemy models
+│   │   ├── models.py           # SQLAlchemy models (User, Job, Marriage, etc.)
 │   │   └── connection.py       # DB session management
 │   ├── handlers/
-│   │   ├── start.py            # /start, /profile
+│   │   ├── start.py            # /profile (registration merged into @require_registered)
 │   │   ├── work.py             # /work, /job (job system)
+│   │   ├── marriage.py         # /propose, /marriage, /gift, /makelove, /date, /cheat
 │   │   ├── admin.py            # Admin commands
 │   │   ├── utils.py            # /balance, /help
-│   │   └── menu.py             # Menu handlers
+│   │   └── menu.py             # Inline menu callbacks
+│   ├── services/
+│   │   └── marriage_service.py # Marriage business logic
 │   ├── utils/
-│   │   ├── decorators.py       # @require_registered, @admin_only, @cooldown, @button_owner_only
-│   │   └── keyboards.py        # Inline keyboards
-│   └── services/               # Business logic
+│   │   ├── decorators.py       # @require_registered, @admin_only, @set_cooldown
+│   │   ├── keyboards.py        # Inline keyboards
+│   │   └── formatters.py       # format_diamonds()
+│   └── tasks/                  # Scheduled tasks (future: business payouts)
 ├── alembic/                    # Database migrations
 │   └── versions/
 │       ├── 001_expand_job_levels.py
-│       └── 002_interpol_fines.py
+│       ├── 002_interpol_fines.py
+│       └── 003_marriage_system.py
 ├── deployments/
-│   ├── Dockerfile
-│   └── docker-compose.yml
+│   ├── Dockerfile              # Multi-stage Docker build
+│   ├── docker-compose.yml      # Local development
+│   └── k8s/                    # Kubernetes manifests
+├── tests/
+│   └── test_decorators.py
+├── .isort.cfg                  # isort configuration (profile=black)
 ├── CHANGELOG.md                # Version history
+├── CLAUDE.md                   # This file - context for AI
+├── WRITING_STYLE.md            # Text writing guidelines
+├── SECURITY.md                 # Security policy
 ├── requirements.txt
 └── .env.example
 ```
@@ -80,6 +104,20 @@ LOG_LEVEL=INFO
 - `user_id` (FK), `action`: String
 - `expires_at`: DateTime
 - Unique: (user_id, action)
+
+### Marriage (NEW in v1.1.0)
+- `partner1_id`, `partner2_id` (FK to User)
+- `is_active`: Boolean
+- `married_at`: DateTime
+- `divorced_at`: DateTime (nullable)
+- `love_count`: Integer (times made love)
+- Indexes: (partner1_id, is_active), (partner2_id, is_active)
+
+### Kidnapping (NEW in v1.1.0)
+- `kidnapper_id`, `victim_id`, `owner_id` (FK to User)
+- `is_active`: Boolean
+- `kidnapped_at`, `released_at`: DateTime
+- Note: Planned feature, not implemented yet
 
 ## Job System
 
@@ -122,6 +160,36 @@ SELFMADE_COOLDOWN = 0.5  # 30 min
 ### Selfmade Easter Egg (SECRET - не писать в CHANGELOG!)
 - **Level 6→7 promotion**: Обнуляет баланс, сбрасывает на уровень 1 "нищий"
 - Message: "🎰 ВАС НАЕБАЛИ ДРУЗЬЯ НА КАЗИНО !"
+
+## Marriage System (v1.1.0)
+
+### Commands
+- `/propose` (reply or `/propose @username`) - Предложение брака (50 💎)
+- `/marriage` - Меню брака (gift, divorce, stats)
+- `/gift [amount]` - Подарить алмазы супругу
+- `/makelove` - Заняться любовью (24h cooldown, 10% шанс зачатия)
+- `/date` - Свидание (12h cooldown, 10-50 💎 cost)
+- `/cheat` (reply or `/cheat @username`) - Измена (30% риск развода)
+
+### Mechanics
+- **Proposal**: Costs 50 💎, requires confirmation from both parties
+- **Marriage**: Only one active marriage per person, stored in DB
+- **Make Love**:
+  - 24h cooldown
+  - 10% chance of pregnancy (not implemented yet, just increments `love_count`)
+  - Shows conception message but no actual child system yet
+- **Date**: Random cost 10-50 💎, 12h cooldown, shows romantic message
+- **Cheat**:
+  - Target must not be spouse
+  - 30% chance partner finds out → instant divorce
+  - 70% success (just a message, no rewards)
+- **Gift**: Transfer any amount of diamonds to spouse
+- **Divorce**: Instant, free, both partners notified
+
+### UI Integration
+- Profile shows "💍 Брак" button if married
+- Marriage menu: gift, divorce, stats buttons
+- All buttons use `@button_owner_only` decorator for security
 
 ## Russian Language Rules
 
@@ -181,25 +249,76 @@ except SpecificException as e:
     await update.message.reply_text("Понятное сообщение пользователю")
 ```
 
-## Deployment
+## CI/CD Pipeline
 
-### Docker
+### GitHub Actions Workflows
+1. **CI (ci.yml)** - Main tests
+   - PostgreSQL service container
+   - pytest with coverage (>80% target)
+   - Runs on: push to master/dev, pull requests
+
+2. **Lint (lint.yml)** - Code quality
+   - black --check --line-length 120
+   - isort --check --profile black
+   - flake8 (E, W, F errors)
+   - Runs on: push to master/dev, pull requests
+
+3. **Docker (docker-publish.yml)** - Multi-platform builds
+   - Builds for linux/amd64, linux/arm64
+   - Pushes to ghcr.io/digitaldrugstech/wedding-telegram-bot
+   - Tags: latest, v*, sha-*
+   - Runs on: push to master/dev, releases
+
+4. **Security (security.yml)**
+   - safety (Python dependency vulnerabilities)
+   - bandit (Python security linting)
+   - CodeQL (GitHub advanced security)
+   - Runs on: push to master, schedule (weekly)
+
+### Deployment
+
+#### Docker (Production)
 ```bash
-docker-compose up -d          # Start
-docker-compose logs -f bot    # Logs
-docker-compose down           # Stop
+docker pull ghcr.io/digitaldrugstech/wedding-telegram-bot:latest
+docker-compose -f deployments/docker-compose.prod.yml up -d
+docker-compose logs -f bot
 ```
 
-### Migrations
+#### Local Development
+```bash
+docker-compose -f deployments/docker-compose.yml up -d  # Start
+docker-compose logs -f bot                              # Logs
+docker-compose down                                     # Stop
+```
+
+#### Kubernetes
+```bash
+kubectl apply -f deployments/k8s/
+kubectl -n dev-backend-services get pods
+kubectl -n dev-backend-services logs -f deployment/wedding-bot
+```
+
+### Database Migrations
 ```bash
 alembic upgrade head          # Apply migrations
 alembic revision -m "desc"    # Create migration
+alembic downgrade -1          # Rollback last migration
 ```
 
-### Pre-commit
+### Code Quality Tools
 ```bash
-pre-commit run --all-files    # Manual check
-git commit                    # Auto-runs hooks
+# Format code
+black --line-length 120 app/
+isort --profile black app/
+
+# Check formatting
+black --check --line-length 120 app/
+isort --check --profile black app/
+flake8 app/
+
+# Run tests
+pytest tests/ -v
+pytest --cov=app --cov-report=html
 ```
 
 ## Admin Commands
@@ -211,12 +330,52 @@ git commit                    # Auto-runs hooks
 - **Debug chat ID**: -1003172144355
 - Sends version + changelog on startup
 
-## Version Management
+## Git Workflow
 
-1. Update `app/__version__.py`
-2. Add entry to `CHANGELOG.md` (format: ## [X.Y.Z] - YYYY-MM-DD)
-3. Commit changes
-4. Deploy
+### Branch Strategy
+- **master** - production-ready code
+- **dev** - development branch (optional)
+- **feature/** - feature branches (merge to master via PR)
+
+### Commit Messages (Conventional Commits)
+```
+feat: Add marriage proposal system
+fix: Fix cooldown check in /job command
+docs: Update README with marriage commands
+style: Apply black and isort formatting
+refactor: Extract marriage logic to service
+test: Add tests for marriage proposal
+chore: Update dependencies
+ci: Add Docker multi-platform builds
+```
+
+### Release Process
+1. Update `app/__version__.py` (e.g., "1.2.0")
+2. Update `CHANGELOG.md`:
+   ```markdown
+   ## [1.2.0] - 2025-10-15
+
+   ### Added
+   - Feature description
+
+   ### Changed
+   - Change description
+
+   ### Fixed
+   - Fix description
+   ```
+3. Commit: `git commit -m "chore: Release v1.2.0"`
+4. Tag: `git tag v1.2.0 && git push origin v1.2.0`
+5. GitHub Actions auto-builds and publishes Docker image
+6. Create GitHub Release with CHANGELOG excerpt
+
+### Squashing Commits
+When cleaning up commit history:
+```bash
+git reset --soft HEAD~N    # N = number of commits to squash
+git commit -m "message"
+git push origin master --force-with-lease
+```
 
 ## Common Pitfalls
 
@@ -244,7 +403,41 @@ git commit                    # Auto-runs hooks
 pytest tests/                 # Run all tests
 pytest -v                     # Verbose
 pytest --cov=app             # Coverage
+pytest --cov=app --cov-report=html  # HTML coverage report
 ```
 
-## Current Version
-**0.1.2** - Interpol fines mechanics, алмазы with proper endings, improved UX texts
+## Current Version & Status
+
+**v1.1.0** (2025-10-11)
+
+### Implemented Features
+✅ Job system (6 professions, 10 levels, promotions, cooldowns)
+✅ Interpol fines with bonus mechanics
+✅ Marriage system (propose, gift, divorce, makelove, date, cheat)
+✅ Economic system (diamonds, balance, transfers)
+✅ Admin commands (/reset_cd)
+✅ CI/CD pipeline (tests, lint, Docker, security)
+✅ Multi-platform Docker images on GHCR
+✅ Kubernetes deployment manifests
+✅ Strong UX writing (WRITING_STYLE.md)
+✅ Security policy (SECURITY.md)
+
+### In Development (from README)
+🚧 Children system (age, feeding, education, work)
+🚧 Houses (protection from kidnapping)
+🚧 Businesses (passive income)
+🚧 Casino (Telegram Dice API)
+
+### CI Status
+- ✅ Tests passing (pytest + PostgreSQL)
+- ✅ Lint passing (black, isort, flake8)
+- ✅ Docker builds (amd64, arm64)
+- ⚠️ Security scan (gitleaks removed, bandit/safety/CodeQL working)
+
+### Next Steps (ideas)
+- Implement children system with pregnancy from /makelove
+- Add business system with weekly payouts (APScheduler)
+- Create casino commands using Telegram Dice API
+- Add house purchase and kidnapping protection
+- Expand test coverage (currently minimal)
+- Add more admin commands (ban, give_diamonds, etc.)
