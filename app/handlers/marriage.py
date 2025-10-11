@@ -20,14 +20,42 @@ async def propose_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     proposer_id = update.effective_user.id
+    target = None
+    target_id = None
 
-    # Must be reply to someone
-    if not update.message.reply_to_message or not update.message.reply_to_message.from_user:
-        await update.message.reply_text("Ответь на сообщение человека, которому хочешь сделать предложение")
+    # Option 1: Reply to message
+    if update.message.reply_to_message and update.message.reply_to_message.from_user:
+        target = update.message.reply_to_message.from_user
+        target_id = target.id
+    # Option 2: Username argument (@username)
+    elif context.args and len(context.args) > 0:
+        username = context.args[0].lstrip('@')
+
+        with get_db() as db:
+            target_user = db.query(User).filter(User.username == username).first()
+            if not target_user:
+                await update.message.reply_text(f"Пользователь @{username} не найден")
+                return
+            target_id = target_user.telegram_id
+            # Get target info for display
+            try:
+                target_chat = await context.bot.get_chat(target_id)
+                target = target_chat
+            except Exception:
+                # Fallback to DB data
+                class FakeUser:
+                    def __init__(self, user_id, username):
+                        self.id = user_id
+                        self.first_name = username
+                        self.is_bot = False
+                target = FakeUser(target_id, username)
+    else:
+        await update.message.reply_text(
+            "Используй одну из команд:\n"
+            "• /propose (ответь на сообщение)\n"
+            "• /propose @username"
+        )
         return
-
-    target = update.message.reply_to_message.from_user
-    target_id = target.id
 
     if target.is_bot:
         await update.message.reply_text("Нельзя жениться на боте")
@@ -366,19 +394,39 @@ async def cheat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     user_id = update.effective_user.id
+    target = None
+    target_id = None
 
-    # Must be reply to someone
-    if not update.message.reply_to_message or not update.message.reply_to_message.from_user:
+    # Option 1: Reply to message
+    if update.message.reply_to_message and update.message.reply_to_message.from_user:
+        target = update.message.reply_to_message.from_user
+        target_id = target.id
+    # Option 2: Username argument (@username)
+    elif context.args and len(context.args) > 0:
+        username = context.args[0].lstrip('@')
+
+        with get_db() as db:
+            target_user = db.query(User).filter(User.username == username).first()
+            if not target_user:
+                await update.message.reply_text(f"Пользователь @{username} не найден")
+                return
+            target_id = target_user.telegram_id
+            # Simple target object
+            class FakeUser:
+                def __init__(self, user_id, username):
+                    self.id = user_id
+                    self.is_bot = False
+            target = FakeUser(target_id, username)
+    else:
         await update.message.reply_text(
             "⚠️ <b>Измена</b>\n\n"
-            "Ответь на сообщение человека, с которым хочешь изменить\n\n"
+            "Используй одну из команд:\n"
+            "• /cheat (ответь на сообщение)\n"
+            "• /cheat @username\n\n"
             "⚠️ Риск: 30% что поймают и разведут с конфискацией 50% баланса",
             parse_mode="HTML"
         )
         return
-
-    target = update.message.reply_to_message.from_user
-    target_id = target.id
 
     if target.is_bot or target_id == user_id:
         await update.message.reply_text("Нет")

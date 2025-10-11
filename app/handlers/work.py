@@ -235,13 +235,28 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Interpol special mechanics: reply = fine, no reply = patrol
         if job.job_type == "interpol":
-            # Check if replying to someone (fining)
+            victim_id = None
+            victim_username = None
+
+            # Option 1: Reply to message
             if update.message.reply_to_message and update.message.reply_to_message.from_user:
                 victim_id = update.message.reply_to_message.from_user.id
                 victim_username = (
                     update.message.reply_to_message.from_user.username
                     or update.message.reply_to_message.from_user.first_name
                 )
+            # Option 2: Username argument (@username)
+            elif context.args and len(context.args) > 0:
+                username = context.args[0].lstrip('@')
+                victim_user_check = db.query(User).filter(User.username == username).first()
+                if not victim_user_check:
+                    await update.message.reply_text(f"Пользователь @{username} не найден")
+                    return
+                victim_id = victim_user_check.telegram_id
+                victim_username = username
+
+            # Check if we have a victim to fine
+            if victim_id:
 
                 # Can't fine yourself
                 if victim_id == user_id:
@@ -521,7 +536,7 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             # Add hint for Interpol patrol work
             if job.job_type == "interpol":
-                response += "\n\n💡 Чтобы оштрафовать, ответь на сообщение и напиши /job"
+                response += "\n\n💡 Чтобы оштрафовать:\n• /job (ответь на сообщение)\n• /job @username"
 
         await update.message.reply_text(response, parse_mode="HTML")
 
@@ -567,7 +582,8 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await query.edit_message_text(
                     "🚔 Интерпол работает особым образом\n\n"
                     "💡 Оштрафовать:\n"
-                    "Ответь на сообщение + /job\n\n"
+                    "• /job (ответь на сообщение)\n"
+                    "• /job @username\n\n"
                     "💡 Работа на охране:\n"
                     "Просто /job"
                 )
