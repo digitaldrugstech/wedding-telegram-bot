@@ -73,11 +73,12 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Handle marriage menu
     if menu_type == "marriage":
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
         from app.database.connection import get_db
         from app.database.models import Marriage, User
         from app.services.marriage_service import MarriageService
         from app.utils.formatters import format_diamonds
-        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
         user_id = update.effective_user.id
 

@@ -1,7 +1,5 @@
 """Tests for app/utils/formatters.py"""
 
-import pytest
-
 from app.utils.formatters import format_diamonds
 
 

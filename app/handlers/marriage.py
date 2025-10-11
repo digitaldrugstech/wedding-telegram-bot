@@ -1,18 +1,14 @@
 """Marriage handlers for Wedding Telegram Bot."""
 
 import structlog
-from app.database.connection import get_db
-from app.database.models import User
-from app.services.marriage_service import (
-    DIVORCE_COST,
-    GIFT_MIN,
-    PROPOSE_COST,
-    MarriageService,
-)
-from app.utils.decorators import require_registered
-from app.utils.formatters import format_diamonds, format_time_remaining
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
+
+from app.database.connection import get_db
+from app.database.models import User
+from app.services.marriage_service import DIVORCE_COST, GIFT_MIN, PROPOSE_COST, MarriageService
+from app.utils.decorators import require_registered
+from app.utils.formatters import format_diamonds, format_time_remaining
 
 logger = structlog.get_logger()
 

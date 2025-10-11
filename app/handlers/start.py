@@ -1,12 +1,13 @@
 """Start and profile handlers."""
 
+from telegram import Update
+from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
+
 from app.database.connection import get_db
 from app.database.models import Job, User
 from app.utils.decorators import button_owner_only, require_registered
 from app.utils.formatters import format_diamonds
 from app.utils.keyboards import gender_selection_keyboard, profile_keyboard
-from telegram import Update
-from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
 
 @button_owner_only

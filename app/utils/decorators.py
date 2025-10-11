@@ -4,10 +4,11 @@ import functools
 from datetime import datetime, timedelta
 from typing import Callable
 
-from app.database.connection import get_db
-from app.database.models import Cooldown, User
 from telegram import Update
 from telegram.ext import ContextTypes
+
+from app.database.connection import get_db
+from app.database.models import Cooldown, User
 
 
 def set_cooldown(update: Update, user_id: int, action: str, hours: float):

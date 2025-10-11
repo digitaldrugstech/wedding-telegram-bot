@@ -5,8 +5,9 @@ from datetime import datetime, timedelta
 from typing import Optional, Tuple
 
 import structlog
-from app.database.models import FamilyMember, Marriage, User
 from sqlalchemy.orm import Session
+
+from app.database.models import FamilyMember, Marriage, User
 
 logger = structlog.get_logger()
 
@@ -43,7 +44,7 @@ class MarriageService:
         existing = (
             db.query(Marriage)
             .filter(
-                Marriage.is_active == True,
+                Marriage.is_active.is_(True),
                 ((Marriage.partner1_id == proposer_id) | (Marriage.partner2_id == proposer_id)),
             )
             .first()
@@ -77,7 +78,7 @@ class MarriageService:
         existing = (
             db.query(Marriage)
             .filter(
-                Marriage.is_active == True,
+                Marriage.is_active.is_(True),
                 ((Marriage.partner1_id == acceptor_id) | (Marriage.partner2_id == acceptor_id)),
             )
             .first()
@@ -111,7 +112,9 @@ class MarriageService:
         """Get user's active marriage."""
         return (
             db.query(Marriage)
-            .filter(Marriage.is_active == True, ((Marriage.partner1_id == user_id) | (Marriage.partner2_id == user_id)))
+            .filter(
+                Marriage.is_active.is_(True), ((Marriage.partner1_id == user_id) | (Marriage.partner2_id == user_id))
+            )
             .first()
         )
 
