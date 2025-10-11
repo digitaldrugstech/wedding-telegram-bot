@@ -39,6 +39,11 @@ def require_registered(func: Callable) -> Callable:
                 await update.message.reply_text("🚫 Ты заблокирован")
                 return
 
+            # Auto-update username if changed in Telegram
+            current_username = update.effective_user.username
+            if current_username and user.username != current_username:
+                user.username = current_username
+
         return await func(update, context, *args, **kwargs)
 
     return wrapper
