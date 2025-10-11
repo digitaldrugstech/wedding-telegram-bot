@@ -21,7 +21,7 @@ services:
       retries: 5
 
   bot-prod:
-    image: wedding-telegram-bot:1.0.0
+    image: wedding-telegram-bot:latest
     container_name: wedding-bot-prod
     depends_on:
       postgres-prod:

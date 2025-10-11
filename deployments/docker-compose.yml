@@ -19,9 +19,7 @@ services:
       start_period: 10s
 
   bot:
-    build:
-      context: ..
-      dockerfile: deployments/Dockerfile
+    image: wedding-telegram-bot:latest
     environment:
       TELEGRAM_BOT_TOKEN: "8458433644:AAFGSsQE2-RrClEjVIc0ZymE-eHjBa1viEw"
       DATABASE_URL: postgresql://wedding_bot:password@postgres:5432/wedding_bot
