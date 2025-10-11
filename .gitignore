@@ -128,3 +128,7 @@ Thumbs.db
 # Project specific
 *.db
 alembic/versions/*.pyc
+
+# Kubernetes secrets (use templates instead)
+deployments/k8s/*secret*.yaml
+!deployments/k8s/*secret*.yaml.example

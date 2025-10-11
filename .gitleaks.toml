@@ -1,0 +1,46 @@
+# Gitleaks configuration for Wedding Telegram Bot
+# https://github.com/gitleaks/gitleaks
+
+title = "Wedding Telegram Bot - Secret Detection"
+
+[extend]
+# Use default gitleaks rules
+useDefault = true
+
+[[rules]]
+id = "telegram-bot-token"
+description = "Telegram Bot API Token"
+regex = '''[0-9]{8,10}:[a-zA-Z0-9_-]{35}'''
+tags = ["telegram", "api-token"]
+
+[[rules]]
+id = "generic-api-key"
+description = "Generic API Key"
+regex = '''(?i)(api[_-]?key|apikey|api[_-]?secret)['":\s]*[=:]\s*['"]?[a-zA-Z0-9_\-]{20,}['"]?'''
+tags = ["api", "secret"]
+
+[[rules]]
+id = "database-connection-string"
+description = "PostgreSQL connection string with credentials"
+regex = '''postgresql://[a-zA-Z0-9_]+:[a-zA-Z0-9_@#$%^&*()]+@'''
+tags = ["database", "credentials"]
+
+[allowlist]
+description = "Global allowlist"
+paths = [
+  '''.env.example''',
+  '''CONTEXT_TRANSFER.md''',
+  '''CLAUDE.md''',
+]
+
+[[allowlist.regexes]]
+description = "Placeholder tokens in examples"
+regex = '''(your_bot_token_here|your_token_here|TELEGRAM_BOT_TOKEN=)'''
+
+[[allowlist.regexes]]
+description = "Example database passwords"
+regex = '''(password@localhost|wedding_bot:password@)'''
+
+[[allowlist.regexes]]
+description = "Localhost database URLs (safe)"
+regex = '''postgresql://.*@localhost:'''

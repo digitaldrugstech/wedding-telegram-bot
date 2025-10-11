@@ -1,11 +1,57 @@
 # Deployment Guide
 
+## ⚠️ Security First: Secret Management
+
+**NEVER commit real secrets to git!**
+
+This repository uses `.gitignore` to prevent accidental secret commits. All files matching `deployments/k8s/*secret*.yaml` are ignored, except `.example` templates.
+
+### Creating Secrets from Templates
+
+```bash
+# Copy template
+cp deployments/k8s/secret-prod.yaml.example deployments/k8s/secret-prod.yaml
+
+# Edit with real credentials
+vim deployments/k8s/secret-prod.yaml
+
+# File is in .gitignore - safe to edit locally
+# Use kubectl apply OR better yet, use Vault/Sealed Secrets
+```
+
+### Recommended Secret Management Options
+
+1. **Kubernetes Secrets (Manual)** - For development
+   ```bash
+   kubectl create secret generic wedding-telegram-bot-secret \
+     --from-literal=TELEGRAM_BOT_TOKEN=<token> \
+     --from-literal=DATABASE_URL=<url> \
+     -n dev-backend-services
+   ```
+
+2. **Sealed Secrets** - For GitOps (production)
+   - Encrypt secrets before committing
+   - Safe to store encrypted secrets in git
+
+3. **HashiCorp Vault** - Enterprise secret management
+   - Dynamic secret rotation
+   - Audit logging
+   - See section below for setup
+
+4. **GitHub Secrets** - For CI/CD workflows only
+   - Not suitable for runtime secrets
+   - Use for GitHub Actions
+
+**See [SECURITY_INCIDENT.md](SECURITY_INCIDENT.md) for detailed secret management best practices.**
+
+---
+
 ## Prerequisites
 
 1. Telegram Bot Token (get from @BotFather)
 2. PostgreSQL database
 3. Kubernetes cluster access (for production)
-4. Vault access (for secrets)
+4. Vault access (for secrets in production)
 
 ## Local Development
 
