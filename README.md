@@ -1,16 +1,29 @@
 # Wedding Telegram Bot
 
-Telegram bot для симуляции семейной жизни с упором на работу, брак, детей и экономику.
+[![CI](https://github.com/digitaldrugstech/wedding-telegram-bot/actions/workflows/ci.yml/badge.svg)](https://github.com/digitaldrugstech/wedding-telegram-bot/actions/workflows/ci.yml)
+[![Docker](https://github.com/digitaldrugstech/wedding-telegram-bot/actions/workflows/docker-publish.yml/badge.svg)](https://github.com/digitaldrugstech/wedding-telegram-bot/actions/workflows/docker-publish.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+Telegram bot для симуляции семейной жизни с упором на работу, брак и экономику.
 
 ## Features
 
-- 🏢 **5 профессий** с 6 уровнями каждая (Interpol, Banker, Infrastructure, Court, Culture)
-- 💍 **Система браков** с детьми и семьями
-- 👶 **Дети** с возрастами, кормлением, образованием и работой
-- 🏠 **Дома** с защитой от похищений
-- 💼 **Бизнесы** с пассивным доходом
-- 🎰 **Казино** с Telegram Dice API
-- 👨‍💼 **Админ-панель** для управления ботом
+### ✅ Реализовано (v1.1.0)
+
+- 🏢 **6 профессий** с 10 уровнями (Interpol, Banker, Infrastructure, Court, Culture, Selfmade)
+- 💍 **Система браков** (propose, gift, divorce)
+- ❤️ **Взаимодействия**: /makelove (зачатие), /date (свидание), /cheat (измена)
+- 💰 **Экономика**: работа, зарплата, кулдауны
+- 👨‍💼 **Админ-команды**: /reset_cd
+- 📝 **Сильные тексты**: UX-оптимизированные сообщения
+- 🔒 **Безопасность**: security scanning, dependency updates
+
+### 🚧 В разработке
+
+- 👶 **Дети**: возраст, кормление, образование, работа
+- 🏠 **Дома**: защита от похищений
+- 💼 **Бизнесы**: пассивный доход
+- 🎰 **Казино**: Telegram Dice API
 
 **Валюта:** Алмазы 💎
 
@@ -119,31 +132,53 @@ BUSINESS_PAYOUT_HOUR=18
 BUSINESS_PAYOUT_MINUTE=0
 ```
 
+## Installation
+
+### Using Docker (recommended)
+
+Pull the latest image from GitHub Container Registry:
+
+```bash
+docker pull ghcr.io/digitaldrugstech/wedding-telegram-bot:latest
+```
+
+Or use docker-compose:
+
+```bash
+cd deployments
+docker-compose up -d
+```
+
+### From Source
+
+See [Development Setup](#development-setup) below.
+
 ## Commands
 
-User commands:
-- `/start` - Начать работу с ботом
-- `/profile` - Показать профиль
-- `/work` - Меню управления работой
-- `/job` - Работать (получить зарплату)
-- `/propose` - Предложить брак
-- `/marriage` - Меню брака и семьи
-- `/family` - Меню семьи и детей
-- `/house` - Меню покупки и продажи дома
-- `/business` - Меню бизнесов
-- `/casino` - Играть в казино
-- `/balance` - Показать баланс алмазов
-- `/help` - Справка по командам
+### User Commands
 
-Admin commands (configured via ADMIN_USER_ID environment variable):
-- `/admin` - Админ-панель
-- `/stats` - Статистика бота
-- `/user_info` - Информация о пользователе
-- `/give` - Выдать алмазы
-- `/take` - Забрать алмазы
-- `/ban` / `/unban` - Блокировка пользователей
-- `/broadcast` - Отправить сообщение всем
-- `/maintenance` - Режим обслуживания
+**Профиль и экономика:**
+- `/profile` - Профиль
+- `/balance` - Баланс алмазов
+- `/help` - Справка
+
+**Работа:**
+- `/work` - Меню работы
+- `/job` - Работать (или `/job @username` для Interpol)
+
+**Брак:**
+- `/propose` - Предложить брак (reply или `/propose @username`)
+- `/marriage` - Меню брака
+- `/gift [amount]` - Подарить алмазы супругу
+- `/makelove` - Заняться любовью (шанс зачатия)
+- `/date` - Свидание (10-50 алмазов)
+- `/cheat` - Измена (reply или `/cheat @username`, риск 30%)
+
+### Admin Commands
+
+Admin access configured via `ADMIN_USER_ID` environment variable:
+
+- `/reset_cd` - Сбросить кулдаун (reply на пользователя)
 
 ## Contributing
 
