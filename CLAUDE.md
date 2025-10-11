@@ -7,6 +7,10 @@ Telegram bot для симуляции семейной жизни на игро
 **Repository**: https://github.com/digitaldrugstech/wedding-telegram-bot
 **Docker Image**: ghcr.io/digitaldrugstech/wedding-telegram-bot:latest
 
+**Environments**:
+- **Production Bot**: @wedding_telegram_bot (ID: 7454412857)
+- **Development Bot**: @wedding_dev_bot (ID: 8458433644)
+
 ## Key Technologies
 - **Framework**: python-telegram-bot 20.7 (async)
 - **Database**: PostgreSQL 15+ + SQLAlchemy 2.0 ORM
@@ -70,12 +74,17 @@ wedding-telegram-bot/
 
 ## Environment Variables
 ```bash
-TELEGRAM_BOT_TOKEN=         # Required
+TELEGRAM_BOT_TOKEN=         # Required (different for prod/dev)
 DATABASE_URL=               # postgresql://user:pass@host:port/db
 ADMIN_USER_ID=710573786     # Admin Telegram ID
 TZ=Europe/Moscow
-LOG_LEVEL=INFO
+LOG_LEVEL=INFO              # INFO for prod, DEBUG for dev
+DEBUG_CHAT_ID=-1003172144355  # Debug notifications chat
 ```
+
+**⚠️ IMPORTANT**: Токены НИКОГДА не коммитятся в git! Используй templates:
+- `deployments/k8s/secret-dev.yaml.example` → `secret-dev.yaml`
+- `deployments/k8s/secret-prod.yaml.example` → `secret-prod.yaml`
 
 ## Database Models
 
@@ -277,25 +286,26 @@ except SpecificException as e:
 
 ### Deployment
 
-#### Docker (Production)
+#### Quick Deploy (K8s)
+```bash
+# Development
+kubectl apply -f deployments/k8s/secret-dev.yaml        # Create secret first!
+kubectl apply -f deployments/k8s/deployment-dev.yaml
+kubectl -n dev-backend-services logs -f deployment/wedding-telegram-bot-dev
+
+# Production
+kubectl apply -f deployments/k8s/secret-prod.yaml       # Create secret first!
+kubectl apply -f deployments/k8s/deployment-prod.yaml
+kubectl -n dev-backend-services logs -f deployment/wedding-telegram-bot-prod
+```
+
+**См. [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) для полной инструкции**
+
+#### Docker (Local)
 ```bash
 docker pull ghcr.io/digitaldrugstech/wedding-telegram-bot:latest
-docker-compose -f deployments/docker-compose.prod.yml up -d
+docker-compose -f deployments/docker-compose.yml up -d
 docker-compose logs -f bot
-```
-
-#### Local Development
-```bash
-docker-compose -f deployments/docker-compose.yml up -d  # Start
-docker-compose logs -f bot                              # Logs
-docker-compose down                                     # Stop
-```
-
-#### Kubernetes
-```bash
-kubectl apply -f deployments/k8s/
-kubectl -n dev-backend-services get pods
-kubectl -n dev-backend-services logs -f deployment/wedding-bot
 ```
 
 ### Database Migrations

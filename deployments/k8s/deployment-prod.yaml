@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wedding-telegram-bot-prod
+  namespace: dev-backend-services
+  labels:
+    app: wedding-telegram-bot
+    environment: prod
+spec:
+  replicas: 1  # Must be 1 for APScheduler
+  selector:
+    matchLabels:
+      app: wedding-telegram-bot
+      environment: prod
+  template:
+    metadata:
+      labels:
+        app: wedding-telegram-bot
+        environment: prod
+    spec:
+      containers:
+        - name: wedding-telegram-bot
+          image: ghcr.io/digitaldrugstech/wedding-telegram-bot:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: TELEGRAM_BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: wedding-telegram-bot-secret-prod
+                  key: TELEGRAM_BOT_TOKEN
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: wedding-telegram-bot-secret-prod
+                  key: DATABASE_URL
+            - name: ADMIN_USER_ID
+              value: "710573786"
+            - name: TZ
+              value: "Europe/Moscow"
+            - name: LOG_LEVEL
+              value: "INFO"
+            - name: DEBUG_CHAT_ID
+              value: "-1003172144355"
+            - name: BUSINESS_PAYOUT_DAY
+              value: "4"  # Friday
+            - name: BUSINESS_PAYOUT_HOUR
+              value: "18"
+            - name: BUSINESS_PAYOUT_MINUTE
+              value: "0"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "200m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          livenessProbe:
+            exec:
+              command:
+                - pgrep
+                - -f
+                - "python -m app.main"
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - pgrep
+                - -f
+                - "python -m app.main"
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+      restartPolicy: Always
