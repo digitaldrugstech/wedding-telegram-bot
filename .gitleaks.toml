@@ -31,16 +31,16 @@ paths = [
   '''.env.example''',
   '''CONTEXT_TRANSFER.md''',
   '''CLAUDE.md''',
+  '''SECURITY_INCIDENT.md''',
+  '''deployments/k8s/secret-prod.yaml.example''',
 ]
-
-[[allowlist.regexes]]
-description = "Placeholder tokens in examples"
-regex = '''(your_bot_token_here|your_token_here|TELEGRAM_BOT_TOKEN=)'''
-
-[[allowlist.regexes]]
-description = "Example database passwords"
-regex = '''(password@localhost|wedding_bot:password@)'''
-
-[[allowlist.regexes]]
-description = "Localhost database URLs (safe)"
-regex = '''postgresql://.*@localhost:'''
+regexes = [
+  # Placeholder tokens in examples
+  '''(your_bot_token_here|your_token_here|TELEGRAM_BOT_TOKEN=)''',
+  # Example database passwords
+  '''(password@localhost|wedding_bot:password@)''',
+  # Localhost database URLs (safe)
+  '''postgresql://.*@localhost:''',
+  # CHANGE_ME placeholders
+  '''CHANGE_ME''',
+]
