@@ -29,10 +29,7 @@ tags = ["database", "credentials"]
 description = "Global allowlist"
 paths = [
   '''.env.example''',
-  '''CONTEXT_TRANSFER.md''',
   '''CLAUDE.md''',
-  '''SECURITY_INCIDENT.md''',
-  '''DEPLOYMENT_GUIDE.md''',
   '''deployments/.env.dev.example''',
   '''deployments/.env.prod.example''',
   '''deployments/k8s/secret-prod.yaml.example''',
