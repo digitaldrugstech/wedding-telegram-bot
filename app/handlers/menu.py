@@ -12,7 +12,20 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not query.data.startswith("menu:"):
         return
 
-    menu_type = query.data.split(":")[1]
+    if not update.effective_user:
+        return
+
+    parts = query.data.split(":")
+    menu_type = parts[1]
+
+    # Check button owner (user_id is last part)
+    if len(parts) >= 3:
+        owner_id = int(parts[2])
+        clicker_id = update.effective_user.id
+
+        if clicker_id != owner_id:
+            await query.answer("Эта кнопка не для тебя", show_alert=True)
+            return
 
     # Handle work menu (redirect to work command)
     if menu_type == "work":
@@ -62,12 +75,12 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"{emoji} {job_name} ({job.job_level}/{max_level})\n"
                     f"📊 {job.times_worked}\n"
                     f"{next_level_text}",
-                    reply_markup=work_menu_keyboard(has_job=True),
+                    reply_markup=work_menu_keyboard(has_job=True, user_id=user_id),
                 )
             else:
                 await query.edit_message_text(
                     "💼 Нет работы\n\nВыбери профессию:",
-                    reply_markup=work_menu_keyboard(has_job=False),
+                    reply_markup=work_menu_keyboard(has_job=False, user_id=user_id),
                 )
         return
 

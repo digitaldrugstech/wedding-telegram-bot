@@ -210,12 +210,12 @@ async def work_menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"{emoji} {job_name} ({job.job_level}/{max_level})\n"
                 f"📊 {job.times_worked}\n"
                 f"{next_level_text}",
-                reply_markup=work_menu_keyboard(has_job=True),
+                reply_markup=work_menu_keyboard(has_job=True, user_id=user_id),
             )
         else:
             await update.message.reply_text(
                 "💼 Нет работы\n\nВыбери профессию:",
-                reply_markup=work_menu_keyboard(has_job=False),
+                reply_markup=work_menu_keyboard(has_job=False, user_id=user_id),
             )
 
 
@@ -276,6 +276,25 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     await update.message.reply_text(
                         f"У @{victim_username} мало алмазов (< {format_diamonds(INTERPOL_MIN_VICTIM_BALANCE)})"
                     )
+                    return
+
+                # Check global job cooldown FIRST
+                cooldown_entry = db.query(Cooldown).filter(Cooldown.user_id == user_id, Cooldown.action == "job").first()
+
+                if cooldown_entry and cooldown_entry.expires_at > datetime.utcnow():
+                    remaining = cooldown_entry.expires_at - datetime.utcnow()
+                    hours, remainder = divmod(remaining.total_seconds(), 3600)
+                    minutes, seconds_remaining = divmod(remainder, 60)
+
+                    time_str = []
+                    if hours > 0:
+                        time_str.append(f"{int(hours)}ч")
+                    if minutes > 0:
+                        time_str.append(f"{int(minutes)}м")
+                    if seconds_remaining > 0 and not time_str:
+                        time_str.append(f"{int(seconds_remaining)}с")
+
+                    await update.message.reply_text(f"Можешь работать через {' '.join(time_str)}")
                     return
 
                 # Check per-victim cooldown
@@ -529,7 +548,15 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     user_id = update.effective_user.id
-    action = query.data.split(":")[1]
+    parts = query.data.split(":")
+    action = parts[1]
+
+    # Check button owner (user_id is last part)
+    if len(parts) >= 3:
+        owner_id = int(parts[2])
+        if user_id != owner_id:
+            await query.answer("Эта кнопка не для тебя", show_alert=True)
+            return
 
     if action == "choose_profession":
         await query.edit_message_text(
@@ -540,7 +567,7 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "⚖️ Суд — приговоры\n"
             "🎭 Культура — ивенты\n"
             "🐦 Селфмейд — крути каз и забирай муку",
-            reply_markup=profession_selection_keyboard(),
+            reply_markup=profession_selection_keyboard(user_id=user_id),
         )
 
     elif action == "do_job":
@@ -695,7 +722,7 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await query.edit_message_text(
             "⚠️ Точно?\n\nПотеряешь должность и прогресс",
-            reply_markup=confirm_keyboard("quit_job"),
+            reply_markup=confirm_keyboard("quit_job", user_id=user_id),
         )
 
     elif action == "quit_job_confirmed":
@@ -704,9 +731,9 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if job:
                 db.delete(job)
                 db.commit()
-                await query.edit_message_text("❌ Уволен", reply_markup=work_menu_keyboard(has_job=False))
+                await query.edit_message_text("❌ Уволен", reply_markup=work_menu_keyboard(has_job=False, user_id=user_id))
             else:
-                await query.edit_message_text("⚠️ Нет работы", reply_markup=work_menu_keyboard(has_job=False))
+                await query.edit_message_text("⚠️ Нет работы", reply_markup=work_menu_keyboard(has_job=False, user_id=user_id))
 
     elif action == "quit_job_cancelled":
         # Go back to work menu
@@ -747,12 +774,12 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"{emoji} {job_name} ({job.job_level}/{max_level})\n"
                     f"📊 {job.times_worked}\n"
                     f"{next_level_text}",
-                    reply_markup=work_menu_keyboard(has_job=True),
+                    reply_markup=work_menu_keyboard(has_job=True, user_id=user_id),
                 )
             else:
                 await query.edit_message_text(
                     "💼 Нет работы\n\nВыбери профессию:",
-                    reply_markup=work_menu_keyboard(has_job=False),
+                    reply_markup=work_menu_keyboard(has_job=False, user_id=user_id),
                 )
 
 
@@ -765,7 +792,15 @@ async def profession_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
         return
 
     user_id = update.effective_user.id
-    profession = query.data.split(":")[1]
+    parts = query.data.split(":")
+    profession = parts[1]
+
+    # Check button owner (user_id is last part)
+    if len(parts) >= 3:
+        owner_id = int(parts[2])
+        if user_id != owner_id:
+            await query.answer("Эта кнопка не для тебя", show_alert=True)
+            return
 
     with get_db() as db:
         existing_job = db.query(Job).filter(Job.user_id == user_id).first()
@@ -785,7 +820,7 @@ async def profession_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
                 f"✅ Профессия сменена\n\n"
                 f"📋 {new_title} ({new_level} ур.)\n\n"
                 f"⚠️ Потерял {level_penalty} {'уровень' if level_penalty == 1 else 'уровня'}",
-                reply_markup=work_menu_keyboard(has_job=True),
+                reply_markup=work_menu_keyboard(has_job=True, user_id=user_id),
                 parse_mode="HTML",
             )
         else:
@@ -804,7 +839,7 @@ async def profession_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
 
             await query.edit_message_text(
                 f"✅ Принят\n\n" f"📋 {job_title} (1 ур.)\n" f"💰 {min_sal}-{max_sal} алмазов\n\n" f"/job — работать",
-                reply_markup=work_menu_keyboard(has_job=True),
+                reply_markup=work_menu_keyboard(has_job=True, user_id=user_id),
                 parse_mode="HTML",
             )
 

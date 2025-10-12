@@ -14,42 +14,42 @@ def gender_selection_keyboard(user_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(keyboard)
 
 
-def profile_keyboard() -> InlineKeyboardMarkup:
+def profile_keyboard(user_id: int) -> InlineKeyboardMarkup:
     """Keyboard for profile (quick access to main menus)."""
     keyboard = [
-        [InlineKeyboardButton("💼 Работа", callback_data="menu:work")],
-        [InlineKeyboardButton("💍 Брак", callback_data="menu:marriage")],
-        [InlineKeyboardButton("👨‍👩‍👧‍👦 Семья [Не реализовано]", callback_data="menu:family")],
-        [InlineKeyboardButton("🏠 Дом [Не реализовано]", callback_data="menu:house")],
-        [InlineKeyboardButton("💼 Бизнес [Не реализовано]", callback_data="menu:business")],
+        [InlineKeyboardButton("💼 Работа", callback_data=f"menu:work:{user_id}")],
+        [InlineKeyboardButton("💍 Брак", callback_data=f"menu:marriage:{user_id}")],
+        [InlineKeyboardButton("👨‍👩‍👧‍👦 Семья [Не реализовано]", callback_data=f"menu:family:{user_id}")],
+        [InlineKeyboardButton("🏠 Дом [Не реализовано]", callback_data=f"menu:house:{user_id}")],
+        [InlineKeyboardButton("💼 Бизнес [Не реализовано]", callback_data=f"menu:business:{user_id}")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
 
-def work_menu_keyboard(has_job: bool = False) -> InlineKeyboardMarkup:
+def work_menu_keyboard(has_job: bool = False, user_id: int = 0) -> InlineKeyboardMarkup:
     """Keyboard for work menu."""
     if has_job:
         keyboard = [
-            [InlineKeyboardButton("💰 Работать", callback_data="work:do_job")],
-            [InlineKeyboardButton("❌ Уволиться", callback_data="work:quit")],
+            [InlineKeyboardButton("💰 Работать", callback_data=f"work:do_job:{user_id}")],
+            [InlineKeyboardButton("❌ Уволиться", callback_data=f"work:quit:{user_id}")],
         ]
     else:
         keyboard = [
-            [InlineKeyboardButton("📋 Выбрать профессию", callback_data="work:choose_profession")],
+            [InlineKeyboardButton("📋 Выбрать профессию", callback_data=f"work:choose_profession:{user_id}")],
         ]
     return InlineKeyboardMarkup(keyboard)
 
 
-def profession_selection_keyboard() -> InlineKeyboardMarkup:
+def profession_selection_keyboard(user_id: int = 0) -> InlineKeyboardMarkup:
     """Keyboard for profession selection."""
     keyboard = [
-        [InlineKeyboardButton("🚔 Интерпол", callback_data="profession:interpol")],
-        [InlineKeyboardButton("💳 Банкир", callback_data="profession:banker")],
-        [InlineKeyboardButton("🏗️ Инфраструктура", callback_data="profession:infrastructure")],
-        [InlineKeyboardButton("⚖️ Суд", callback_data="profession:court")],
-        [InlineKeyboardButton("🎭 Культура", callback_data="profession:culture")],
-        [InlineKeyboardButton("🐦 Селфмейд", callback_data="profession:selfmade")],
-        [InlineKeyboardButton("« Назад", callback_data="menu:work")],
+        [InlineKeyboardButton("🚔 Интерпол", callback_data=f"profession:interpol:{user_id}")],
+        [InlineKeyboardButton("💳 Банкир", callback_data=f"profession:banker:{user_id}")],
+        [InlineKeyboardButton("🏗️ Инфраструктура", callback_data=f"profession:infrastructure:{user_id}")],
+        [InlineKeyboardButton("⚖️ Суд", callback_data=f"profession:court:{user_id}")],
+        [InlineKeyboardButton("🎭 Культура", callback_data=f"profession:culture:{user_id}")],
+        [InlineKeyboardButton("🐦 Селфмейд", callback_data=f"profession:selfmade:{user_id}")],
+        [InlineKeyboardButton("« Назад", callback_data=f"menu:work:{user_id}")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -142,12 +142,12 @@ def business_buy_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(keyboard)
 
 
-def confirm_keyboard(action: str) -> InlineKeyboardMarkup:
+def confirm_keyboard(action: str, user_id: int = 0) -> InlineKeyboardMarkup:
     """Generic confirmation keyboard."""
     keyboard = [
         [
-            InlineKeyboardButton("✅ Да", callback_data=f"work:{action}_confirmed"),
-            InlineKeyboardButton("❌ Нет", callback_data=f"work:{action}_cancelled"),
+            InlineKeyboardButton("✅ Да", callback_data=f"work:{action}_confirmed:{user_id}"),
+            InlineKeyboardButton("❌ Нет", callback_data=f"work:{action}_cancelled:{user_id}"),
         ]
     ]
     return InlineKeyboardMarkup(keyboard)

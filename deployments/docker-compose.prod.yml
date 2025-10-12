@@ -26,6 +26,10 @@ services:
     depends_on:
       postgres-prod:
         condition: service_healthy
+    volumes:
+      - ../app:/app/app:ro
+      - ../alembic:/app/alembic:ro
+      - ../alembic.ini:/app/alembic.ini:ro
     environment:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN_PROD}
       DATABASE_URL: postgresql://wedding_bot_prod:${POSTGRES_PASSWORD_PROD:-wedding_prod_secure_pass_2024}@postgres-prod:5432/wedding_bot_prod

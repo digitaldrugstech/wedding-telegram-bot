@@ -8,6 +8,7 @@ import structlog
 from sqlalchemy.orm import Session
 
 from app.database.models import FamilyMember, Marriage, User
+from app.utils.formatters import format_diamonds
 
 logger = structlog.get_logger()
 
@@ -35,7 +36,7 @@ class MarriageService:
             return False, "Ты не зарегистрирован"
 
         if user.balance < PROPOSE_COST:
-            return False, f"Нужно минимум {PROPOSE_COST} алмазов для предложения"
+            return False, f"Нужно минимум {format_diamonds(PROPOSE_COST)} для предложения"
 
         if not user.gender:
             return False, "Сначала выбери пол в /start"
@@ -70,9 +71,6 @@ class MarriageService:
 
         if not acceptor.gender:
             return False, "Сначала выбери пол в /start"
-
-        if acceptor.gender == proposer.gender:
-            return False, "Можно жениться только на противоположном поле"
 
         # Check existing marriage
         existing = (
@@ -132,7 +130,7 @@ class MarriageService:
         """
         user = db.query(User).filter(User.telegram_id == user_id).first()
         if user.balance < DIVORCE_COST:
-            return False, f"Развод стоит {DIVORCE_COST} алмазов"
+            return False, f"Развод стоит {format_diamonds(DIVORCE_COST)}"
 
         marriage = MarriageService.get_active_marriage(db, user_id)
         if not marriage:
@@ -158,7 +156,7 @@ class MarriageService:
             (success, message)
         """
         if amount < GIFT_MIN:
-            return False, f"Минимальный подарок: {GIFT_MIN} алмазов"
+            return False, f"Минимальный подарок: {format_diamonds(GIFT_MIN)}"
 
         giver = db.query(User).filter(User.telegram_id == giver_id).first()
         if giver.balance < amount:
@@ -178,7 +176,7 @@ class MarriageService:
         db.commit()
 
         logger.info("Gift sent", giver_id=giver_id, partner_id=partner_id, amount=amount)
-        return True, f"Подарил {amount} алмазов супругу/супруге"
+        return True, f"Подарил {format_diamonds(amount)} супругу/супруге"
 
     @staticmethod
     def can_make_love(db: Session, user_id: int) -> Tuple[bool, Optional[str], Optional[int]]:
@@ -200,23 +198,28 @@ class MarriageService:
         return True, None, None
 
     @staticmethod
-    def make_love(db: Session, user_id: int) -> Tuple[bool, bool]:
+    def make_love(db: Session, user_id: int) -> Tuple[bool, bool, bool]:
         """Process /makelove.
 
         Returns:
-            (success, conceived)
+            (success, conceived, same_gender)
         """
         marriage = MarriageService.get_active_marriage(db, user_id)
         marriage.last_love_at = datetime.utcnow()
         marriage.love_count += 1
 
-        # 20% chance of conception
+        # Check if partners are same gender
+        partner1 = db.query(User).filter(User.telegram_id == marriage.partner1_id).first()
+        partner2 = db.query(User).filter(User.telegram_id == marriage.partner2_id).first()
+        same_gender = partner1.gender == partner2.gender
+
+        # 20% chance of conception (adoption if same gender)
         conceived = random.random() < 0.20
 
         db.commit()
 
-        logger.info("Make love", user_id=user_id, marriage_id=marriage.id, conceived=conceived)
-        return True, conceived
+        logger.info("Make love", user_id=user_id, marriage_id=marriage.id, conceived=conceived, same_gender=same_gender)
+        return True, conceived, same_gender
 
     @staticmethod
     def can_date(db: Session, user_id: int) -> Tuple[bool, Optional[str], Optional[int]]:

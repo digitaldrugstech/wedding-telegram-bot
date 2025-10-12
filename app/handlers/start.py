@@ -5,6 +5,7 @@ from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
 from app.database.connection import get_db
 from app.database.models import Job, User
+from app.services.marriage_service import MarriageService
 from app.utils.decorators import button_owner_only, require_registered
 from app.utils.formatters import format_diamonds
 from app.utils.keyboards import profile_keyboard
@@ -38,7 +39,7 @@ async def gender_selection_callback(update: Update, context: ContextTypes.DEFAUL
     gender_emoji = "♂️" if gender == "male" else "♀️"
     await query.edit_message_text(
         f"✅ {gender_emoji} Регистрация завершена\n\n" f"/profile — профиль\n" f"/work — работа",
-        reply_markup=profile_keyboard(),
+        reply_markup=profile_keyboard(user_id),
     )
 
 
@@ -70,8 +71,14 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             job_info = f"{job_names.get(job.job_type, job.job_type)} (уровень {job.job_level})"
 
         # Get marriage info
-        # TODO: Query marriages when marriage system is implemented
-        marriage_info = "Не в браке"
+        marriage = MarriageService.get_active_marriage(db, user_id)
+        if marriage:
+            partner_id = MarriageService.get_partner_id(marriage, user_id)
+            partner = db.query(User).filter(User.telegram_id == partner_id).first()
+            partner_name = partner.username if partner else f"User{partner_id}"
+            marriage_info = f"Женат/Замужем (@{partner_name})"
+        else:
+            marriage_info = "Не в браке"
 
         # Get children count
         # TODO: Query children when children system is implemented
@@ -89,7 +96,7 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"📅 С {user.created_at.strftime('%d.%m.%Y')}"
         )
 
-        await update.message.reply_text(profile_text, reply_markup=profile_keyboard())
+        await update.message.reply_text(profile_text, reply_markup=profile_keyboard(user_id))
 
 
 def register_start_handlers(application):

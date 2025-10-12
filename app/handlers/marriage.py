@@ -48,7 +48,11 @@ async def propose_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             target = FakeUser(target_id, username, username)
     else:
         await update.message.reply_text(
-            "Как использовать:\n" "• /propose (ответь на сообщение)\n" "• /propose @username"
+            "💍 <b>Предложение руки и сердца</b>\n\n"
+            "Как использовать:\n"
+            "• /propose (ответь на сообщение)\n"
+            "• /propose @username",
+            parse_mode="HTML"
         )
         return
 
@@ -92,7 +96,9 @@ async def propose_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     proposal_text = (
-        f"💍 <b>Предложение</b>\n\n" f"<b>{proposer_name}</b> → <b>{target_name}</b>\n\n" f"💰 {PROPOSE_COST} алмазов"
+        f"💍 <b>Предложение руки и сердца</b>\n\n"
+        f"<b>{proposer_name}</b> → <b>{target_name}</b>\n\n"
+        f"💰 Стоимость: {format_diamonds(PROPOSE_COST)}"
     )
 
     await update.message.reply_text(proposal_text, reply_markup=reply_markup, parse_mode="HTML")
@@ -174,7 +180,13 @@ async def marriage_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         marriage = MarriageService.get_active_marriage(db, user_id)
 
         if not marriage:
-            await update.message.reply_text("💔 Не женат\n\n" "/propose — сделать предложение")
+            await update.message.reply_text(
+                "💔 <b>Не в браке</b>\n\n"
+                "Чтобы жениться:\n"
+                "• /propose (ответь на сообщение)\n"
+                "• /propose @username",
+                parse_mode="HTML"
+            )
             return
 
         # Get partner info
@@ -238,7 +250,9 @@ async def marriage_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         await query.edit_message_text(
-            f"⚠️ <b>Развод</b>\n\n" f"Точно?\n\n" f"💰 {DIVORCE_COST} алмазов",
+            f"⚠️ <b>Развод</b>\n\n"
+            f"Точно хочешь развестись?\n\n"
+            f"💰 Стоимость: {format_diamonds(DIVORCE_COST)}",
             reply_markup=reply_markup,
             parse_mode="HTML",
         )
@@ -248,9 +262,14 @@ async def marriage_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             success, message = MarriageService.divorce(db, owner_id)
 
             if success:
-                await query.edit_message_text(f"💔 <b>Развод</b>\n\n" f"💰 {DIVORCE_COST} алмазов", parse_mode="HTML")
+                await query.edit_message_text(
+                    f"💔 <b>Развод оформлен</b>\n\n"
+                    f"Брак расторгнут\n\n"
+                    f"💰 Потрачено: {format_diamonds(DIVORCE_COST)}",
+                    parse_mode="HTML"
+                )
             else:
-                await query.edit_message_text(f"❌ {message}")
+                await query.edit_message_text(f"❌ {message}", parse_mode="HTML")
 
     elif action == "divorce_cancel":
         # Go back to marriage menu
@@ -258,20 +277,82 @@ async def marriage_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await marriage_command(update, context)
 
     elif action == "marriage_gift":
-        await query.edit_message_text(f"💝 <b>Подарок</b>\n\n" f"/gift [количество]\n\n" f"Минимум {GIFT_MIN} алмазов")
+        await query.edit_message_text(
+            f"💝 <b>Подарок супругу</b>\n\n"
+            f"Использование:\n"
+            f"/gift [количество]\n\n"
+            f"Минимум {format_diamonds(GIFT_MIN)}",
+            parse_mode="HTML"
+        )
 
     elif action == "marriage_help_love":
-        await query.answer("/makelove — любовь (20% шанс ребенка)", show_alert=True)
+        # Execute /makelove command inline
+        with get_db() as db:
+            can_love, error, cooldown = MarriageService.can_make_love(db, owner_id)
+
+            if not can_love:
+                if cooldown:
+                    time_remaining = format_time_remaining(cooldown)
+                    await query.edit_message_text(f"❤️ <b>Брачная ночь</b>\n\nСледующая попытка через {time_remaining}", parse_mode="HTML")
+                else:
+                    await query.edit_message_text(error, parse_mode="HTML")
+                return
+
+            success, conceived, same_gender = MarriageService.make_love(db, owner_id)
+
+            if conceived:
+                if same_gender:
+                    await query.edit_message_text(
+                        "❤️ <b>Любовь</b>\n\n" "🎉 Взяли ребенка из приюта!\n\n" "Ребенок — через 9 дней", parse_mode="HTML"
+                    )
+                else:
+                    await query.edit_message_text(
+                        "❤️ <b>Любовь</b>\n\n" "🎉 Зачатие!\n\n" "Ребенок — через 9 дней", parse_mode="HTML"
+                    )
+            else:
+                await query.edit_message_text(
+                    "❤️ <b>Любовь</b>\n\n" "Зачатия нет\n\n" "Следующая попытка — через 24 часа", parse_mode="HTML"
+                )
+
+            logger.info("Make love", user_id=owner_id, conceived=conceived, same_gender=same_gender)
 
     elif action == "marriage_help_date":
-        await query.answer("/date — свидание (10-50 алмазов)", show_alert=True)
+        # Execute /date command inline
+        with get_db() as db:
+            can_date, error, cooldown = MarriageService.can_date(db, owner_id)
+
+            if not can_date:
+                if cooldown:
+                    time_remaining = format_time_remaining(cooldown)
+                    await query.edit_message_text(f"📅 <b>Свидание</b>\n\nСледующее свидание через {time_remaining}", parse_mode="HTML")
+                else:
+                    await query.edit_message_text(error, parse_mode="HTML")
+                return
+
+            earned, location = MarriageService.go_on_date(db, owner_id)
+
+            await query.edit_message_text(
+                f"📅 <b>Свидание</b>\n\n"
+                f"{location}\n\n"
+                f"💰 {format_diamonds(earned)}\n\n"
+                f"Следующее — через 12 часов",
+                parse_mode="HTML",
+            )
+
+            logger.info("Date completed", user_id=owner_id, earned=earned, location=location)
 
 
 @require_registered
 async def gift_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /gift command."""
     if not update.effective_user or not update.message or not context.args:
-        await update.message.reply_text(f"/gift [количество]\n\nМинимум {GIFT_MIN} алмазов")
+        await update.message.reply_text(
+            f"💝 <b>Подарок супругу</b>\n\n"
+            f"Использование:\n"
+            f"/gift [количество]\n\n"
+            f"Минимум {format_diamonds(GIFT_MIN)}",
+            parse_mode="HTML"
+        )
         return
 
     user_id = update.effective_user.id
@@ -279,16 +360,16 @@ async def gift_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         amount = int(context.args[0])
     except (ValueError, IndexError):
-        await update.message.reply_text("Укажи количество")
+        await update.message.reply_text("❌ Укажи количество алмазов\n\nПример: /gift 100")
         return
 
     with get_db() as db:
         success, message = MarriageService.gift_diamonds(db, user_id, amount)
 
         if success:
-            await update.message.reply_text(f"💝 {message}", parse_mode="HTML")
+            await update.message.reply_text(f"💝 <b>Подарок отправлен</b>\n\n{message}", parse_mode="HTML")
         else:
-            await update.message.reply_text(f"❌ {message}")
+            await update.message.reply_text(f"❌ {message}", parse_mode="HTML")
 
 
 @require_registered
@@ -305,23 +386,28 @@ async def makelove_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not can_love:
             if cooldown:
                 time_remaining = format_time_remaining(cooldown)
-                await update.message.reply_text(f"❤️ Через {time_remaining}")
+                await update.message.reply_text(f"❤️ <b>Брачная ночь</b>\n\nСледующая попытка через {time_remaining}", parse_mode="HTML")
             else:
                 await update.message.reply_text(error)
             return
 
-        success, conceived = MarriageService.make_love(db, user_id)
+        success, conceived, same_gender = MarriageService.make_love(db, user_id)
 
         if conceived:
-            await update.message.reply_text(
-                "❤️ <b>Любовь</b>\n\n" "🎉 Зачатие!\n\n" "Ребенок — через 9 дней", parse_mode="HTML"
-            )
+            if same_gender:
+                await update.message.reply_text(
+                    "❤️ <b>Любовь</b>\n\n" "🎉 Взяли ребенка из приюта!\n\n" "Ребенок — через 9 дней", parse_mode="HTML"
+                )
+            else:
+                await update.message.reply_text(
+                    "❤️ <b>Любовь</b>\n\n" "🎉 Зачатие!\n\n" "Ребенок — через 9 дней", parse_mode="HTML"
+                )
         else:
             await update.message.reply_text(
                 "❤️ <b>Любовь</b>\n\n" "Зачатия нет\n\n" "Следующая попытка — через 24 часа", parse_mode="HTML"
             )
 
-        logger.info("Make love", user_id=user_id, conceived=conceived)
+        logger.info("Make love", user_id=user_id, conceived=conceived, same_gender=same_gender)
 
 
 @require_registered
@@ -338,7 +424,7 @@ async def date_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not can_date:
             if cooldown:
                 time_remaining = format_time_remaining(cooldown)
-                await update.message.reply_text(f"📅 Через {time_remaining}")
+                await update.message.reply_text(f"📅 <b>Свидание</b>\n\nСледующее свидание через {time_remaining}", parse_mode="HTML")
             else:
                 await update.message.reply_text(error)
             return
