@@ -166,7 +166,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             house = db.query(House).filter(House.marriage_id == marriage.id).first()
 
             if house:
-                house_info = HouseService.get_house_info(db, marriage.id)
+                house_info = HouseService.get_house_info(db, house.id)
                 from app.utils.formatters import format_diamonds
 
                 message = (
