@@ -1,5 +1,6 @@
 """Work and job handlers."""
 
+import os
 import random
 from datetime import datetime, timedelta
 
@@ -20,6 +21,9 @@ from app.utils.formatters import format_diamonds
 from app.utils.keyboards import profession_selection_keyboard, work_menu_keyboard
 
 logger = structlog.get_logger()
+
+# Check if DEBUG mode (DEV environment)
+IS_DEBUG = os.environ.get("LOG_LEVEL", "INFO").upper() == "DEBUG"
 
 # Job titles by profession and level
 JOB_TITLES = {
@@ -278,43 +282,45 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     )
                     return
 
-                # Check global job cooldown FIRST
-                cooldown_entry = db.query(Cooldown).filter(Cooldown.user_id == user_id, Cooldown.action == "job").first()
+                # Check global job cooldown FIRST (skip in DEBUG mode)
+                if not IS_DEBUG:
+                    cooldown_entry = db.query(Cooldown).filter(Cooldown.user_id == user_id, Cooldown.action == "job").first()
 
-                if cooldown_entry and cooldown_entry.expires_at > datetime.utcnow():
-                    remaining = cooldown_entry.expires_at - datetime.utcnow()
-                    hours, remainder = divmod(remaining.total_seconds(), 3600)
-                    minutes, seconds_remaining = divmod(remainder, 60)
+                    if cooldown_entry and cooldown_entry.expires_at > datetime.utcnow():
+                        remaining = cooldown_entry.expires_at - datetime.utcnow()
+                        hours, remainder = divmod(remaining.total_seconds(), 3600)
+                        minutes, seconds_remaining = divmod(remainder, 60)
 
-                    time_str = []
-                    if hours > 0:
-                        time_str.append(f"{int(hours)}ч")
-                    if minutes > 0:
-                        time_str.append(f"{int(minutes)}м")
-                    if seconds_remaining > 0 and not time_str:
-                        time_str.append(f"{int(seconds_remaining)}с")
+                        time_str = []
+                        if hours > 0:
+                            time_str.append(f"{int(hours)}ч")
+                        if minutes > 0:
+                            time_str.append(f"{int(minutes)}м")
+                        if seconds_remaining > 0 and not time_str:
+                            time_str.append(f"{int(seconds_remaining)}с")
 
-                    await update.message.reply_text(f"Можешь работать через {' '.join(time_str)}")
-                    return
+                        await update.message.reply_text(f"Можешь работать через {' '.join(time_str)}")
+                        return
 
-                # Check per-victim cooldown
-                last_fine = (
-                    db.query(InterpolFine)
-                    .filter(
-                        InterpolFine.interpol_id == user_id,
-                        InterpolFine.victim_id == victim_id,
-                        InterpolFine.created_at > datetime.utcnow() - timedelta(hours=INTERPOL_VICTIM_COOLDOWN_HOURS),
+                # Check per-victim cooldown (skip in DEBUG mode)
+                if not IS_DEBUG:
+                    last_fine = (
+                        db.query(InterpolFine)
+                        .filter(
+                            InterpolFine.interpol_id == user_id,
+                            InterpolFine.victim_id == victim_id,
+                            InterpolFine.created_at > datetime.utcnow() - timedelta(hours=INTERPOL_VICTIM_COOLDOWN_HOURS),
+                        )
+                        .first()
                     )
-                    .first()
-                )
 
-                if last_fine:
-                    remaining = (
-                        last_fine.created_at + timedelta(hours=INTERPOL_VICTIM_COOLDOWN_HOURS)
-                    ) - datetime.utcnow()
-                    minutes = int(remaining.total_seconds() / 60)
-                    await update.message.reply_text(f"Можешь оштрафовать @{victim_username} через {minutes}м")
-                    return
+                    if last_fine:
+                        remaining = (
+                            last_fine.created_at + timedelta(hours=INTERPOL_VICTIM_COOLDOWN_HOURS)
+                        ) - datetime.utcnow()
+                        minutes = int(remaining.total_seconds() / 60)
+                        await update.message.reply_text(f"Можешь оштрафовать @{victim_username} через {minutes}м")
+                        return
 
                 # Calculate fine based on victim's job level (approximately one salary)
                 victim_job = db.query(Job).filter(Job.user_id == victim_id).first()
@@ -405,24 +411,25 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 # Continue to normal work flow below, but will add hint at the end
                 pass
 
-        # Check cooldown AFTER verifying user has a job
-        cooldown_entry = db.query(Cooldown).filter(Cooldown.user_id == user_id, Cooldown.action == "job").first()
+        # Check cooldown AFTER verifying user has a job (skip in DEBUG mode)
+        if not IS_DEBUG:
+            cooldown_entry = db.query(Cooldown).filter(Cooldown.user_id == user_id, Cooldown.action == "job").first()
 
-        if cooldown_entry and cooldown_entry.expires_at > datetime.utcnow():
-            remaining = cooldown_entry.expires_at - datetime.utcnow()
-            hours, remainder = divmod(remaining.total_seconds(), 3600)
-            minutes, seconds_remaining = divmod(remainder, 60)
+            if cooldown_entry and cooldown_entry.expires_at > datetime.utcnow():
+                remaining = cooldown_entry.expires_at - datetime.utcnow()
+                hours, remainder = divmod(remaining.total_seconds(), 3600)
+                minutes, seconds_remaining = divmod(remainder, 60)
 
-            time_str = []
-            if hours > 0:
-                time_str.append(f"{int(hours)}ч")
-            if minutes > 0:
-                time_str.append(f"{int(minutes)}м")
-            if seconds_remaining > 0 and not time_str:
-                time_str.append(f"{int(seconds_remaining)}с")
+                time_str = []
+                if hours > 0:
+                    time_str.append(f"{int(hours)}ч")
+                if minutes > 0:
+                    time_str.append(f"{int(minutes)}м")
+                if seconds_remaining > 0 and not time_str:
+                    time_str.append(f"{int(seconds_remaining)}с")
 
-            await update.message.reply_text(f"Можешь работать через {' '.join(time_str)}")
-            return
+                await update.message.reply_text(f"Можешь работать через {' '.join(time_str)}")
+                return
 
         # Calculate salary based on profession
         if job.job_type == "selfmade":
@@ -552,6 +559,10 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if job.job_type == "interpol":
                 response += "\n\n💡 <b>Подсказка:</b> Штрафуй игроков\n• /job (ответь на сообщение)\n• /job @username"
 
+            # Add DEBUG mode note
+            if IS_DEBUG:
+                response += "\n\n🔧 <i>Кулдаун убран (DEV)</i>"
+
         await update.message.reply_text(response, parse_mode="HTML")
 
 
@@ -606,24 +617,25 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
                 return
 
-            # Check cooldown
-            cooldown_entry = db.query(Cooldown).filter(Cooldown.user_id == user_id, Cooldown.action == "job").first()
+            # Check cooldown (skip in DEBUG mode)
+            if not IS_DEBUG:
+                cooldown_entry = db.query(Cooldown).filter(Cooldown.user_id == user_id, Cooldown.action == "job").first()
 
-            if cooldown_entry and cooldown_entry.expires_at > datetime.utcnow():
-                remaining = cooldown_entry.expires_at - datetime.utcnow()
-                hours, remainder = divmod(remaining.total_seconds(), 3600)
-                minutes, seconds_remaining = divmod(remainder, 60)
+                if cooldown_entry and cooldown_entry.expires_at > datetime.utcnow():
+                    remaining = cooldown_entry.expires_at - datetime.utcnow()
+                    hours, remainder = divmod(remaining.total_seconds(), 3600)
+                    minutes, seconds_remaining = divmod(remainder, 60)
 
-                time_str = []
-                if hours > 0:
-                    time_str.append(f"{int(hours)}ч")
-                if minutes > 0:
-                    time_str.append(f"{int(minutes)}м")
-                if seconds_remaining > 0 and not time_str:
-                    time_str.append(f"{int(seconds_remaining)}с")
+                    time_str = []
+                    if hours > 0:
+                        time_str.append(f"{int(hours)}ч")
+                    if minutes > 0:
+                        time_str.append(f"{int(minutes)}м")
+                    if seconds_remaining > 0 and not time_str:
+                        time_str.append(f"{int(seconds_remaining)}с")
 
-                await query.edit_message_text(f"Можешь работать через {' '.join(time_str)}")
-                return
+                    await query.edit_message_text(f"Можешь работать через {' '.join(time_str)}")
+                    return
 
             # Calculate salary
             if job.job_type == "selfmade":
@@ -745,6 +757,10 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 if promoted:
                     new_title = JOB_TITLES[job.job_type][job.job_level - 1]
                     response += f"\n\n🎉 <b>Повышение!</b>\n{new_title} (уровень {job.job_level})"
+
+                # Add DEBUG mode note
+                if IS_DEBUG:
+                    response += "\n\n🔧 <i>Кулдаун убран (DEV)</i>"
 
             await query.edit_message_text(response, parse_mode="HTML")
 

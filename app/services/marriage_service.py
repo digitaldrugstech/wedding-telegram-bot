@@ -1,5 +1,6 @@
 """Marriage service for Wedding Telegram Bot."""
 
+import os
 import random
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
@@ -11,6 +12,9 @@ from app.database.models import FamilyMember, Marriage, User
 from app.utils.formatters import format_diamonds
 
 logger = structlog.get_logger()
+
+# Check if DEBUG mode (DEV environment)
+IS_DEBUG = os.environ.get("LOG_LEVEL", "INFO").upper() == "DEBUG"
 
 # Constants
 PROPOSE_COST = 50  # алмазы
@@ -203,6 +207,10 @@ class MarriageService:
         if not marriage:
             return False, "Ты не женат/замужем", None
 
+        # Skip cooldown check in DEBUG mode
+        if IS_DEBUG:
+            return True, None, None
+
         if marriage.last_love_at:
             cooldown_until = marriage.last_love_at + timedelta(hours=LOVE_COOLDOWN_HOURS)
             if datetime.utcnow() < cooldown_until:
@@ -265,6 +273,10 @@ class MarriageService:
         marriage = MarriageService.get_active_marriage(db, user_id)
         if not marriage:
             return False, "Ты не женат/замужем", None
+
+        # Skip cooldown check in DEBUG mode
+        if IS_DEBUG:
+            return True, None, None
 
         if marriage.last_date_at:
             cooldown_until = marriage.last_date_at + timedelta(hours=DATE_COOLDOWN_HOURS)

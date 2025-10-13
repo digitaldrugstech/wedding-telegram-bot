@@ -1,5 +1,7 @@
 """Marriage handlers for Wedding Telegram Bot."""
 
+import os
+
 import structlog
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
@@ -11,6 +13,9 @@ from app.utils.decorators import require_registered
 from app.utils.formatters import format_diamonds, format_time_remaining
 
 logger = structlog.get_logger()
+
+# Check if DEBUG mode (DEV environment)
+IS_DEBUG = os.environ.get("LOG_LEVEL", "INFO").upper() == "DEBUG"
 
 
 @require_registered
@@ -308,22 +313,27 @@ async def marriage_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             success, conceived, same_gender = MarriageService.make_love(db, owner_id)
 
             if conceived:
-                await query.edit_message_text(
+                message_text = (
                     "❤️ <b>Брачная ночь</b>\n\n"
                     "🎉 Поздравляем!\n\n"
                     "👶 Зачатие прошло успешно\n"
                     "🍼 Ребёнок родился в вашей семье\n\n"
-                    "💡 Управление семьёй: /family",
-                    parse_mode="HTML"
+                    "💡 Управление семьёй: /family"
                 )
+                if IS_DEBUG:
+                    message_text += "\n\n🔧 <i>Кулдаун убран (DEV)</i>"
+                await query.edit_message_text(message_text, parse_mode="HTML")
             else:
-                await query.edit_message_text(
+                message_text = (
                     "❤️ <b>Брачная ночь</b>\n\n"
                     "💑 Вы провели время вместе\n\n"
                     "🍀 Зачатие: не произошло (шанс 10%)\n"
-                    "⏰ Следующая попытка: через 24 часа",
-                    parse_mode="HTML"
                 )
+                if IS_DEBUG:
+                    message_text += "🔧 <i>Кулдаун убран (DEV)</i>"
+                else:
+                    message_text += "⏰ Следующая попытка: через 24 часа"
+                await query.edit_message_text(message_text, parse_mode="HTML")
 
             logger.info("Make love", user_id=owner_id, conceived=conceived, same_gender=same_gender)
 
@@ -342,14 +352,18 @@ async def marriage_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             earned, location = MarriageService.go_on_date(db, owner_id)
 
-            await query.edit_message_text(
+            message_text = (
                 f"📅 <b>Свидание</b>\n\n"
                 f"❤️ Вы сходили в {location}\n"
                 f"💑 Провели время вместе\n\n"
                 f"💰 Заработано: {format_diamonds(earned)}\n\n"
-                f"⏰ Следующее свидание: через 12 часов",
-                parse_mode="HTML",
             )
+            if IS_DEBUG:
+                message_text += "🔧 <i>Кулдаун убран (DEV)</i>"
+            else:
+                message_text += "⏰ Следующее свидание: через 12 часов"
+
+            await query.edit_message_text(message_text, parse_mode="HTML")
 
             logger.info("Date completed", user_id=owner_id, earned=earned, location=location)
 
@@ -406,22 +420,27 @@ async def makelove_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         success, conceived, same_gender = MarriageService.make_love(db, user_id)
 
         if conceived:
-            await update.message.reply_text(
+            message_text = (
                 "❤️ <b>Брачная ночь</b>\n\n"
                 "🎉 Поздравляем!\n\n"
                 "👶 Зачатие прошло успешно\n"
                 "🍼 Ребёнок родился в вашей семье\n\n"
-                "💡 Управление семьёй: /family",
-                parse_mode="HTML"
+                "💡 Управление семьёй: /family"
             )
+            if IS_DEBUG:
+                message_text += "\n\n🔧 <i>Кулдаун убран (DEV)</i>"
+            await update.message.reply_text(message_text, parse_mode="HTML")
         else:
-            await update.message.reply_text(
+            message_text = (
                 "❤️ <b>Брачная ночь</b>\n\n"
                 "💑 Вы провели время вместе\n\n"
                 "🍀 Зачатие: не произошло (шанс 10%)\n"
-                "⏰ Следующая попытка: через 24 часа",
-                parse_mode="HTML"
             )
+            if IS_DEBUG:
+                message_text += "🔧 <i>Кулдаун убран (DEV)</i>"
+            else:
+                message_text += "⏰ Следующая попытка: через 24 часа"
+            await update.message.reply_text(message_text, parse_mode="HTML")
 
         logger.info("Make love", user_id=user_id, conceived=conceived, same_gender=same_gender)
 
@@ -447,14 +466,18 @@ async def date_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         earned, location = MarriageService.go_on_date(db, user_id)
 
-        await update.message.reply_text(
+        message_text = (
             f"📅 <b>Свидание</b>\n\n"
             f"❤️ Вы сходили в {location}\n"
             f"💑 Провели время вместе\n\n"
             f"💰 Заработано: {format_diamonds(earned)}\n\n"
-            f"⏰ Следующее свидание: через 12 часов",
-            parse_mode="HTML",
         )
+        if IS_DEBUG:
+            message_text += "🔧 <i>Кулдаун убран (DEV)</i>"
+        else:
+            message_text += "⏰ Следующее свидание: через 12 часов"
+
+        await update.message.reply_text(message_text, parse_mode="HTML")
 
         logger.info("Date completed", user_id=user_id, earned=earned, location=location)
 

@@ -1,5 +1,6 @@
 """Casino service - gambling with Telegram Dice API."""
 
+import os
 from datetime import datetime, timedelta
 from typing import Tuple
 
@@ -10,6 +11,9 @@ from app.database.models import CasinoGame, User
 from app.utils.formatters import format_diamonds
 
 logger = structlog.get_logger()
+
+# Check if DEBUG mode (DEV environment)
+IS_DEBUG = os.environ.get("LOG_LEVEL", "INFO").upper() == "DEBUG"
 
 # Constants
 MIN_BET = 10
@@ -90,19 +94,20 @@ class CasinoService:
         if user.balance < bet_amount:
             return False, f"Недостаточно алмазов (баланс: {format_diamonds(user.balance)})"
 
-        # Check cooldown
-        last_game = (
-            db.query(CasinoGame)
-            .filter(CasinoGame.user_id == user_id)
-            .order_by(CasinoGame.played_at.desc())
-            .first()
-        )
+        # Check cooldown (skip in DEBUG mode)
+        if not IS_DEBUG:
+            last_game = (
+                db.query(CasinoGame)
+                .filter(CasinoGame.user_id == user_id)
+                .order_by(CasinoGame.played_at.desc())
+                .first()
+            )
 
-        if last_game:
-            time_since_last = datetime.utcnow() - last_game.played_at
-            if time_since_last.total_seconds() < CASINO_COOLDOWN_SECONDS:
-                remaining = CASINO_COOLDOWN_SECONDS - int(time_since_last.total_seconds())
-                return False, f"⏰ Подожди: {remaining} сек"
+            if last_game:
+                time_since_last = datetime.utcnow() - last_game.played_at
+                if time_since_last.total_seconds() < CASINO_COOLDOWN_SECONDS:
+                    remaining = CASINO_COOLDOWN_SECONDS - int(time_since_last.total_seconds())
+                    return False, f"⏰ Подожди: {remaining} сек"
 
         return True, ""
 
@@ -177,6 +182,10 @@ class CasinoService:
                 f"💎 Потеря: -{format_diamonds(bet_amount)}\n\n"
                 f"💰 Баланс: {format_diamonds(user.balance)}"
             )
+
+        # Add DEBUG mode note
+        if IS_DEBUG:
+            message += "\n\n🔧 <i>Кулдаун убран (DEV)</i>"
 
         return True, message, winnings, user.balance
 
