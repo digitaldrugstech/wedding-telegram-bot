@@ -310,9 +310,23 @@ async def marriage_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     await query.edit_message_text(error, parse_mode="HTML")
                 return
 
-            success, conceived, same_gender = MarriageService.make_love(db, owner_id)
+            success, conceived, same_gender, can_have_children, requirements_error = MarriageService.make_love(db, owner_id)
 
-            if conceived:
+            if not can_have_children:
+                # Can't have children - just sex
+                message_text = (
+                    "❤️ <b>Брачная ночь</b>\n\n"
+                    "💑 Вы просто трахались\n\n"
+                    "⚠️ Завести детей не получится:\n"
+                    f"• {requirements_error}"
+                )
+                if IS_DEBUG:
+                    message_text += "\n\n🔧 <i>Кулдаун убран (DEV)</i>"
+                else:
+                    message_text += "\n\n⏰ Следующая попытка: через 24 часа"
+                await query.edit_message_text(message_text, parse_mode="HTML")
+            elif conceived:
+                # Conceived successfully
                 message_text = (
                     "❤️ <b>Брачная ночь</b>\n\n"
                     "🎉 Поздравляем!\n\n"
@@ -324,6 +338,7 @@ async def marriage_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     message_text += "\n\n🔧 <i>Кулдаун убран (DEV)</i>"
                 await query.edit_message_text(message_text, parse_mode="HTML")
             else:
+                # No conception
                 message_text = (
                     "❤️ <b>Брачная ночь</b>\n\n"
                     "💑 Вы провели время вместе\n\n"
@@ -335,7 +350,7 @@ async def marriage_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     message_text += "⏰ Следующая попытка: через 24 часа"
                 await query.edit_message_text(message_text, parse_mode="HTML")
 
-            logger.info("Make love", user_id=owner_id, conceived=conceived, same_gender=same_gender)
+            logger.info("Make love", user_id=owner_id, conceived=conceived, same_gender=same_gender, can_have_children=can_have_children)
 
     elif action == "marriage_help_date":
         # Execute /date command inline
@@ -417,9 +432,23 @@ async def makelove_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_text(error)
             return
 
-        success, conceived, same_gender = MarriageService.make_love(db, user_id)
+        success, conceived, same_gender, can_have_children, requirements_error = MarriageService.make_love(db, user_id)
 
-        if conceived:
+        if not can_have_children:
+            # Can't have children - just sex
+            message_text = (
+                "❤️ <b>Брачная ночь</b>\n\n"
+                "💑 Вы просто трахались\n\n"
+                "⚠️ Завести детей не получится:\n"
+                f"• {requirements_error}"
+            )
+            if IS_DEBUG:
+                message_text += "\n\n🔧 <i>Кулдаун убран (DEV)</i>"
+            else:
+                message_text += "\n\n⏰ Следующая попытка: через 24 часа"
+            await update.message.reply_text(message_text, parse_mode="HTML")
+        elif conceived:
+            # Conceived successfully
             message_text = (
                 "❤️ <b>Брачная ночь</b>\n\n"
                 "🎉 Поздравляем!\n\n"
@@ -431,6 +460,7 @@ async def makelove_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 message_text += "\n\n🔧 <i>Кулдаун убран (DEV)</i>"
             await update.message.reply_text(message_text, parse_mode="HTML")
         else:
+            # No conception
             message_text = (
                 "❤️ <b>Брачная ночь</b>\n\n"
                 "💑 Вы провели время вместе\n\n"
@@ -442,7 +472,7 @@ async def makelove_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 message_text += "⏰ Следующая попытка: через 24 часа"
             await update.message.reply_text(message_text, parse_mode="HTML")
 
-        logger.info("Make love", user_id=user_id, conceived=conceived, same_gender=same_gender)
+        logger.info("Make love", user_id=user_id, conceived=conceived, same_gender=same_gender, can_have_children=can_have_children)
 
 
 @require_registered

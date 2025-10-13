@@ -220,11 +220,11 @@ class MarriageService:
         return True, None, None
 
     @staticmethod
-    def make_love(db: Session, user_id: int) -> Tuple[bool, bool, bool]:
+    def make_love(db: Session, user_id: int) -> Tuple[bool, bool, bool, bool, str]:
         """Process /makelove.
 
         Returns:
-            (success, conceived, same_gender)
+            (success, conceived, same_gender, can_have_children, requirements_error)
         """
         marriage = MarriageService.get_active_marriage(db, user_id)
         marriage.last_love_at = datetime.utcnow()
@@ -235,33 +235,35 @@ class MarriageService:
         partner2 = db.query(User).filter(User.telegram_id == marriage.partner2_id).first()
         same_gender = partner1.gender == partner2.gender
 
-        # 10% chance of conception
-        conceived = random.random() < 0.10
+        # Check if can have children (requirements)
+        can_have_children = False
+        requirements_error = ""
+        try:
+            from app.services.children_service import ChildrenService
+            can_have_children, requirements_error = ChildrenService.can_have_child(db, marriage.id)
+        except Exception as e:
+            logger.error("Failed to check child requirements", marriage_id=marriage.id, error=str(e))
 
-        # Actually create child if conceived (using ChildrenService)
-        if conceived:
-            try:
-                from app.services.children_service import ChildrenService
+        # 10% chance of conception (only if can have children)
+        conceived = False
+        if can_have_children:
+            conceived = random.random() < 0.10
 
-                can_have, error = ChildrenService.can_have_child(db, marriage.id)
-
-                if can_have:
-                    # Create child
+            # Actually create child if conceived
+            if conceived:
+                try:
+                    from app.services.children_service import ChildrenService
                     ChildrenService.create_child(db, marriage.id)
                     logger.info("Natural birth successful", user_id=user_id, marriage_id=marriage.id)
-                else:
-                    # Requirements not met - no child created
+                except Exception as e:
+                    # Fallback - don't break the command
                     conceived = False
-                    logger.warning("Natural birth failed - requirements not met", marriage_id=marriage.id, error=error)
-            except Exception as e:
-                # Fallback - don't break the command
-                conceived = False
-                logger.error("Failed to create child", marriage_id=marriage.id, error=str(e))
+                    logger.error("Failed to create child", marriage_id=marriage.id, error=str(e))
 
         db.commit()
 
-        logger.info("Make love", user_id=user_id, marriage_id=marriage.id, conceived=conceived, same_gender=same_gender)
-        return True, conceived, same_gender
+        logger.info("Make love", user_id=user_id, marriage_id=marriage.id, conceived=conceived, same_gender=same_gender, can_have_children=can_have_children)
+        return True, conceived, same_gender, can_have_children, requirements_error
 
     @staticmethod
     def can_date(db: Session, user_id: int) -> Tuple[bool, Optional[str], Optional[int]]:

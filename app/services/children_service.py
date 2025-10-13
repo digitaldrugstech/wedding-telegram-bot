@@ -1,5 +1,6 @@
 """Children service - birth, feeding, aging, education."""
 
+import os
 import random
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
@@ -11,6 +12,9 @@ from app.database.models import Child, House, Job, Marriage, User
 from app.utils.formatters import format_diamonds
 
 logger = structlog.get_logger()
+
+# Check if DEBUG mode (DEV environment)
+IS_DEBUG = os.environ.get("LOG_LEVEL", "INFO").upper() == "DEBUG"
 
 # Constants
 NATURAL_BIRTH_CHANCE = 0.10  # 10% chance on /makelove
