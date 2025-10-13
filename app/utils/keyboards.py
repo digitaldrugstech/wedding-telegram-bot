@@ -19,9 +19,10 @@ def profile_keyboard(user_id: int) -> InlineKeyboardMarkup:
     keyboard = [
         [InlineKeyboardButton("💼 Работа", callback_data=f"menu:work:{user_id}")],
         [InlineKeyboardButton("💍 Брак", callback_data=f"menu:marriage:{user_id}")],
-        [InlineKeyboardButton("👨‍👩‍👧‍👦 Семья [Не реализовано]", callback_data=f"menu:family:{user_id}")],
-        [InlineKeyboardButton("🏠 Дом [Не реализовано]", callback_data=f"menu:house:{user_id}")],
-        [InlineKeyboardButton("💼 Бизнес [Не реализовано]", callback_data=f"menu:business:{user_id}")],
+        [InlineKeyboardButton("👨‍👩‍👧‍👦 Семья", callback_data=f"menu:family:{user_id}")],
+        [InlineKeyboardButton("🏠 Дом", callback_data=f"menu:house:{user_id}")],
+        [InlineKeyboardButton("💼 Бизнес", callback_data=f"menu:business:{user_id}")],
+        [InlineKeyboardButton("🎰 Казино", callback_data=f"menu:casino:{user_id}")],
     ]
     return InlineKeyboardMarkup(keyboard)
 

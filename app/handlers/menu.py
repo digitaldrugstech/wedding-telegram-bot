@@ -135,11 +135,167 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await query.edit_message_text("💔 Не в браке\n\n/propose — сделать предложение", parse_mode="HTML")
         return
 
-    # Handle unimplemented menus
-    unimplemented_menus = ["family", "house", "business"]
+    # Handle house menu
+    if menu_type == "house":
+        from app.database.connection import get_db
+        from app.database.models import Marriage, House
+        from app.services.house_service import HouseService
+        from app.utils.keyboards import house_menu_keyboard
 
-    if menu_type in unimplemented_menus:
-        await query.answer("⚠️ Эта функция пока не реализована", show_alert=True)
+        user_id = update.effective_user.id
+
+        with get_db() as db:
+            # Check if user is married
+            marriage = (
+                db.query(Marriage)
+                .filter(
+                    (Marriage.partner1_id == user_id) | (Marriage.partner2_id == user_id),
+                    Marriage.is_active == True,
+                )
+                .first()
+            )
+
+            if not marriage:
+                await query.edit_message_text(
+                    "🏠 <b>Дом</b>\n\nНужен брак чтобы купить дом",
+                    parse_mode="HTML"
+                )
+                return
+
+            # Check if has house
+            house = db.query(House).filter(House.marriage_id == marriage.id).first()
+
+            if house:
+                house_info = HouseService.get_house_info(db, marriage.id)
+                from app.utils.formatters import format_diamonds
+
+                message = (
+                    f"🏠 <b>Твой дом</b>\n\n"
+                    f"{house_info['name']}\n"
+                    f"💰 Куплен за: {format_diamonds(house_info['price'])}\n"
+                    f"🛡️ Защита: {house_info['protection']}%"
+                )
+
+                await query.edit_message_text(
+                    message,
+                    reply_markup=house_menu_keyboard(has_house=True, user_id=user_id),
+                    parse_mode="HTML"
+                )
+            else:
+                await query.edit_message_text(
+                    "🏠 <b>Дом</b>\n\nУ семьи нет дома\n\n💡 Дом защищает детей от похищения",
+                    reply_markup=house_menu_keyboard(has_house=False, user_id=user_id),
+                    parse_mode="HTML"
+                )
+        return
+
+    # Handle business menu
+    if menu_type == "business":
+        from app.database.connection import get_db
+        from app.services.business_service import BusinessService
+        from app.utils.keyboards import business_menu_keyboard
+        from app.utils.formatters import format_diamonds
+
+        user_id = update.effective_user.id
+
+        with get_db() as db:
+            businesses = BusinessService.get_user_businesses(db, user_id)
+
+            if businesses:
+                message = "<b>💼 Твои бизнесы</b>\n\n"
+                total_income = 0
+
+                for business in businesses:
+                    message += (
+                        f"{business['name']}\n"
+                        f"📈 {format_diamonds(business['weekly_payout'])}/неделя\n\n"
+                    )
+                    total_income += business['weekly_payout']
+
+                message += f"💰 <b>Итого:</b> {format_diamonds(total_income)}/неделя"
+            else:
+                message = "💼 <b>Бизнесы</b>\n\nУ тебя нет бизнесов\n\n💡 Пассивный доход раз в неделю"
+
+            await query.edit_message_text(
+                message,
+                reply_markup=business_menu_keyboard(user_id=user_id),
+                parse_mode="HTML"
+            )
+        return
+
+    # Handle casino menu
+    if menu_type == "casino":
+        from app.services.casino_service import MIN_BET, MAX_BET
+        from app.utils.formatters import format_diamonds
+
+        user_id = update.effective_user.id
+
+        message = (
+            "<b>🎰 Казино</b>\n\n"
+            f"Ставка: {format_diamonds(MIN_BET)} - {format_diamonds(MAX_BET)}\n\n"
+            "<b>Игры:</b>\n"
+            "🎰 /slots [ставка] — Слот-машина (до x50)\n"
+            "🎲 /dice [ставка] — Кости (до x5)\n"
+            "🎯 /darts [ставка] — Дартс (до x10)\n"
+            "🏀 /basketball [ставка] — Баскетбол (до x4)\n"
+            "🎳 /bowling [ставка] — Боулинг (до x6)\n"
+            "⚽ /football [ставка] — Футбол (до x5)\n\n"
+            "💡 Выигрыш зависит от результата"
+        )
+
+        await query.edit_message_text(message, parse_mode="HTML")
+        return
+
+    # Handle family menu
+    if menu_type == "family":
+        from app.database.connection import get_db
+        from app.database.models import Marriage
+        from app.services.marriage_service import MarriageService
+        from app.services.children_service import ChildrenService
+
+        user_id = update.effective_user.id
+
+        with get_db() as db:
+            marriage = MarriageService.get_active_marriage(db, user_id)
+
+            if not marriage:
+                await query.edit_message_text("👨‍👩‍👧‍👦 <b>Семья</b>\n\nНужен брак чтобы завести детей", parse_mode="HTML")
+                return
+
+            # Get children
+            children = ChildrenService.get_marriage_children(db, marriage.id)
+
+            # Build message
+            if children:
+                alive_children = [c for c in children if c.is_alive]
+                dead_children = [c for c in children if not c.is_alive]
+
+                message = f"👨‍👩‍👧‍👦 <b>Семья</b>\n\n"
+                message += f"👶 Детей: {len(alive_children)}\n"
+
+                if dead_children:
+                    message += f"💀 Умерло: {len(dead_children)}\n"
+
+                message += "\n<b>Дети:</b>\n"
+
+                for child in alive_children[:3]:  # Show first 3
+                    info = ChildrenService.get_child_info(child)
+                    message += (
+                        f"{info['age_emoji']} {info['name']} {info['gender_emoji']}\n"
+                        f"{info['status']}"
+                    )
+                    if info['school_status']:
+                        message += f" | {info['school_status']}"
+                    message += "\n\n"
+
+                if len(alive_children) > 3:
+                    message += f"... и ещё {len(alive_children) - 3}\n\n"
+
+                message += "/family — полное меню"
+            else:
+                message = "👨‍👩‍👧‍👦 <b>Семья</b>\n\nУ вас пока нет детей\n\n/family — завести детей"
+
+            await query.edit_message_text(message, parse_mode="HTML")
         return
 
     # Handle profile menu (go back)

@@ -213,8 +213,28 @@ class MarriageService:
         partner2 = db.query(User).filter(User.telegram_id == marriage.partner2_id).first()
         same_gender = partner1.gender == partner2.gender
 
-        # 20% chance of conception (adoption if same gender)
-        conceived = random.random() < 0.20
+        # 10% chance of conception
+        conceived = random.random() < 0.10
+
+        # Actually create child if conceived (using ChildrenService)
+        if conceived:
+            try:
+                from app.services.children_service import ChildrenService
+
+                can_have, error = ChildrenService.can_have_child(db, marriage.id)
+
+                if can_have:
+                    # Create child
+                    ChildrenService.create_child(db, marriage.id)
+                    logger.info("Natural birth successful", user_id=user_id, marriage_id=marriage.id)
+                else:
+                    # Requirements not met - no child created
+                    conceived = False
+                    logger.warning("Natural birth failed - requirements not met", marriage_id=marriage.id, error=error)
+            except Exception as e:
+                # Fallback - don't break the command
+                conceived = False
+                logger.error("Failed to create child", marriage_id=marriage.id, error=str(e))
 
         db.commit()
 

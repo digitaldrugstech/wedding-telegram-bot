@@ -301,14 +301,9 @@ async def marriage_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             success, conceived, same_gender = MarriageService.make_love(db, owner_id)
 
             if conceived:
-                if same_gender:
-                    await query.edit_message_text(
-                        "❤️ <b>Любовь</b>\n\n" "🎉 Взяли ребенка из приюта!\n\n" "Ребенок — через 9 дней", parse_mode="HTML"
-                    )
-                else:
-                    await query.edit_message_text(
-                        "❤️ <b>Любовь</b>\n\n" "🎉 Зачатие!\n\n" "Ребенок — через 9 дней", parse_mode="HTML"
-                    )
+                await query.edit_message_text(
+                    "❤️ <b>Любовь</b>\n\n" "🎉 Зачатие!\n\n" "👶 Ребёнок родился\n\n" "/family — семья", parse_mode="HTML"
+                )
             else:
                 await query.edit_message_text(
                     "❤️ <b>Любовь</b>\n\n" "Зачатия нет\n\n" "Следующая попытка — через 24 часа", parse_mode="HTML"
@@ -394,14 +389,9 @@ async def makelove_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         success, conceived, same_gender = MarriageService.make_love(db, user_id)
 
         if conceived:
-            if same_gender:
-                await update.message.reply_text(
-                    "❤️ <b>Любовь</b>\n\n" "🎉 Взяли ребенка из приюта!\n\n" "Ребенок — через 9 дней", parse_mode="HTML"
-                )
-            else:
-                await update.message.reply_text(
-                    "❤️ <b>Любовь</b>\n\n" "🎉 Зачатие!\n\n" "Ребенок — через 9 дней", parse_mode="HTML"
-                )
+            await update.message.reply_text(
+                "❤️ <b>Любовь</b>\n\n" "🎉 Зачатие!\n\n" "👶 Ребёнок родился\n\n" "/family — семья", parse_mode="HTML"
+            )
         else:
             await update.message.reply_text(
                 "❤️ <b>Любовь</b>\n\n" "Зачатия нет\n\n" "Следующая попытка — через 24 часа", parse_mode="HTML"
