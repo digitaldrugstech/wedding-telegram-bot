@@ -107,6 +107,10 @@ class MarriageService:
             db.delete(old_marriage)
             logger.info("Deleted old inactive marriage", marriage_id=old_marriage.id)
 
+        # Flush to apply deletions before inserting new marriage
+        if existing_inactive:
+            db.flush()
+
         marriage = Marriage(partner1_id=p1, partner2_id=p2, is_active=True)
         db.add(marriage)
         db.commit()
