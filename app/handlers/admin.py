@@ -1,11 +1,18 @@
 """Admin commands for bot management."""
 
-from telegram import Update
-from telegram.ext import CommandHandler, ContextTypes
+import structlog
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
 from app.database.connection import get_db
-from app.database.models import Cooldown
-from app.utils.decorators import admin_only
+from app.database.models import Business, Child, Cooldown, Marriage, User
+from app.utils.decorators import admin_only, admin_only_private
+from app.utils.formatters import format_diamonds
+
+logger = structlog.get_logger()
+
+# Maintenance mode flag (in-memory)
+MAINTENANCE_MODE = False
 
 
 @admin_only
@@ -38,6 +45,429 @@ async def reset_cooldown_command(update: Update, context: ContextTypes.DEFAULT_T
             await update.message.reply_text(f"⚠️ Нет активных кулдаунов\n{target_username} (ID: {target_user_id})")
 
 
+@admin_only_private
+async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show admin menu (private only)."""
+    if not update.effective_user or not update.message:
+        return
+
+    user_id = update.effective_user.id
+
+    keyboard = [
+        [InlineKeyboardButton("📊 Статистика", callback_data=f"admin:stats:{user_id}")],
+        [InlineKeyboardButton("👤 Управление пользователями", callback_data=f"admin:users:{user_id}")],
+        [InlineKeyboardButton("📢 Рассылка", callback_data=f"admin:broadcast:{user_id}")],
+        [InlineKeyboardButton("🔧 Maintenance", callback_data=f"admin:maintenance:{user_id}")],
+        [InlineKeyboardButton("💾 Backup", callback_data=f"admin:backup:{user_id}")],
+        [InlineKeyboardButton("📋 Логи", callback_data=f"admin:logs:{user_id}")],
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    maintenance_status = "🔴 Включён" if MAINTENANCE_MODE else "🟢 Выключен"
+
+    await update.message.reply_text(
+        f"🔐 <b>Админ панель</b>\n\n"
+        f"Maintenance: {maintenance_status}\n\n"
+        f"Выбери действие:",
+        reply_markup=reply_markup,
+        parse_mode="HTML",
+    )
+
+
+@admin_only_private
+async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show bot statistics."""
+    if not update.effective_user or not update.message:
+        return
+
+    with get_db() as db:
+        # Count users
+        total_users = db.query(User).count()
+        active_marriages = db.query(Marriage).filter(Marriage.is_active == True).count()
+        total_children = db.query(Child).filter(Child.is_alive == True).count()
+        dead_children = db.query(Child).filter(Child.is_alive == False).count()
+        total_businesses = db.query(Business).count()
+
+        # Total diamonds
+        total_diamonds = db.query(db.func.sum(User.balance)).scalar() or 0
+
+        # Top 10 richest
+        top_users = db.query(User).order_by(User.balance.desc()).limit(10).all()
+
+    message = (
+        f"📊 <b>Статистика бота</b>\n\n"
+        f"👥 Пользователей: {total_users}\n"
+        f"💍 Активных браков: {active_marriages}\n"
+        f"👶 Живых детей: {total_children}\n"
+        f"💀 Мёртвых детей: {dead_children}\n"
+        f"💼 Бизнесов: {total_businesses}\n"
+        f"💰 Всего алмазов: {format_diamonds(total_diamonds)}\n\n"
+        f"<b>Топ 10 богатых:</b>\n"
+    )
+
+    for i, user in enumerate(top_users, 1):
+        username = user.username or f"User{user.telegram_id}"
+        message += f"{i}. @{username} — {format_diamonds(user.balance)}\n"
+
+    await update.message.reply_text(message, parse_mode="HTML")
+
+
+@admin_only_private
+async def user_info_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show detailed user info."""
+    if not update.effective_user or not update.message or not context.args:
+        await update.message.reply_text(
+            "👤 <b>Информация о пользователе</b>\n\n"
+            "Использование:\n"
+            "/user_info [telegram_id]\n\n"
+            "Пример: /user_info 123456789",
+            parse_mode="HTML",
+        )
+        return
+
+    try:
+        target_id = int(context.args[0])
+    except ValueError:
+        await update.message.reply_text("❌ Неверный ID")
+        return
+
+    with get_db() as db:
+        user = db.query(User).filter(User.telegram_id == target_id).first()
+
+        if not user:
+            await update.message.reply_text(f"❌ Пользователь {target_id} не найден")
+            return
+
+        # Get marriage
+        marriage = (
+            db.query(Marriage)
+            .filter(
+                ((Marriage.partner1_id == target_id) | (Marriage.partner2_id == target_id)), Marriage.is_active == True
+            )
+            .first()
+        )
+
+        # Get children
+        children_count = db.query(Child).filter(
+            (Child.parent1_id == target_id) | (Child.parent2_id == target_id), Child.is_alive == True
+        ).count()
+
+        # Get businesses
+        businesses_count = db.query(Business).filter(Business.user_id == target_id).count()
+
+        message = (
+            f"👤 <b>Пользователь {user.telegram_id}</b>\n\n"
+            f"Username: @{user.username or 'нет'}\n"
+            f"Пол: {user.gender or 'не выбран'}\n"
+            f"💰 Баланс: {format_diamonds(user.balance)}\n"
+            f"🚫 Забанен: {'Да' if user.is_banned else 'Нет'}\n"
+            f"📅 Регистрация: {user.created_at.strftime('%Y-%m-%d %H:%M')}\n\n"
+            f"💍 В браке: {'Да' if marriage else 'Нет'}\n"
+            f"👶 Детей: {children_count}\n"
+            f"💼 Бизнесов: {businesses_count}"
+        )
+
+        await update.message.reply_text(message, parse_mode="HTML")
+
+
+@admin_only_private
+async def give_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Give diamonds to user."""
+    if not update.effective_user or not update.message or len(context.args) < 2:
+        await update.message.reply_text(
+            "💰 <b>Выдать алмазы</b>\n\n"
+            "Использование:\n"
+            "/give [telegram_id] [amount]\n\n"
+            "Пример: /give 123456789 1000",
+            parse_mode="HTML",
+        )
+        return
+
+    try:
+        target_id = int(context.args[0])
+        amount = int(context.args[1])
+    except ValueError:
+        await update.message.reply_text("❌ Неверные параметры")
+        return
+
+    if amount <= 0:
+        await update.message.reply_text("❌ Сумма должна быть больше 0")
+        return
+
+    with get_db() as db:
+        user = db.query(User).filter(User.telegram_id == target_id).first()
+
+        if not user:
+            await update.message.reply_text(f"❌ Пользователь {target_id} не найден")
+            return
+
+        user.balance += amount
+        db.commit()
+
+        await update.message.reply_text(
+            f"✅ Выдано {format_diamonds(amount)}\n"
+            f"@{user.username or target_id}\n"
+            f"Новый баланс: {format_diamonds(user.balance)}"
+        )
+
+        logger.info("Admin gave diamonds", admin_id=update.effective_user.id, target_id=target_id, amount=amount)
+
+
+@admin_only_private
+async def take_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Take diamonds from user."""
+    if not update.effective_user or not update.message or len(context.args) < 2:
+        await update.message.reply_text(
+            "💰 <b>Забрать алмазы</b>\n\n"
+            "Использование:\n"
+            "/take [telegram_id] [amount]\n\n"
+            "Пример: /take 123456789 500",
+            parse_mode="HTML",
+        )
+        return
+
+    try:
+        target_id = int(context.args[0])
+        amount = int(context.args[1])
+    except ValueError:
+        await update.message.reply_text("❌ Неверные параметры")
+        return
+
+    if amount <= 0:
+        await update.message.reply_text("❌ Сумма должна быть больше 0")
+        return
+
+    with get_db() as db:
+        user = db.query(User).filter(User.telegram_id == target_id).first()
+
+        if not user:
+            await update.message.reply_text(f"❌ Пользователь {target_id} не найден")
+            return
+
+        user.balance = max(0, user.balance - amount)
+        db.commit()
+
+        await update.message.reply_text(
+            f"✅ Забрано {format_diamonds(amount)}\n"
+            f"@{user.username or target_id}\n"
+            f"Новый баланс: {format_diamonds(user.balance)}"
+        )
+
+        logger.info("Admin took diamonds", admin_id=update.effective_user.id, target_id=target_id, amount=amount)
+
+
+@admin_only_private
+async def ban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Ban user."""
+    if not update.effective_user or not update.message or not context.args:
+        await update.message.reply_text(
+            "🚫 <b>Забанить пользователя</b>\n\n"
+            "Использование:\n"
+            "/ban [telegram_id]\n\n"
+            "Пример: /ban 123456789",
+            parse_mode="HTML",
+        )
+        return
+
+    try:
+        target_id = int(context.args[0])
+    except ValueError:
+        await update.message.reply_text("❌ Неверный ID")
+        return
+
+    with get_db() as db:
+        user = db.query(User).filter(User.telegram_id == target_id).first()
+
+        if not user:
+            await update.message.reply_text(f"❌ Пользователь {target_id} не найден")
+            return
+
+        user.is_banned = True
+        db.commit()
+
+        await update.message.reply_text(f"✅ Пользователь @{user.username or target_id} забанен")
+
+        logger.info("Admin banned user", admin_id=update.effective_user.id, target_id=target_id)
+
+
+@admin_only_private
+async def unban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Unban user."""
+    if not update.effective_user or not update.message or not context.args:
+        await update.message.reply_text(
+            "✅ <b>Разбанить пользователя</b>\n\n"
+            "Использование:\n"
+            "/unban [telegram_id]\n\n"
+            "Пример: /unban 123456789",
+            parse_mode="HTML",
+        )
+        return
+
+    try:
+        target_id = int(context.args[0])
+    except ValueError:
+        await update.message.reply_text("❌ Неверный ID")
+        return
+
+    with get_db() as db:
+        user = db.query(User).filter(User.telegram_id == target_id).first()
+
+        if not user:
+            await update.message.reply_text(f"❌ Пользователь {target_id} не найден")
+            return
+
+        user.is_banned = False
+        db.commit()
+
+        await update.message.reply_text(f"✅ Пользователь @{user.username or target_id} разбанен")
+
+        logger.info("Admin unbanned user", admin_id=update.effective_user.id, target_id=target_id)
+
+
+@admin_only_private
+async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Broadcast message to all users."""
+    if not update.effective_user or not update.message or not context.args:
+        await update.message.reply_text(
+            "📢 <b>Рассылка</b>\n\n"
+            "Использование:\n"
+            "/broadcast [message]\n\n"
+            "Пример: /broadcast Привет всем!",
+            parse_mode="HTML",
+        )
+        return
+
+    message_text = " ".join(context.args)
+
+    with get_db() as db:
+        users = db.query(User).filter(User.is_banned == False).all()
+
+    sent_count = 0
+    failed_count = 0
+
+    for user in users:
+        try:
+            await context.bot.send_message(chat_id=user.telegram_id, text=message_text, parse_mode="HTML")
+            sent_count += 1
+        except Exception as e:
+            failed_count += 1
+            logger.warning("Failed to send broadcast", user_id=user.telegram_id, error=str(e))
+
+    await update.message.reply_text(
+        f"📢 <b>Рассылка завершена</b>\n\n" f"✅ Отправлено: {sent_count}\n" f"❌ Ошибок: {failed_count}",
+        parse_mode="HTML",
+    )
+
+    logger.info("Broadcast completed", admin_id=update.effective_user.id, sent=sent_count, failed=failed_count)
+
+
+@admin_only_private
+async def maintenance_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Toggle maintenance mode."""
+    global MAINTENANCE_MODE
+
+    if not update.effective_user or not update.message or not context.args:
+        status = "включён" if MAINTENANCE_MODE else "выключен"
+        await update.message.reply_text(
+            f"🔧 <b>Режим обслуживания</b>\n\n"
+            f"Статус: {status}\n\n"
+            f"Использование:\n"
+            f"/maintenance on - включить\n"
+            f"/maintenance off - выключить",
+            parse_mode="HTML",
+        )
+        return
+
+    action = context.args[0].lower()
+
+    if action == "on":
+        MAINTENANCE_MODE = True
+        await update.message.reply_text("🔴 Режим обслуживания включён\nБот доступен только админу")
+        logger.info("Maintenance mode enabled", admin_id=update.effective_user.id)
+    elif action == "off":
+        MAINTENANCE_MODE = False
+        await update.message.reply_text("🟢 Режим обслуживания выключен\nБот доступен всем")
+        logger.info("Maintenance mode disabled", admin_id=update.effective_user.id)
+    else:
+        await update.message.reply_text("❌ Используй: /maintenance on|off")
+
+
+async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle admin menu callbacks."""
+    query = update.callback_query
+    await query.answer()
+
+    if not update.effective_user:
+        return
+
+    user_id = update.effective_user.id
+    parts = query.data.split(":")
+    action = parts[1]
+
+    # Check button owner
+    if len(parts) >= 3:
+        owner_id = int(parts[2])
+        if user_id != owner_id:
+            await query.answer("Эта кнопка не для тебя", show_alert=True)
+            return
+
+    if action == "stats":
+        # Show stats inline
+        await stats_command(update, context)
+
+    elif action == "users":
+        await query.edit_message_text(
+            "👤 <b>Управление пользователями</b>\n\n"
+            "Команды:\n"
+            "/user_info [id] - информация\n"
+            "/give [id] [amount] - выдать💎\n"
+            "/take [id] [amount] - забрать💎\n"
+            "/ban [id] - забанить\n"
+            "/unban [id] - разбанить",
+            parse_mode="HTML",
+        )
+
+    elif action == "broadcast":
+        await query.edit_message_text(
+            "📢 <b>Рассылка</b>\n\n" "Команда:\n" "/broadcast [текст сообщения]", parse_mode="HTML"
+        )
+
+    elif action == "maintenance":
+        status = "🔴 Включён" if MAINTENANCE_MODE else "🟢 Выключен"
+        await query.edit_message_text(
+            f"🔧 <b>Режим обслуживания</b>\n\n"
+            f"Статус: {status}\n\n"
+            f"Команды:\n"
+            f"/maintenance on - включить\n"
+            f"/maintenance off - выключить",
+            parse_mode="HTML",
+        )
+
+    elif action == "backup":
+        await query.edit_message_text(
+            "💾 <b>Backup</b>\n\n" "⚠️ Функция в разработке\n\n" "Используй pg_dump для бэкапа PostgreSQL",
+            parse_mode="HTML",
+        )
+
+    elif action == "logs":
+        await query.edit_message_text(
+            "📋 <b>Логи</b>\n\n"
+            "⚠️ Функция в разработке\n\n"
+            "Используй docker logs wedding-bot-dev для просмотра логов",
+            parse_mode="HTML",
+        )
+
+
 def register_admin_handlers(application):
     """Register admin handlers."""
     application.add_handler(CommandHandler("reset_cd", reset_cooldown_command))
+    application.add_handler(CommandHandler("admin", admin_command))
+    application.add_handler(CommandHandler("stats", stats_command))
+    application.add_handler(CommandHandler("user_info", user_info_command))
+    application.add_handler(CommandHandler("give", give_command))
+    application.add_handler(CommandHandler("take", take_command))
+    application.add_handler(CommandHandler("ban", ban_command))
+    application.add_handler(CommandHandler("unban", unban_command))
+    application.add_handler(CommandHandler("broadcast", broadcast_command))
+    application.add_handler(CommandHandler("maintenance", maintenance_command))
+    application.add_handler(CallbackQueryHandler(admin_callback, pattern="^admin:"))
