@@ -60,7 +60,6 @@ def marriage_menu_keyboard(is_married: bool = False, user_id: int = 0) -> Inline
     if not is_married:
         keyboard = [
             [InlineKeyboardButton("💍 Найти пару", callback_data=f"marriage:info:{user_id}")],
-            [InlineKeyboardButton("« Назад", callback_data=f"menu:profile:{user_id}")],
         ]
     else:
         keyboard = [
@@ -72,7 +71,6 @@ def marriage_menu_keyboard(is_married: bool = False, user_id: int = 0) -> Inline
             [InlineKeyboardButton("💰 Бюджет", callback_data=f"marriage:budget:{user_id}")],
             [InlineKeyboardButton("✏️ Фамилия", callback_data=f"marriage:set_family_name:{user_id}")],
             [InlineKeyboardButton("💔 Развестись", callback_data=f"marriage:divorce:{user_id}")],
-            [InlineKeyboardButton("« Назад", callback_data=f"menu:profile:{user_id}")],
         ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -85,7 +83,6 @@ def family_menu_keyboard(user_id: int = 0) -> InlineKeyboardMarkup:
         [InlineKeyboardButton("🍽️ Покормить всех", callback_data=f"family:feed_all:{user_id}")],
         [InlineKeyboardButton("📈 Вырастить всех", callback_data=f"family:age_all:{user_id}")],
         [InlineKeyboardButton("👩‍🍼 Няня", callback_data=f"family:babysitter:{user_id}")],
-        [InlineKeyboardButton("« Назад", callback_data=f"menu:profile:{user_id}")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -96,12 +93,10 @@ def house_menu_keyboard(has_house: bool = False, user_id: int = 0) -> InlineKeyb
         keyboard = [
             [InlineKeyboardButton("🏠 Мой дом", callback_data=f"house:info:{user_id}")],
             [InlineKeyboardButton("💰 Продать дом", callback_data=f"house:sell:{user_id}")],
-            [InlineKeyboardButton("« Назад", callback_data=f"menu:profile:{user_id}")],
         ]
     else:
         keyboard = [
             [InlineKeyboardButton("🏠 Купить дом", callback_data=f"house:buy:{user_id}")],
-            [InlineKeyboardButton("« Назад", callback_data=f"menu:profile:{user_id}")],
         ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -126,7 +121,6 @@ def business_menu_keyboard(user_id: int = 0) -> InlineKeyboardMarkup:
         [InlineKeyboardButton("📊 Мои бизнесы", callback_data=f"business:list:{user_id}")],
         [InlineKeyboardButton("🛒 Купить бизнес", callback_data=f"business:buy:{user_id}")],
         [InlineKeyboardButton("💰 Продать бизнес", callback_data=f"business:sell:{user_id}")],
-        [InlineKeyboardButton("« Назад", callback_data=f"menu:profile:{user_id}")],
     ]
     return InlineKeyboardMarkup(keyboard)
 

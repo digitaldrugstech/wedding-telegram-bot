@@ -131,11 +131,13 @@ async def propose_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 can_accept, error = MarriageService.can_accept_proposal(db, target_id, proposer_id)
                 if not can_accept:
                     await query.edit_message_text(f"❌ Не получилось: {error}")
+                    logger.warning("Proposal rejected - can't accept", target_id=target_id, proposer_id=proposer_id, error=error)
                     return
 
                 can_propose, error = MarriageService.can_propose(db, proposer_id)
                 if not can_propose:
                     await query.edit_message_text(f"❌ Не получилось: {error}")
+                    logger.warning("Proposal rejected - can't propose", target_id=target_id, proposer_id=proposer_id, error=error)
                     return
 
                 # Create marriage
@@ -159,8 +161,13 @@ async def propose_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             logger.info("Proposal accepted", proposer_id=proposer_id, target_id=target_id, marriage_id=marriage_id)
         except Exception as e:
-            logger.error("Failed to accept proposal", proposer_id=proposer_id, target_id=target_id, error=str(e))
-            await query.edit_message_text("❌ Ошибка\n\nВозможно, кто-то уже женат", parse_mode="HTML")
+            logger.error("Failed to accept proposal", proposer_id=proposer_id, target_id=target_id, error=str(e), exc_info=True)
+            await query.edit_message_text(
+                f"❌ <b>Ошибка</b>\n\n"
+                f"Не удалось создать брак\n\n"
+                f"Причина: {str(e)[:100]}",
+                parse_mode="HTML"
+            )
 
     elif action == "propose_reject":
         await query.edit_message_text("❌ <b>Отказ</b>\n\nВ следующий раз повезет", parse_mode="HTML")
