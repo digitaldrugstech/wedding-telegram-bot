@@ -74,33 +74,55 @@ async def main():
 
         # Send debug message to chat with changelog (optional, may fail if no access)
         try:
-            # Read changelog for current version
-            changelog_text = ""
-            try:
-                import os
+            import os
+            import subprocess
 
-                changelog_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "CHANGELOG.md")
-                with open(changelog_path, "r", encoding="utf-8") as f:
-                    lines = f.readlines()
-                    in_current_version = False
-                    for line in lines:
-                        if line.startswith(f"## [{__version__}]"):
-                            in_current_version = True
-                            continue
-                        elif in_current_version and line.startswith("## ["):
-                            break
-                        elif in_current_version:
-                            changelog_text += line
-            except Exception as e:
-                logger.warning("Failed to read changelog", error=str(e))
-                changelog_text = ""
+            # For DEV: Show recent git commits
+            # For PROD: Show CHANGELOG.md version
+            changelog_text = ""
+
+            if config.log_level.upper() == "DEBUG":
+                # DEV mode - show last 10 commits
+                try:
+                    result = subprocess.run(
+                        ["git", "log", "--oneline", "-10", "--pretty=format:• %s"],
+                        capture_output=True,
+                        text=True,
+                        timeout=5,
+                        cwd=os.path.dirname(os.path.dirname(__file__))
+                    )
+                    if result.returncode == 0 and result.stdout.strip():
+                        changelog_text = f"<b>Recent commits:</b>\n{result.stdout.strip()}"
+                except Exception as e:
+                    logger.warning("Failed to get git log", error=str(e))
+            else:
+                # PROD mode - show CHANGELOG.md
+                try:
+                    changelog_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "CHANGELOG.md")
+                    with open(changelog_path, "r", encoding="utf-8") as f:
+                        lines = f.readlines()
+                        in_current_version = False
+                        for line in lines:
+                            if line.startswith(f"## [{__version__}]"):
+                                in_current_version = True
+                                continue
+                            elif in_current_version and line.startswith("## ["):
+                                break
+                            elif in_current_version:
+                                changelog_text += line
+                except Exception as e:
+                    logger.warning("Failed to read changelog", error=str(e))
 
             message = f"🤖 Wedding Bot started\n📦 Version: {__version__}"
             if changelog_text.strip():
                 message += f"\n\n{changelog_text.strip()}"
 
             try:
-                await application.bot.send_message(chat_id=DEBUG_CHAT_ID, text=message)
+                await application.bot.send_message(
+                    chat_id=DEBUG_CHAT_ID,
+                    text=message,
+                    parse_mode="HTML"
+                )
                 logger.info("Debug message sent to chat", chat_id=DEBUG_CHAT_ID)
             except Exception as send_error:
                 # Bot may not have access to debug chat (e.g., in production)

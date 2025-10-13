@@ -54,90 +54,90 @@ def profession_selection_keyboard(user_id: int = 0) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(keyboard)
 
 
-def marriage_menu_keyboard(is_married: bool = False) -> InlineKeyboardMarkup:
+def marriage_menu_keyboard(is_married: bool = False, user_id: int = 0) -> InlineKeyboardMarkup:
     """Keyboard for marriage menu."""
     if not is_married:
         keyboard = [
-            [InlineKeyboardButton("💍 Найти пару", callback_data="marriage:info")],
-            [InlineKeyboardButton("« Назад", callback_data="menu:profile")],
+            [InlineKeyboardButton("💍 Найти пару", callback_data=f"marriage:info:{user_id}")],
+            [InlineKeyboardButton("« Назад", callback_data=f"menu:profile:{user_id}")],
         ]
     else:
         keyboard = [
-            [InlineKeyboardButton("🌙 Брачная ночь", callback_data="marriage:make_love")],
-            [InlineKeyboardButton("❤️ Свидание", callback_data="marriage:date")],
-            [InlineKeyboardButton("💔 Изменить", callback_data="marriage:cheat")],
-            [InlineKeyboardButton("📋 Инфо о браке", callback_data="marriage:info")],
-            [InlineKeyboardButton("👥 Семья", callback_data="marriage:family")],
-            [InlineKeyboardButton("💰 Бюджет", callback_data="marriage:budget")],
-            [InlineKeyboardButton("✏️ Фамилия", callback_data="marriage:set_family_name")],
-            [InlineKeyboardButton("💔 Развестись", callback_data="marriage:divorce")],
-            [InlineKeyboardButton("« Назад", callback_data="menu:profile")],
+            [InlineKeyboardButton("🌙 Брачная ночь", callback_data=f"marriage:make_love:{user_id}")],
+            [InlineKeyboardButton("❤️ Свидание", callback_data=f"marriage:date:{user_id}")],
+            [InlineKeyboardButton("💔 Изменить", callback_data=f"marriage:cheat:{user_id}")],
+            [InlineKeyboardButton("📋 Инфо о браке", callback_data=f"marriage:info:{user_id}")],
+            [InlineKeyboardButton("👥 Семья", callback_data=f"marriage:family:{user_id}")],
+            [InlineKeyboardButton("💰 Бюджет", callback_data=f"marriage:budget:{user_id}")],
+            [InlineKeyboardButton("✏️ Фамилия", callback_data=f"marriage:set_family_name:{user_id}")],
+            [InlineKeyboardButton("💔 Развестись", callback_data=f"marriage:divorce:{user_id}")],
+            [InlineKeyboardButton("« Назад", callback_data=f"menu:profile:{user_id}")],
         ]
     return InlineKeyboardMarkup(keyboard)
 
 
-def family_menu_keyboard() -> InlineKeyboardMarkup:
+def family_menu_keyboard(user_id: int = 0) -> InlineKeyboardMarkup:
     """Keyboard for family/children menu."""
     keyboard = [
-        [InlineKeyboardButton("👶 Список детей", callback_data="family:list_children")],
-        [InlineKeyboardButton("🍼 Родить ребёнка", callback_data="family:have_child")],
-        [InlineKeyboardButton("🍽️ Покормить всех", callback_data="family:feed_all")],
-        [InlineKeyboardButton("📈 Вырастить всех", callback_data="family:age_all")],
-        [InlineKeyboardButton("👩‍🍼 Няня", callback_data="family:babysitter")],
-        [InlineKeyboardButton("« Назад", callback_data="menu:profile")],
+        [InlineKeyboardButton("👶 Список детей", callback_data=f"family:list_children:{user_id}")],
+        [InlineKeyboardButton("🍼 Родить ребёнка", callback_data=f"family:have_child:{user_id}")],
+        [InlineKeyboardButton("🍽️ Покормить всех", callback_data=f"family:feed_all:{user_id}")],
+        [InlineKeyboardButton("📈 Вырастить всех", callback_data=f"family:age_all:{user_id}")],
+        [InlineKeyboardButton("👩‍🍼 Няня", callback_data=f"family:babysitter:{user_id}")],
+        [InlineKeyboardButton("« Назад", callback_data=f"menu:profile:{user_id}")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
 
-def house_menu_keyboard(has_house: bool = False) -> InlineKeyboardMarkup:
+def house_menu_keyboard(has_house: bool = False, user_id: int = 0) -> InlineKeyboardMarkup:
     """Keyboard for house menu."""
     if has_house:
         keyboard = [
-            [InlineKeyboardButton("🏠 Мой дом", callback_data="house:info")],
-            [InlineKeyboardButton("💰 Продать дом", callback_data="house:sell")],
-            [InlineKeyboardButton("« Назад", callback_data="menu:profile")],
+            [InlineKeyboardButton("🏠 Мой дом", callback_data=f"house:info:{user_id}")],
+            [InlineKeyboardButton("💰 Продать дом", callback_data=f"house:sell:{user_id}")],
+            [InlineKeyboardButton("« Назад", callback_data=f"menu:profile:{user_id}")],
         ]
     else:
         keyboard = [
-            [InlineKeyboardButton("🏠 Купить дом", callback_data="house:buy")],
-            [InlineKeyboardButton("« Назад", callback_data="menu:profile")],
+            [InlineKeyboardButton("🏠 Купить дом", callback_data=f"house:buy:{user_id}")],
+            [InlineKeyboardButton("« Назад", callback_data=f"menu:profile:{user_id}")],
         ]
     return InlineKeyboardMarkup(keyboard)
 
 
-def house_buy_keyboard() -> InlineKeyboardMarkup:
+def house_buy_keyboard(user_id: int = 0) -> InlineKeyboardMarkup:
     """Keyboard for buying houses."""
     keyboard = [
-        [InlineKeyboardButton("🏚️ Хибара (1,000 💎)", callback_data="house:buy:1")],
-        [InlineKeyboardButton("🏡 Деревянный домик (5,000 💎)", callback_data="house:buy:2")],
-        [InlineKeyboardButton("🏠 Каменный дом (20,000 💎)", callback_data="house:buy:3")],
-        [InlineKeyboardButton("🏘️ Коттедж (100,000 💎)", callback_data="house:buy:4")],
-        [InlineKeyboardButton("🏰 Особняк (500,000 💎)", callback_data="house:buy:5")],
-        [InlineKeyboardButton("🏯 Замок (2,000,000 💎)", callback_data="house:buy:6")],
-        [InlineKeyboardButton("« Назад", callback_data="menu:house")],
+        [InlineKeyboardButton("🏚️ Хибара (1,000 💎)", callback_data=f"house:buy_confirm:1:{user_id}")],
+        [InlineKeyboardButton("🏡 Деревянный домик (5,000 💎)", callback_data=f"house:buy_confirm:2:{user_id}")],
+        [InlineKeyboardButton("🏠 Каменный дом (20,000 💎)", callback_data=f"house:buy_confirm:3:{user_id}")],
+        [InlineKeyboardButton("🏘️ Коттедж (100,000 💎)", callback_data=f"house:buy_confirm:4:{user_id}")],
+        [InlineKeyboardButton("🏰 Особняк (500,000 💎)", callback_data=f"house:buy_confirm:5:{user_id}")],
+        [InlineKeyboardButton("🏯 Замок (2,000,000 💎)", callback_data=f"house:buy_confirm:6:{user_id}")],
+        [InlineKeyboardButton("« Назад", callback_data=f"menu:house:{user_id}")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
 
-def business_menu_keyboard() -> InlineKeyboardMarkup:
+def business_menu_keyboard(user_id: int = 0) -> InlineKeyboardMarkup:
     """Keyboard for business menu."""
     keyboard = [
-        [InlineKeyboardButton("📊 Мои бизнесы", callback_data="business:list")],
-        [InlineKeyboardButton("🛒 Купить бизнес", callback_data="business:buy")],
-        [InlineKeyboardButton("💰 Продать бизнес", callback_data="business:sell")],
-        [InlineKeyboardButton("« Назад", callback_data="menu:profile")],
+        [InlineKeyboardButton("📊 Мои бизнесы", callback_data=f"business:list:{user_id}")],
+        [InlineKeyboardButton("🛒 Купить бизнес", callback_data=f"business:buy:{user_id}")],
+        [InlineKeyboardButton("💰 Продать бизнес", callback_data=f"business:sell:{user_id}")],
+        [InlineKeyboardButton("« Назад", callback_data=f"menu:profile:{user_id}")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
 
-def business_buy_keyboard() -> InlineKeyboardMarkup:
+def business_buy_keyboard(user_id: int = 0) -> InlineKeyboardMarkup:
     """Keyboard for buying businesses."""
     keyboard = [
-        [InlineKeyboardButton("🏪 Палатка на рынке (1,000 💎)", callback_data="business:buy:1")],
-        [InlineKeyboardButton("🏬 Магазин на спавне (5,000 💎)", callback_data="business:buy:2")],
-        [InlineKeyboardButton("🏦 Филиал банка (25,000 💎)", callback_data="business:buy:3")],
-        [InlineKeyboardButton("🏙️ Свой город (150,000 💎)", callback_data="business:buy:4")],
-        [InlineKeyboardButton("« Назад", callback_data="menu:business")],
+        [InlineKeyboardButton("🏪 Палатка на рынке (1,000 💎)", callback_data=f"business:buy_confirm:1:{user_id}")],
+        [InlineKeyboardButton("🏬 Магазин на спавне (5,000 💎)", callback_data=f"business:buy_confirm:2:{user_id}")],
+        [InlineKeyboardButton("🏦 Филиал банка (25,000 💎)", callback_data=f"business:buy_confirm:3:{user_id}")],
+        [InlineKeyboardButton("🏙️ Свой город (150,000 💎)", callback_data=f"business:buy_confirm:4:{user_id}")],
+        [InlineKeyboardButton("« Назад", callback_data=f"menu:business:{user_id}")],
     ]
     return InlineKeyboardMarkup(keyboard)
 

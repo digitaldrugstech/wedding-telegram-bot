@@ -24,6 +24,13 @@ services:
   bot:
     image: ghcr.io/digitaldrugstech/wedding-telegram-bot:latest
     container_name: wedding-bot-dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ../app:/app/app:ro
+      - ../alembic:/app/alembic:ro
+      - ../alembic.ini:/app/alembic.ini:ro
     environment:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN_DEV}
       DATABASE_URL: postgresql://wedding_bot:${POSTGRES_PASSWORD:-password}@postgres:5432/wedding_bot
@@ -36,9 +43,6 @@ services:
       BUSINESS_PAYOUT_MINUTE: 0
     networks:
       - wedding-net
-    depends_on:
-      postgres:
-        condition: service_healthy
     restart: unless-stopped
 
 networks:
