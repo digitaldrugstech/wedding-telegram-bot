@@ -68,9 +68,9 @@ async def house_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     parts = query.data.split(":")
     action = parts[1]
 
-    # Check button owner
-    if len(parts) >= 3:
-        owner_id = int(parts[2])
+    # Check button owner (user_id is the last part)
+    if len(parts) >= 3 and parts[-1].isdigit():
+        owner_id = int(parts[-1])
         if user_id != owner_id:
             await query.answer("Эта кнопка не для тебя", show_alert=True)
             return
