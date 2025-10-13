@@ -248,18 +248,24 @@ class ChildrenService:
 
     @staticmethod
     def check_and_kill_starving_children(db: Session):
-        """Background task: kill children who haven't been fed in 5+ days."""
+        """Background task: kill children who haven't been fed in 5+ days.
+
+        Returns:
+            List of tuples: [(child, parent1_id, parent2_id), ...]
+        """
         threshold = datetime.utcnow() - timedelta(days=DEATH_THRESHOLD_DAYS)
 
         starving_children = db.query(Child).filter(Child.is_alive.is_(True), Child.last_fed_at < threshold).all()
 
+        dead_children_info = []
         for child in starving_children:
             child.is_alive = False
+            dead_children_info.append((child, child.parent1_id, child.parent2_id))
             logger.warning("Child died from starvation", child_id=child.id, last_fed_at=child.last_fed_at)
 
         db.commit()
 
-        return len(starving_children)
+        return dead_children_info
 
     @staticmethod
     def age_up_child(db: Session, child_id: int, user_id: int) -> Tuple[bool, str]:

@@ -15,6 +15,7 @@ from app.bot import create_bot, post_init, post_shutdown  # noqa: E402
 from app.config import config  # noqa: E402
 from app.constants import DEBUG_CHAT_ID  # noqa: E402
 from app.database.connection import init_db  # noqa: E402
+from app.tasks.scheduler import start_scheduler, stop_scheduler  # noqa: E402
 
 # Configure structlog
 structlog.configure(
@@ -62,6 +63,10 @@ async def main():
 
         # Initialize bot
         await post_init(application)
+
+        # Start background tasks scheduler
+        logger.info("Starting background tasks scheduler")
+        start_scheduler(application)
 
         # Start bot
         logger.info("Starting bot")
@@ -140,6 +145,12 @@ async def main():
         logger.error("Fatal error", error=str(e), exc_info=True)
         sys.exit(1)
     finally:
+        # Stop scheduler
+        try:
+            stop_scheduler()
+        except Exception as e:
+            logger.error("Error stopping scheduler", error=str(e))
+
         if "application" in locals():
             logger.info("Stopping bot")
             await application.updater.stop()
