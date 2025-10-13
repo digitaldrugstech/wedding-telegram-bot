@@ -97,6 +97,16 @@ class MarriageService:
         # Create marriage (smaller ID first for uniqueness)
         p1, p2 = min(partner1_id, partner2_id), max(partner1_id, partner2_id)
 
+        # Check for existing inactive marriages and delete them (to avoid unique constraint violation)
+        existing_inactive = (
+            db.query(Marriage)
+            .filter(Marriage.partner1_id == p1, Marriage.partner2_id == p2, Marriage.is_active.is_(False))
+            .all()
+        )
+        for old_marriage in existing_inactive:
+            db.delete(old_marriage)
+            logger.info("Deleted old inactive marriage", marriage_id=old_marriage.id)
+
         marriage = Marriage(partner1_id=p1, partner2_id=p2, is_active=True)
         db.add(marriage)
         db.commit()
