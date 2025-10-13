@@ -4,7 +4,7 @@ from telegram import Update
 from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
 from app.database.connection import get_db
-from app.database.models import Job, User
+from app.database.models import Child, Job, User
 from app.services.marriage_service import MarriageService
 from app.utils.decorators import button_owner_only, require_registered
 from app.utils.formatters import format_diamonds
@@ -81,8 +81,11 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             marriage_info = "Не в браке"
 
         # Get children count
-        # TODO: Query children when children system is implemented
-        children_count = 0
+        children_count = (
+            db.query(Child)
+            .filter((Child.parent1_id == user_id) | (Child.parent2_id == user_id), Child.is_alive.is_(True))
+            .count()
+        )
 
         gender_emoji = "♂️" if user.gender == "male" else "♀️"
 
