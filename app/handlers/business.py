@@ -5,7 +5,7 @@ from telegram import Update
 from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
 from app.database.connection import get_db
-from app.services.business_service import BUSINESS_TYPES, BusinessService
+from app.services.business_service import BusinessService
 from app.utils.decorators import require_registered
 from app.utils.formatters import format_diamonds
 from app.utils.keyboards import business_buy_keyboard, business_menu_keyboard

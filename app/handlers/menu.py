@@ -150,7 +150,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 db.query(Marriage)
                 .filter(
                     (Marriage.partner1_id == user_id) | (Marriage.partner2_id == user_id),
-                    Marriage.is_active == True,
+                    Marriage.is_active.is_(True),
                 )
                 .first()
             )
@@ -262,7 +262,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 alive_children = [c for c in children if c.is_alive]
                 dead_children = [c for c in children if not c.is_alive]
 
-                message = f"👨‍👩‍👧‍👦 <b>Семья</b>\n\n"
+                message = "👨‍👩‍👧‍👦 <b>Семья</b>\n\n"
                 message += f"👶 Детей: {len(alive_children)}\n"
 
                 if dead_children:

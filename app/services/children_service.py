@@ -46,7 +46,7 @@ class ChildrenService:
     @staticmethod
     def can_have_child(db: Session, marriage_id: int) -> Tuple[bool, str]:
         """Check if couple can have a child."""
-        marriage = db.query(Marriage).filter(Marriage.id == marriage_id, Marriage.is_active == True).first()
+        marriage = db.query(Marriage).filter(Marriage.id == marriage_id, Marriage.is_active.is_(True)).first()
 
         if not marriage:
             return False, "Брак не найден"
@@ -177,7 +177,7 @@ class ChildrenService:
     @staticmethod
     def feed_child(db: Session, child_id: int, user_id: int) -> Tuple[bool, str]:
         """Feed a child (50 diamonds)."""
-        child = db.query(Child).filter(Child.id == child_id, Child.is_alive == True).first()
+        child = db.query(Child).filter(Child.id == child_id, Child.is_alive.is_(True)).first()
 
         if not child:
             return False, "Ребёнок не найден"
@@ -208,7 +208,7 @@ class ChildrenService:
     @staticmethod
     def feed_all_children(db: Session, marriage_id: int, user_id: int) -> Tuple[int, int, int]:
         """Feed all children (returns: fed, already_fed, insufficient_funds)."""
-        children = db.query(Child).filter(Child.marriage_id == marriage_id, Child.is_alive == True).all()
+        children = db.query(Child).filter(Child.marriage_id == marriage_id, Child.is_alive.is_(True)).all()
 
         fed_count = 0
         already_fed_count = 0
@@ -251,7 +251,7 @@ class ChildrenService:
         """Background task: kill children who haven't been fed in 5+ days."""
         threshold = datetime.utcnow() - timedelta(days=DEATH_THRESHOLD_DAYS)
 
-        starving_children = db.query(Child).filter(Child.is_alive == True, Child.last_fed_at < threshold).all()
+        starving_children = db.query(Child).filter(Child.is_alive.is_(True), Child.last_fed_at < threshold).all()
 
         for child in starving_children:
             child.is_alive = False
@@ -264,7 +264,7 @@ class ChildrenService:
     @staticmethod
     def age_up_child(db: Session, child_id: int, user_id: int) -> Tuple[bool, str]:
         """Age up a child to the next stage."""
-        child = db.query(Child).filter(Child.id == child_id, Child.is_alive == True).first()
+        child = db.query(Child).filter(Child.id == child_id, Child.is_alive.is_(True)).first()
 
         if not child:
             return False, "Ребёнок не найден"
@@ -299,7 +299,7 @@ class ChildrenService:
     @staticmethod
     def enroll_in_school(db: Session, child_id: int, user_id: int) -> Tuple[bool, str]:
         """Enroll child in school (500 diamonds/month, +50% work bonus)."""
-        child = db.query(Child).filter(Child.id == child_id, Child.is_alive == True).first()
+        child = db.query(Child).filter(Child.id == child_id, Child.is_alive.is_(True)).first()
 
         if not child:
             return False, "Ребёнок не найден"
@@ -353,7 +353,7 @@ class ChildrenService:
     @staticmethod
     def work_teen(db: Session, child_id: int) -> Tuple[bool, str, int]:
         """Teen works and earns diamonds (30-60, +50% if in school)."""
-        child = db.query(Child).filter(Child.id == child_id, Child.is_alive == True).first()
+        child = db.query(Child).filter(Child.id == child_id, Child.is_alive.is_(True)).first()
 
         if not child:
             return False, "Ребёнок не найден", 0

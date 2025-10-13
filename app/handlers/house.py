@@ -5,7 +5,7 @@ from telegram import Update
 from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
 from app.database.connection import get_db
-from app.services.house_service import HOUSE_TYPES, HouseService
+from app.services.house_service import HouseService
 from app.utils.decorators import require_registered
 from app.utils.formatters import format_diamonds
 from app.utils.keyboards import house_buy_keyboard, house_menu_keyboard
@@ -91,7 +91,7 @@ async def house_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if success:
                 await query.edit_message_text(message, parse_mode="HTML")
             else:
-                await query.edit_message_text(f"❌ Ошибка покупки", parse_mode="HTML")
+                await query.edit_message_text("❌ Ошибка покупки", parse_mode="HTML")
 
     elif action == "sell":
         # Sell house

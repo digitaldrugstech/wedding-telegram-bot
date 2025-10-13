@@ -81,9 +81,9 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     with get_db() as db:
         # Count users
         total_users = db.query(User).count()
-        active_marriages = db.query(Marriage).filter(Marriage.is_active == True).count()
-        total_children = db.query(Child).filter(Child.is_alive == True).count()
-        dead_children = db.query(Child).filter(Child.is_alive == False).count()
+        active_marriages = db.query(Marriage).filter(Marriage.is_active.is_(True)).count()
+        total_children = db.query(Child).filter(Child.is_alive.is_(True)).count()
+        dead_children = db.query(Child).filter(Child.is_alive.is_(False)).count()
         total_businesses = db.query(Business).count()
 
         # Total diamonds
@@ -140,7 +140,8 @@ async def user_info_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         marriage = (
             db.query(Marriage)
             .filter(
-                ((Marriage.partner1_id == target_id) | (Marriage.partner2_id == target_id)), Marriage.is_active == True
+                (Marriage.partner1_id == target_id) | (Marriage.partner2_id == target_id),
+                Marriage.is_active.is_(True),
             )
             .first()
         )
@@ -148,7 +149,7 @@ async def user_info_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Get children
         children_count = (
             db.query(Child)
-            .filter((Child.parent1_id == target_id) | (Child.parent2_id == target_id), Child.is_alive == True)
+            .filter((Child.parent1_id == target_id) | (Child.parent2_id == target_id), Child.is_alive.is_(True))
             .count()
         )
 
@@ -334,7 +335,7 @@ async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message_text = " ".join(context.args)
 
     with get_db() as db:
-        users = db.query(User).filter(User.is_banned == False).all()
+        users = db.query(User).filter(User.is_banned.is_(False)).all()
 
     sent_count = 0
     failed_count = 0

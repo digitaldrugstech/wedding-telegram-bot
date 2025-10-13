@@ -5,7 +5,6 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
 from app.database.connection import get_db
-from app.database.models import Marriage
 from app.services.children_service import (
     ADOPTION_COST,
     AGE_CHILD_TO_TEEN_COST,
@@ -48,7 +47,7 @@ async def family_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             alive_children = [c for c in children if c.is_alive]
             dead_children = [c for c in children if not c.is_alive]
 
-            message = f"👨‍👩‍👧‍👦 <b>Семья</b>\n\n"
+            message = "👨‍👩‍👧‍👦 <b>Семья</b>\n\n"
             message += f"👶 Детей: {len(alive_children)}\n"
 
             if dead_children:
@@ -232,7 +231,7 @@ async def family_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             from app.database.models import Child
 
-            child = db.query(Child).filter(Child.id == child_id, Child.is_alive == True).first()
+            child = db.query(Child).filter(Child.id == child_id, Child.is_alive.is_(True)).first()
 
             if not child:
                 await query.edit_message_text("❌ Ребёнок не найден", parse_mode="HTML")

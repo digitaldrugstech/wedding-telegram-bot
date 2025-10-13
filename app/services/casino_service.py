@@ -1,7 +1,7 @@
 """Casino service - gambling with Telegram Dice API."""
 
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Tuple
 
 import structlog
