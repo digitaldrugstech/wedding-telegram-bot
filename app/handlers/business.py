@@ -7,8 +7,8 @@ from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 from app.database.connection import get_db
 from app.services.business_service import BUSINESS_TYPES, BusinessService
 from app.utils.decorators import require_registered
-from app.utils.keyboards import business_buy_keyboard, business_menu_keyboard
 from app.utils.formatters import format_diamonds
+from app.utils.keyboards import business_buy_keyboard, business_menu_keyboard
 
 logger = structlog.get_logger()
 
@@ -30,31 +30,22 @@ async def business_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             total_income = 0
             for business in businesses:
-                message += (
-                    f"{business['name']}\n"
-                    f"📈 {format_diamonds(business['weekly_payout'])}/неделя\n\n"
-                )
-                total_income += business['weekly_payout']
+                message += f"{business['name']}\n" f"📈 {format_diamonds(business['weekly_payout'])}/неделя\n\n"
+                total_income += business["weekly_payout"]
 
             message += f"💰 <b>Итого:</b> {format_diamonds(total_income)}/неделя"
 
             await update.message.reply_text(
-                message,
-                reply_markup=business_menu_keyboard(user_id=user_id),
-                parse_mode="HTML"
+                message, reply_markup=business_menu_keyboard(user_id=user_id), parse_mode="HTML"
             )
         else:
             # No businesses
             message = (
-                "💼 <b>Бизнесы</b>\n\n"
-                "У тебя нет бизнесов\n\n"
-                "💡 Бизнесы приносят пассивный доход раз в неделю"
+                "💼 <b>Бизнесы</b>\n\n" "У тебя нет бизнесов\n\n" "💡 Бизнесы приносят пассивный доход раз в неделю"
             )
 
             await update.message.reply_text(
-                message,
-                reply_markup=business_menu_keyboard(user_id=user_id),
-                parse_mode="HTML"
+                message, reply_markup=business_menu_keyboard(user_id=user_id), parse_mode="HTML"
             )
 
 
@@ -80,11 +71,9 @@ async def business_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if action == "buy":
         # Show buy menu
         await query.edit_message_text(
-            "💼 <b>Покупка бизнеса</b>\n\n"
-            "Выбери тип бизнеса:\n\n"
-            "💡 Максимум 3 каждого типа",
+            "💼 <b>Покупка бизнеса</b>\n\n" "Выбери тип бизнеса:\n\n" "💡 Максимум 3 каждого типа",
             reply_markup=business_buy_keyboard(user_id=user_id),
-            parse_mode="HTML"
+            parse_mode="HTML",
         )
 
     elif action == "buy_confirm":
@@ -111,38 +100,28 @@ async def business_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             businesses = BusinessService.get_user_businesses(db, user_id)
 
             if not businesses:
-                await query.edit_message_text(
-                    "💼 <b>Бизнесы</b>\n\nУ тебя нет бизнесов",
-                    parse_mode="HTML"
-                )
+                await query.edit_message_text("💼 <b>Бизнесы</b>\n\nУ тебя нет бизнесов", parse_mode="HTML")
                 return
 
             message = "<b>💼 Твои бизнесы</b>\n\n"
             total_income = 0
 
             for business in businesses:
-                message += (
-                    f"{business['name']}\n"
-                    f"📈 {format_diamonds(business['weekly_payout'])}/неделя\n\n"
-                )
-                total_income += business['weekly_payout']
+                message += f"{business['name']}\n" f"📈 {format_diamonds(business['weekly_payout'])}/неделя\n\n"
+                total_income += business["weekly_payout"]
 
             message += f"💰 <b>Итого:</b> {format_diamonds(total_income)}/неделя"
 
             await query.edit_message_text(
-                message,
-                reply_markup=business_menu_keyboard(user_id=user_id),
-                parse_mode="HTML"
+                message, reply_markup=business_menu_keyboard(user_id=user_id), parse_mode="HTML"
             )
 
     elif action == "sell":
         # For simplicity, just show message
         # In full implementation, would show list of businesses to sell
         await query.edit_message_text(
-            "💼 <b>Продажа бизнеса</b>\n\n"
-            "Функция в разработке\n\n"
-            "💡 Возврат 70% от цены покупки",
-            parse_mode="HTML"
+            "💼 <b>Продажа бизнеса</b>\n\n" "Функция в разработке\n\n" "💡 Возврат 70% от цены покупки",
+            parse_mode="HTML",
         )
 
 

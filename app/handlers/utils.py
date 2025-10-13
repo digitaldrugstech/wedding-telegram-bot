@@ -41,7 +41,7 @@ async def transfer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Использование:\n"
             "/transfer @username [сумма]\n\n"
             "Пример: /transfer @user 100",
-            parse_mode="HTML"
+            parse_mode="HTML",
         )
         return
 
@@ -65,8 +65,7 @@ async def transfer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Check balance
         if sender.balance < amount:
             await update.message.reply_text(
-                f"❌ Недостаточно алмазов\n\n"
-                f"💰 Твой баланс: {format_diamonds(sender.balance)}"
+                f"❌ Недостаточно алмазов\n\n" f"💰 Твой баланс: {format_diamonds(sender.balance)}"
             )
             return
 
@@ -92,7 +91,7 @@ async def transfer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"✅ <b>Перевод выполнен</b>\n\n"
             f"💰 {format_diamonds(amount)} → @{username}\n\n"
             f"💰 Твой баланс: {format_diamonds(sender.balance)}",
-            parse_mode="HTML"
+            parse_mode="HTML",
         )
 
 

@@ -284,7 +284,9 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
                 # Check global job cooldown FIRST (skip in DEBUG mode)
                 if not IS_DEBUG:
-                    cooldown_entry = db.query(Cooldown).filter(Cooldown.user_id == user_id, Cooldown.action == "job").first()
+                    cooldown_entry = (
+                        db.query(Cooldown).filter(Cooldown.user_id == user_id, Cooldown.action == "job").first()
+                    )
 
                     if cooldown_entry and cooldown_entry.expires_at > datetime.utcnow():
                         remaining = cooldown_entry.expires_at - datetime.utcnow()
@@ -309,7 +311,8 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         .filter(
                             InterpolFine.interpol_id == user_id,
                             InterpolFine.victim_id == victim_id,
-                            InterpolFine.created_at > datetime.utcnow() - timedelta(hours=INTERPOL_VICTIM_COOLDOWN_HOURS),
+                            InterpolFine.created_at
+                            > datetime.utcnow() - timedelta(hours=INTERPOL_VICTIM_COOLDOWN_HOURS),
                         )
                         .first()
                     )
@@ -529,7 +532,14 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         flavor = random.choice(flavor_texts.get(job.job_type, ["Отработал смену"]))
 
         # Build response with clear structure
-        job_emoji = {"interpol": "🚔", "banker": "💳", "infrastructure": "🏗️", "court": "⚖️", "culture": "🎭", "selfmade": "🐦"}
+        job_emoji = {
+            "interpol": "🚔",
+            "banker": "💳",
+            "infrastructure": "🏗️",
+            "court": "⚖️",
+            "culture": "🎭",
+            "selfmade": "🐦",
+        }
         emoji = job_emoji.get(job.job_type, "💼")
 
         # Check if scammed
@@ -619,7 +629,9 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             # Check cooldown (skip in DEBUG mode)
             if not IS_DEBUG:
-                cooldown_entry = db.query(Cooldown).filter(Cooldown.user_id == user_id, Cooldown.action == "job").first()
+                cooldown_entry = (
+                    db.query(Cooldown).filter(Cooldown.user_id == user_id, Cooldown.action == "job").first()
+                )
 
                 if cooldown_entry and cooldown_entry.expires_at > datetime.utcnow():
                     remaining = cooldown_entry.expires_at - datetime.utcnow()
@@ -732,7 +744,14 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             flavor = random.choice(flavor_texts.get(job.job_type, ["Отработал смену"]))
 
             # Build response with clear structure
-            job_emoji = {"interpol": "🚔", "banker": "💳", "infrastructure": "🏗️", "court": "⚖️", "culture": "🎭", "selfmade": "🐦"}
+            job_emoji = {
+                "interpol": "🚔",
+                "banker": "💳",
+                "infrastructure": "🏗️",
+                "court": "⚖️",
+                "culture": "🎭",
+                "selfmade": "🐦",
+            }
             emoji = job_emoji.get(job.job_type, "💼")
 
             # Check if scammed
@@ -779,9 +798,13 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if job:
                 db.delete(job)
                 db.commit()
-                await query.edit_message_text("❌ Уволен", reply_markup=work_menu_keyboard(has_job=False, user_id=user_id))
+                await query.edit_message_text(
+                    "❌ Уволен", reply_markup=work_menu_keyboard(has_job=False, user_id=user_id)
+                )
             else:
-                await query.edit_message_text("⚠️ Нет работы", reply_markup=work_menu_keyboard(has_job=False, user_id=user_id))
+                await query.edit_message_text(
+                    "⚠️ Нет работы", reply_markup=work_menu_keyboard(has_job=False, user_id=user_id)
+                )
 
     elif action == "quit_job_cancelled":
         # Go back to work menu

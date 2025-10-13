@@ -34,41 +34,41 @@ PAYOUT_MULTIPLIERS = {
         # Slot machine (1-64, jackpot at 64,43,22,1)
         64: 50,  # Jackpot (777) x50
         43: 10,  # Three same x10
-        22: 5,   # Two same x5
-        1: 2,    # Bar x2
+        22: 5,  # Two same x5
+        1: 2,  # Bar x2
         # All others: 0x (loss)
     },
     DICE: {
         # Dice (1-6)
-        6: 5,    # Six x5
-        5: 3,    # Five x3
+        6: 5,  # Six x5
+        5: 3,  # Five x3
         4: 1.5,  # Four x1.5
         # 1-3: 0x (loss)
     },
     DARTS: {
         # Darts (1-6, bullseye at 6)
-        6: 10,   # Bullseye x10
-        5: 5,    # Near bullseye x5
-        4: 2,    # Good shot x2
+        6: 10,  # Bullseye x10
+        5: 5,  # Near bullseye x5
+        4: 2,  # Good shot x2
         # 1-3: 0x (loss)
     },
     BASKETBALL: {
         # Basketball (1-5, score at 4-5)
-        5: 4,    # Perfect shot x4
-        4: 2,    # Good shot x2
+        5: 4,  # Perfect shot x4
+        4: 2,  # Good shot x2
         # 1-3: 0x (loss)
     },
     BOWLING: {
         # Bowling (1-6, strike at 6)
-        6: 6,    # Strike x6
-        5: 3,    # Spare x3
+        6: 6,  # Strike x6
+        5: 3,  # Spare x3
         4: 1.5,  # Half x1.5
         # 1-3: 0x (loss)
     },
     FOOTBALL: {
         # Football (1-5, goal at 3-5)
-        5: 5,    # Perfect goal x5
-        4: 3,    # Good goal x3
+        5: 5,  # Perfect goal x5
+        4: 3,  # Good goal x3
         3: 1.5,  # Goal x1.5
         # 1-2: 0x (loss)
     },
@@ -97,10 +97,7 @@ class CasinoService:
         # Check cooldown (skip in DEBUG mode)
         if not IS_DEBUG:
             last_game = (
-                db.query(CasinoGame)
-                .filter(CasinoGame.user_id == user_id)
-                .order_by(CasinoGame.played_at.desc())
-                .first()
+                db.query(CasinoGame).filter(CasinoGame.user_id == user_id).order_by(CasinoGame.played_at.desc()).first()
             )
 
             if last_game:

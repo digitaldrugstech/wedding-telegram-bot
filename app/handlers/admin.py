@@ -66,9 +66,7 @@ async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     maintenance_status = "🔴 Включён" if MAINTENANCE_MODE else "🟢 Выключен"
 
     await update.message.reply_text(
-        f"🔐 <b>Админ панель</b>\n\n"
-        f"Maintenance: {maintenance_status}\n\n"
-        f"Выбери действие:",
+        f"🔐 <b>Админ панель</b>\n\n" f"Maintenance: {maintenance_status}\n\n" f"Выбери действие:",
         reply_markup=reply_markup,
         parse_mode="HTML",
     )
@@ -148,9 +146,11 @@ async def user_info_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         # Get children
-        children_count = db.query(Child).filter(
-            (Child.parent1_id == target_id) | (Child.parent2_id == target_id), Child.is_alive == True
-        ).count()
+        children_count = (
+            db.query(Child)
+            .filter((Child.parent1_id == target_id) | (Child.parent2_id == target_id), Child.is_alive == True)
+            .count()
+        )
 
         # Get businesses
         businesses_count = db.query(Business).filter(Business.user_id == target_id).count()
@@ -261,10 +261,7 @@ async def ban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Ban user."""
     if not update.effective_user or not update.message or not context.args:
         await update.message.reply_text(
-            "🚫 <b>Забанить пользователя</b>\n\n"
-            "Использование:\n"
-            "/ban [telegram_id]\n\n"
-            "Пример: /ban 123456789",
+            "🚫 <b>Забанить пользователя</b>\n\n" "Использование:\n" "/ban [telegram_id]\n\n" "Пример: /ban 123456789",
             parse_mode="HTML",
         )
         return
@@ -329,10 +326,7 @@ async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Broadcast message to all users."""
     if not update.effective_user or not update.message or not context.args:
         await update.message.reply_text(
-            "📢 <b>Рассылка</b>\n\n"
-            "Использование:\n"
-            "/broadcast [message]\n\n"
-            "Пример: /broadcast Привет всем!",
+            "📢 <b>Рассылка</b>\n\n" "Использование:\n" "/broadcast [message]\n\n" "Пример: /broadcast Привет всем!",
             parse_mode="HTML",
         )
         return

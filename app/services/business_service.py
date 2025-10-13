@@ -34,9 +34,7 @@ class BusinessService:
 
         # Check if user already has 3 of this type
         user_businesses = (
-            db.query(Business)
-            .filter(Business.user_id == user_id, Business.business_type == business_type)
-            .count()
+            db.query(Business).filter(Business.user_id == user_id, Business.business_type == business_type).count()
         )
 
         if user_businesses >= MAX_BUSINESSES_PER_TYPE:

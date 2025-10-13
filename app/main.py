@@ -89,7 +89,7 @@ async def main():
                         capture_output=True,
                         text=True,
                         timeout=5,
-                        cwd=os.path.dirname(os.path.dirname(__file__))
+                        cwd=os.path.dirname(os.path.dirname(__file__)),
                     )
                     if result.returncode == 0 and result.stdout.strip():
                         changelog_text = f"<b>Recent commits:</b>\n{result.stdout.strip()}"
@@ -118,11 +118,7 @@ async def main():
                 message += f"\n\n{changelog_text.strip()}"
 
             try:
-                await application.bot.send_message(
-                    chat_id=DEBUG_CHAT_ID,
-                    text=message,
-                    parse_mode="HTML"
-                )
+                await application.bot.send_message(chat_id=DEBUG_CHAT_ID, text=message, parse_mode="HTML")
                 logger.info("Debug message sent to chat", chat_id=DEBUG_CHAT_ID)
             except Exception as send_error:
                 # Bot may not have access to debug chat (e.g., in production)

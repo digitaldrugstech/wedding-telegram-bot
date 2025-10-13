@@ -240,6 +240,7 @@ class MarriageService:
         requirements_error = ""
         try:
             from app.services.children_service import ChildrenService
+
             can_have_children, requirements_error = ChildrenService.can_have_child(db, marriage.id)
         except Exception as e:
             logger.error("Failed to check child requirements", marriage_id=marriage.id, error=str(e))
@@ -253,6 +254,7 @@ class MarriageService:
             if conceived:
                 try:
                     from app.services.children_service import ChildrenService
+
                     ChildrenService.create_child(db, marriage.id)
                     logger.info("Natural birth successful", user_id=user_id, marriage_id=marriage.id)
                 except Exception as e:
@@ -262,7 +264,14 @@ class MarriageService:
 
         db.commit()
 
-        logger.info("Make love", user_id=user_id, marriage_id=marriage.id, conceived=conceived, same_gender=same_gender, can_have_children=can_have_children)
+        logger.info(
+            "Make love",
+            user_id=user_id,
+            marriage_id=marriage.id,
+            conceived=conceived,
+            same_gender=same_gender,
+            can_have_children=can_have_children,
+        )
         return True, conceived, same_gender, can_have_children, requirements_error
 
     @staticmethod

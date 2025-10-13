@@ -92,7 +92,9 @@ class HouseService:
         db.commit()
         db.refresh(house)
 
-        logger.info("House purchased", user_id=user_id, marriage_id=marriage.id, house_type=house_type, price=house_price)
+        logger.info(
+            "House purchased", user_id=user_id, marriage_id=marriage.id, house_type=house_type, price=house_price
+        )
 
         message = (
             f"🏠 <b>Поздравляем с покупкой!</b>\n\n"

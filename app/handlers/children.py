@@ -35,7 +35,9 @@ async def family_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         marriage = MarriageService.get_active_marriage(db, user_id)
 
         if not marriage:
-            await update.message.reply_text("👨‍👩‍👧‍👦 <b>Семья</b>\n\nНужен брак чтобы завести детей", parse_mode="HTML")
+            await update.message.reply_text(
+                "👨‍👩‍👧‍👦 <b>Семья</b>\n\nНужен брак чтобы завести детей", parse_mode="HTML"
+            )
             return
 
         # Get children
@@ -56,11 +58,8 @@ async def family_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             for child in alive_children:
                 info = ChildrenService.get_child_info(child)
-                message += (
-                    f"{info['age_emoji']} {info['name']} {info['gender_emoji']}\n"
-                    f"{info['status']}"
-                )
-                if info['school_status']:
+                message += f"{info['age_emoji']} {info['name']} {info['gender_emoji']}\n" f"{info['status']}"
+                if info["school_status"]:
                     message += f" | {info['school_status']}"
                 message += "\n\n"
         else:
@@ -110,9 +109,7 @@ async def family_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             children = ChildrenService.get_marriage_children(db, marriage.id)
 
             if not children:
-                await query.edit_message_text(
-                    "👨‍👩‍👧‍👦 <b>Список детей</b>\n\nУ вас пока нет детей", parse_mode="HTML"
-                )
+                await query.edit_message_text("👨‍👩‍👧‍👦 <b>Список детей</b>\n\nУ вас пока нет детей", parse_mode="HTML")
                 return
 
             alive_children = [c for c in children if c.is_alive]
@@ -123,9 +120,7 @@ async def family_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             for child in alive_children:
                 info = ChildrenService.get_child_info(child)
                 button_text = f"{info['age_emoji']} {info['name']} {info['gender_emoji']}"
-                keyboard.append(
-                    [InlineKeyboardButton(button_text, callback_data=f"family:child:{child.id}:{user_id}")]
-                )
+                keyboard.append([InlineKeyboardButton(button_text, callback_data=f"family:child:{child.id}:{user_id}")])
 
             keyboard.append([InlineKeyboardButton("« Назад", callback_data=f"menu:family:{user_id}")])
             reply_markup = InlineKeyboardMarkup(keyboard)
@@ -226,9 +221,7 @@ async def family_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 return
 
             message = (
-                f"✅ <b>Няня нанята</b>\n\n"
-                f"{message_text}\n\n"
-                f"💰 Потрачено: {format_diamonds(BABYSITTER_COST)}"
+                f"✅ <b>Няня нанята</b>\n\n" f"{message_text}\n\n" f"💰 Потрачено: {format_diamonds(BABYSITTER_COST)}"
             )
 
             await query.edit_message_text(message, parse_mode="HTML")
@@ -253,7 +246,7 @@ async def family_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"🍽️ Статус: {info['status']}\n"
             )
 
-            if info['school_status']:
+            if info["school_status"]:
                 message += f"🎓 {info['school_status']}\n"
 
             keyboard = []
@@ -336,9 +329,7 @@ async def family_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             cost = AGE_INFANT_TO_CHILD_COST if result == "child" else AGE_CHILD_TO_TEEN_COST
 
             message = (
-                f"✅ <b>Ребёнок вырос!</b>\n\n"
-                f"Теперь: {stage_name}\n\n"
-                f"💰 Потрачено: {format_diamonds(cost)}"
+                f"✅ <b>Ребёнок вырос!</b>\n\n" f"Теперь: {stage_name}\n\n" f"💰 Потрачено: {format_diamonds(cost)}"
             )
 
             await query.edit_message_text(message, parse_mode="HTML")

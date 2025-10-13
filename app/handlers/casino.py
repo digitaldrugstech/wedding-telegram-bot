@@ -102,16 +102,11 @@ async def _process_casino_result(context: ContextTypes.DEFAULT_TYPE):
     bet_amount = job_data["bet_amount"]
 
     with get_db() as db:
-        success, message, winnings, balance = CasinoService.play_game(
-            db, user_id, game_type, bet_amount, dice_value
-        )
+        success, message, winnings, balance = CasinoService.play_game(db, user_id, game_type, bet_amount, dice_value)
 
         if success:
             await context.bot.send_message(
-                chat_id=chat_id,
-                text=message,
-                parse_mode="HTML",
-                reply_to_message_id=message_id
+                chat_id=chat_id, text=message, parse_mode="HTML", reply_to_message_id=message_id
             )
 
 

@@ -7,8 +7,8 @@ from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 from app.database.connection import get_db
 from app.services.house_service import HOUSE_TYPES, HouseService
 from app.utils.decorators import require_registered
-from app.utils.keyboards import house_buy_keyboard, house_menu_keyboard
 from app.utils.formatters import format_diamonds
+from app.utils.keyboards import house_buy_keyboard, house_menu_keyboard
 
 logger = structlog.get_logger()
 
@@ -37,22 +37,14 @@ async def house_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
             await update.message.reply_text(
-                message,
-                reply_markup=house_menu_keyboard(has_house=True, user_id=user_id),
-                parse_mode="HTML"
+                message, reply_markup=house_menu_keyboard(has_house=True, user_id=user_id), parse_mode="HTML"
             )
         else:
             # No house - show buy menu
-            message = (
-                "🏠 <b>Покупка дома</b>\n\n"
-                "Выбери дом:\n\n"
-                "💡 Дом защищает детей от похищения"
-            )
+            message = "🏠 <b>Покупка дома</b>\n\n" "Выбери дом:\n\n" "💡 Дом защищает детей от похищения"
 
             await update.message.reply_text(
-                message,
-                reply_markup=house_menu_keyboard(has_house=False, user_id=user_id),
-                parse_mode="HTML"
+                message, reply_markup=house_menu_keyboard(has_house=False, user_id=user_id), parse_mode="HTML"
             )
 
 
@@ -78,10 +70,9 @@ async def house_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if action == "buy":
         # Show buy menu
         await query.edit_message_text(
-            "🏠 <b>Покупка дома</b>\n\n"
-            "Выбери тип дома:",
+            "🏠 <b>Покупка дома</b>\n\n" "Выбери тип дома:",
             reply_markup=house_buy_keyboard(user_id=user_id),
-            parse_mode="HTML"
+            parse_mode="HTML",
         )
 
     elif action == "buy_confirm":
@@ -138,9 +129,7 @@ async def house_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
             await query.edit_message_text(
-                message,
-                reply_markup=house_menu_keyboard(has_house=True, user_id=user_id),
-                parse_mode="HTML"
+                message, reply_markup=house_menu_keyboard(has_house=True, user_id=user_id), parse_mode="HTML"
             )
 
 

@@ -251,11 +251,7 @@ class ChildrenService:
         """Background task: kill children who haven't been fed in 5+ days."""
         threshold = datetime.utcnow() - timedelta(days=DEATH_THRESHOLD_DAYS)
 
-        starving_children = (
-            db.query(Child)
-            .filter(Child.is_alive == True, Child.last_fed_at < threshold)
-            .all()
-        )
+        starving_children = db.query(Child).filter(Child.is_alive == True, Child.last_fed_at < threshold).all()
 
         for child in starving_children:
             child.is_alive = False

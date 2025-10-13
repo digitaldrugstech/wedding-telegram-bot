@@ -138,7 +138,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Handle house menu
     if menu_type == "house":
         from app.database.connection import get_db
-        from app.database.models import Marriage, House
+        from app.database.models import House, Marriage
         from app.services.house_service import HouseService
         from app.utils.keyboards import house_menu_keyboard
 
@@ -156,10 +156,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
             if not marriage:
-                await query.edit_message_text(
-                    "🏠 <b>Дом</b>\n\nНужен брак чтобы купить дом",
-                    parse_mode="HTML"
-                )
+                await query.edit_message_text("🏠 <b>Дом</b>\n\nНужен брак чтобы купить дом", parse_mode="HTML")
                 return
 
             # Check if has house
@@ -177,15 +174,13 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 )
 
                 await query.edit_message_text(
-                    message,
-                    reply_markup=house_menu_keyboard(has_house=True, user_id=user_id),
-                    parse_mode="HTML"
+                    message, reply_markup=house_menu_keyboard(has_house=True, user_id=user_id), parse_mode="HTML"
                 )
             else:
                 await query.edit_message_text(
                     "🏠 <b>Дом</b>\n\nУ семьи нет дома\n\n💡 Дом защищает детей от похищения",
                     reply_markup=house_menu_keyboard(has_house=False, user_id=user_id),
-                    parse_mode="HTML"
+                    parse_mode="HTML",
                 )
         return
 
@@ -193,8 +188,8 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if menu_type == "business":
         from app.database.connection import get_db
         from app.services.business_service import BusinessService
-        from app.utils.keyboards import business_menu_keyboard
         from app.utils.formatters import format_diamonds
+        from app.utils.keyboards import business_menu_keyboard
 
         user_id = update.effective_user.id
 
@@ -206,26 +201,21 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 total_income = 0
 
                 for business in businesses:
-                    message += (
-                        f"{business['name']}\n"
-                        f"📈 {format_diamonds(business['weekly_payout'])}/неделя\n\n"
-                    )
-                    total_income += business['weekly_payout']
+                    message += f"{business['name']}\n" f"📈 {format_diamonds(business['weekly_payout'])}/неделя\n\n"
+                    total_income += business["weekly_payout"]
 
                 message += f"💰 <b>Итого:</b> {format_diamonds(total_income)}/неделя"
             else:
                 message = "💼 <b>Бизнесы</b>\n\nУ тебя нет бизнесов\n\n💡 Пассивный доход раз в неделю"
 
             await query.edit_message_text(
-                message,
-                reply_markup=business_menu_keyboard(user_id=user_id),
-                parse_mode="HTML"
+                message, reply_markup=business_menu_keyboard(user_id=user_id), parse_mode="HTML"
             )
         return
 
     # Handle casino menu
     if menu_type == "casino":
-        from app.services.casino_service import MIN_BET, MAX_BET
+        from app.services.casino_service import MAX_BET, MIN_BET
         from app.utils.formatters import format_diamonds
 
         user_id = update.effective_user.id
@@ -250,8 +240,8 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if menu_type == "family":
         from app.database.connection import get_db
         from app.database.models import Marriage
-        from app.services.marriage_service import MarriageService
         from app.services.children_service import ChildrenService
+        from app.services.marriage_service import MarriageService
 
         user_id = update.effective_user.id
 
@@ -259,7 +249,9 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             marriage = MarriageService.get_active_marriage(db, user_id)
 
             if not marriage:
-                await query.edit_message_text("👨‍👩‍👧‍👦 <b>Семья</b>\n\nНужен брак чтобы завести детей", parse_mode="HTML")
+                await query.edit_message_text(
+                    "👨‍👩‍👧‍👦 <b>Семья</b>\n\nНужен брак чтобы завести детей", parse_mode="HTML"
+                )
                 return
 
             # Get children
@@ -280,11 +272,8 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
                 for child in alive_children[:3]:  # Show first 3
                     info = ChildrenService.get_child_info(child)
-                    message += (
-                        f"{info['age_emoji']} {info['name']} {info['gender_emoji']}\n"
-                        f"{info['status']}"
-                    )
-                    if info['school_status']:
+                    message += f"{info['age_emoji']} {info['name']} {info['gender_emoji']}\n" f"{info['status']}"
+                    if info["school_status"]:
                         message += f" | {info['school_status']}"
                     message += "\n\n"
 
