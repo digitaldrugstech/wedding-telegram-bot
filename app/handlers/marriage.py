@@ -309,11 +309,20 @@ async def marriage_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             if conceived:
                 await query.edit_message_text(
-                    "❤️ <b>Любовь</b>\n\n" "🎉 Зачатие!\n\n" "👶 Ребёнок родился\n\n" "/family — семья", parse_mode="HTML"
+                    "❤️ <b>Брачная ночь</b>\n\n"
+                    "🎉 Поздравляем!\n\n"
+                    "👶 Зачатие прошло успешно\n"
+                    "🍼 Ребёнок родился в вашей семье\n\n"
+                    "💡 Управление семьёй: /family",
+                    parse_mode="HTML"
                 )
             else:
                 await query.edit_message_text(
-                    "❤️ <b>Любовь</b>\n\n" "Зачатия нет\n\n" "Следующая попытка — через 24 часа", parse_mode="HTML"
+                    "❤️ <b>Брачная ночь</b>\n\n"
+                    "💑 Вы провели время вместе\n\n"
+                    "🍀 Зачатие: не произошло (шанс 10%)\n"
+                    "⏰ Следующая попытка: через 24 часа",
+                    parse_mode="HTML"
                 )
 
             logger.info("Make love", user_id=owner_id, conceived=conceived, same_gender=same_gender)
@@ -335,9 +344,10 @@ async def marriage_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             await query.edit_message_text(
                 f"📅 <b>Свидание</b>\n\n"
-                f"{location}\n\n"
-                f"💰 {format_diamonds(earned)}\n\n"
-                f"Следующее — через 12 часов",
+                f"❤️ Вы сходили в {location}\n"
+                f"💑 Провели время вместе\n\n"
+                f"💰 Заработано: {format_diamonds(earned)}\n\n"
+                f"⏰ Следующее свидание: через 12 часов",
                 parse_mode="HTML",
             )
 
@@ -397,11 +407,20 @@ async def makelove_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if conceived:
             await update.message.reply_text(
-                "❤️ <b>Любовь</b>\n\n" "🎉 Зачатие!\n\n" "👶 Ребёнок родился\n\n" "/family — семья", parse_mode="HTML"
+                "❤️ <b>Брачная ночь</b>\n\n"
+                "🎉 Поздравляем!\n\n"
+                "👶 Зачатие прошло успешно\n"
+                "🍼 Ребёнок родился в вашей семье\n\n"
+                "💡 Управление семьёй: /family",
+                parse_mode="HTML"
             )
         else:
             await update.message.reply_text(
-                "❤️ <b>Любовь</b>\n\n" "Зачатия нет\n\n" "Следующая попытка — через 24 часа", parse_mode="HTML"
+                "❤️ <b>Брачная ночь</b>\n\n"
+                "💑 Вы провели время вместе\n\n"
+                "🍀 Зачатие: не произошло (шанс 10%)\n"
+                "⏰ Следующая попытка: через 24 часа",
+                parse_mode="HTML"
             )
 
         logger.info("Make love", user_id=user_id, conceived=conceived, same_gender=same_gender)
@@ -430,9 +449,10 @@ async def date_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await update.message.reply_text(
             f"📅 <b>Свидание</b>\n\n"
-            f"{location}\n\n"
-            f"💰 {format_diamonds(earned)}\n\n"
-            f"Следующее — через 12 часов",
+            f"❤️ Вы сходили в {location}\n"
+            f"💑 Провели время вместе\n\n"
+            f"💰 Заработано: {format_diamonds(earned)}\n\n"
+            f"⏰ Следующее свидание: через 12 часов",
             parse_mode="HTML",
         )
 
@@ -499,11 +519,12 @@ async def cheat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if caught:
             await update.message.reply_text(
-                f"💔 <b>Поймали</b>\n\n"
-                f"Развод\n\n"
+                f"💔 <b>Поймали на измене</b>\n\n"
+                f"⚠️ Супруг узнал о твоей измене\n"
+                f"💔 Брак расторгнут автоматически\n\n"
                 f"💸 Штраф: {format_diamonds(fine)} (50% баланса)\n"
-                f"💰 Супруг получил: {format_diamonds(fine)}\n\n"
-                f"@{partner.username or 'Partner'} подал развод",
+                f"💰 Супруг получил компенсацию: {format_diamonds(fine)}\n\n"
+                f"📝 Развод подал: @{partner.username or 'Partner'}",
                 parse_mode="HTML",
             )
 
@@ -511,13 +532,25 @@ async def cheat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             try:
                 await context.bot.send_message(
                     chat_id=partner_id,
-                    text=f"💔 <b>Измена</b>\n\n" f"Развод\n" f"💰 Получено: {format_diamonds(fine)} (50% баланса)",
+                    text=(
+                        f"💔 <b>Измена супруга</b>\n\n"
+                        f"⚠️ Твой супруг тебе изменил\n"
+                        f"💔 Брак расторгнут автоматически\n\n"
+                        f"💰 Компенсация получена: {format_diamonds(fine)}\n"
+                        f"💸 Это 50% баланса супруга"
+                    ),
                     parse_mode="HTML",
                 )
             except Exception as e:
                 logger.warning("Failed to notify partner about cheat", partner_id=partner_id, error=str(e))
         else:
-            await update.message.reply_text("🤫 <b>Успех</b>\n\n" "Никто не узнал\n\n" "Повезло", parse_mode="HTML")
+            await update.message.reply_text(
+                "🤫 <b>Измена прошла успешно</b>\n\n"
+                "✅ Никто ничего не узнал\n"
+                "🎲 Тебе повезло (был риск 30%)\n\n"
+                "💡 Но в следующий раз может не повезти...",
+                parse_mode="HTML"
+            )
 
         logger.info("Cheat processed", user_id=user_id, target_id=target_id, caught=caught)
 

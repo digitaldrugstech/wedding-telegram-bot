@@ -102,7 +102,7 @@ class CasinoService:
             time_since_last = datetime.utcnow() - last_game.played_at
             if time_since_last.total_seconds() < CASINO_COOLDOWN_SECONDS:
                 remaining = CASINO_COOLDOWN_SECONDS - int(time_since_last.total_seconds())
-                return False, f"Cooldown: {remaining}с"
+                return False, f"⏰ Подожди: {remaining} сек"
 
         return True, ""
 
