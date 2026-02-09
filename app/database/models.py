@@ -654,3 +654,26 @@ class Insurance(Base):
 
     def __repr__(self):
         return f"<Insurance(user_id={self.user_id}, is_active={self.is_active}, expires_at={self.expires_at})>"
+
+
+class Bounty(Base):
+    """Bounty model — place bounties on other players."""
+
+    __tablename__ = "bounties"
+
+    id = Column(Integer, primary_key=True)
+    placer_id = Column(BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=False)
+    target_id = Column(BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=False)
+    amount = Column(BigInteger, nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+    collected_by_id = Column(BigInteger, ForeignKey("users.telegram_id"), nullable=True)
+    collected_at = Column(DateTime, nullable=True)
+
+    # Relationships
+    placer = relationship("User", foreign_keys=[placer_id])
+    target = relationship("User", foreign_keys=[target_id])
+    collected_by = relationship("User", foreign_keys=[collected_by_id])
+
+    def __repr__(self):
+        return f"<Bounty(id={self.id}, target={self.target_id}, amount={self.amount}, active={self.is_active})>"

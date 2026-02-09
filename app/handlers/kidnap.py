@@ -145,6 +145,7 @@ async def kidnap_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db.flush()
 
         kidnapping_id = kidnapping.id
+        child_id = child.id
         child_name = child.name or "Безымянный"
         child_stage = child.age_stage
         ransom = kidnapping.ransom_amount
@@ -162,7 +163,7 @@ async def kidnap_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="HTML",
     )
 
-    logger.info("Kidnap success", user_id=user_id, target_id=target_id, child_id=child.id, ransom=ransom)
+    logger.info("Kidnap success", user_id=user_id, target_id=target_id, child_id=child_id, ransom=ransom)
 
 
 @require_registered
@@ -209,7 +210,8 @@ async def ransom_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         child_name = child.name or "Безымянный" if child else "Ребёнок"
         balance = user.balance
-        kidnapper_name = kidnapper.username or f"ID {kidnapping.kidnapper_id}"
+        kidnapper_id = kidnapping.kidnapper_id
+        kidnapper_name = kidnapper.username or f"ID {kidnapper_id}"
 
     await update.message.reply_text(
         f"✅ <b>Ребёнок спасён!</b>\n\n"
@@ -219,7 +221,7 @@ async def ransom_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="HTML",
     )
 
-    logger.info("Ransom paid", user_id=user_id, kidnapper_id=kidnapping.kidnapper_id, ransom=ransom)
+    logger.info("Ransom paid", user_id=user_id, kidnapper_id=kidnapper_id, ransom=ransom)
 
 
 @require_registered

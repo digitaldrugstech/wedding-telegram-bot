@@ -9,6 +9,7 @@ from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
 from app.database.connection import get_db
 from app.database.models import Cooldown, Duel, User
+from app.handlers.bounty import collect_bounties
 from app.utils.decorators import button_owner_only, require_registered
 from app.utils.formatters import format_diamonds
 from app.utils.telegram_helpers import safe_edit_message
@@ -209,6 +210,12 @@ async def duel_accept(update: Update, context: ContextTypes.DEFAULT_TYPE):
         prize = duel.bet_amount * 2
         winner.balance += prize
 
+        # Collect bounties on loser
+        loser_id = duel.challenger_id if winner_id == duel.opponent_id else duel.opponent_id
+        bounty_collected = collect_bounties(db, loser_id, winner_id)
+        if bounty_collected > 0:
+            winner.balance += bounty_collected
+
         # Update duel
         duel.is_accepted = True
         duel.is_active = False
@@ -231,21 +238,24 @@ async def duel_accept(update: Update, context: ContextTypes.DEFAULT_TYPE):
             duel_id=duel_id,
             winner_id=winner_id,
             bet=duel.bet_amount,
+            bounty_collected=bounty_collected,
         )
 
         # Announce winner (must stay inside session to access ORM objects)
         winner_name = winner.username or f"ID {winner_id}"
-        loser_id = duel.challenger_id if winner_id == duel.opponent_id else duel.opponent_id
         loser = db.query(User).filter(User.telegram_id == loser_id).first()
         loser_name = loser.username or f"ID {loser_id}"
 
-    await safe_edit_message(
-        query,
+    result_text = (
         f"⚔️ <b>Дуэль завершена!</b>\n\n"
         f"Победитель: @{winner_name}\n"
         f"Проигравший: @{loser_name}\n\n"
-        f"Выигрыш: {format_diamonds(prize)}",
+        f"Выигрыш: {format_diamonds(prize)}"
     )
+    if bounty_collected > 0:
+        result_text += f"\n🎯 Награда собрана: {format_diamonds(bounty_collected)}"
+
+    await safe_edit_message(query, result_text)
 
 
 @button_owner_only

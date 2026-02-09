@@ -11,6 +11,7 @@ from telegram.ext import Application, ContextTypes
 from app.config import config
 from app.handlers.admin import register_admin_handlers
 from app.handlers.blackjack import register_blackjack_handlers
+from app.handlers.bounty import register_bounty_handlers
 from app.handlers.business import register_business_handlers
 from app.handlers.casino import register_casino_handlers
 from app.handlers.children import register_children_handlers
@@ -111,6 +112,7 @@ def create_bot() -> Application:
     register_coinflip_handlers(application)
     register_rob_handlers(application)
     register_insurance_handlers(application)
+    register_bounty_handlers(application)
     register_fishing_handlers(application)
     register_kidnap_handlers(application)
     register_feedback_handlers(application)

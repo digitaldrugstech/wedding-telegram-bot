@@ -10,8 +10,6 @@ from telegram.ext import CommandHandler, ContextTypes
 from app.constants import (
     AUCTION_DURATION_HOURS,
     AUCTION_ITEMS,
-    INSURANCE_DURATION_DAYS,
-    INSURANCE_WEEKLY_COST,
     INVESTMENT_DURATION_DAYS,
     INVESTMENT_MAX_RETURN,
     INVESTMENT_MIN_AMOUNT,
@@ -24,7 +22,6 @@ from app.database.connection import get_db
 from app.database.models import (
     Auction,
     AuctionBid,
-    Insurance,
     Investment,
     Stock,
     TaxPayment,
@@ -452,92 +449,9 @@ async def tax_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(text, parse_mode="HTML")
 
 
-@require_registered
-async def insurance_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Insurance commands."""
-    user_id = update.effective_user.id
-
-    if not context.args:
-        # Show insurance status
-        with get_db() as db:
-            insurance = db.query(Insurance).filter(Insurance.user_id == user_id).first()
-
-            if insurance and insurance.is_active and insurance.expires_at > datetime.utcnow():
-                remaining = (insurance.expires_at - datetime.utcnow()).total_seconds()
-                text = (
-                    f"🛡 <b>Страховка</b>\n\n"
-                    f"Статус: Активна ✅\n"
-                    f"Истекает через {format_time_remaining(remaining)}\n\n"
-                    f"Защита от:\n"
-                    f"- Потери при ограблении\n"
-                    f"- Провала в казино\n"
-                    f"- Обвала в шахте\n\n"
-                    f"Стоимость: {format_diamonds(INSURANCE_WEEKLY_COST)}/неделя"
-                )
-            else:
-                text = (
-                    f"🛡 <b>Страховка</b>\n\n"
-                    f"Статус: Нет активной страховки\n\n"
-                    f"Защита от:\n"
-                    f"- Потери при ограблении\n"
-                    f"- Провала в казино\n"
-                    f"- Обвала в шахте\n\n"
-                    f"Стоимость: {format_diamonds(INSURANCE_WEEKLY_COST)}/неделя\n\n"
-                    f"/insurance buy - купить страховку"
-                )
-
-            await update.message.reply_text(text, parse_mode="HTML")
-            return
-
-    action = context.args[0].lower()
-
-    if action == "buy":
-        with get_db() as db:
-            user = db.query(User).filter(User.telegram_id == user_id).first()
-
-            if user.balance < INSURANCE_WEEKLY_COST:
-                await update.message.reply_text(
-                    f"Недостаточно алмазов\n\n"
-                    f"Нужно: {format_diamonds(INSURANCE_WEEKLY_COST)}\n"
-                    f"У тебя: {format_diamonds(user.balance)}"
-                )
-                return
-
-            # Check existing insurance
-            insurance = db.query(Insurance).filter(Insurance.user_id == user_id).first()
-
-            if insurance and insurance.is_active and insurance.expires_at > datetime.utcnow():
-                await update.message.reply_text("У тебя уже есть активная страховка")
-                return
-
-            # Buy insurance
-            user.balance -= INSURANCE_WEEKLY_COST
-
-            expires_at = datetime.utcnow() + timedelta(days=INSURANCE_DURATION_DAYS)
-
-            if insurance:
-                insurance.is_active = True
-                insurance.purchased_at = datetime.utcnow()
-                insurance.expires_at = expires_at
-            else:
-                insurance = Insurance(user_id=user_id, is_active=True, expires_at=expires_at)
-                db.add(insurance)
-
-            logger.info("Insurance purchased", user_id=user_id)
-
-            await update.message.reply_text(
-                f"✅ <b>Страховка куплена</b>\n\n"
-                f"Действует {INSURANCE_DURATION_DAYS} дней\n"
-                f"Стоимость: {format_diamonds(INSURANCE_WEEKLY_COST)}\n\n"
-                f"Баланс: {format_diamonds(user.balance)}",
-                parse_mode="HTML",
-            )
-
-
 def register_economy_handlers(application):
     """Register economy handlers."""
     application.add_handler(CommandHandler("invest", invest_command))
     application.add_handler(CommandHandler("stock", stock_command))
     application.add_handler(CommandHandler("auction", auction_command))
     application.add_handler(CommandHandler("tax", tax_command))
-    application.add_handler(CommandHandler("insurance", insurance_command))

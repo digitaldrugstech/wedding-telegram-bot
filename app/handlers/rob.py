@@ -10,6 +10,7 @@ from telegram.ext import CommandHandler, ContextTypes
 
 from app.database.connection import get_db
 from app.database.models import Cooldown, User
+from app.handlers.bounty import collect_bounties, get_target_bounties
 from app.handlers.insurance import has_active_insurance
 from app.utils.decorators import require_registered
 from app.utils.formatters import format_diamonds
@@ -95,10 +96,18 @@ async def rob_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Roll for success
         success = random.random() < ROB_SUCCESS_CHANCE
 
+        bounty_collected = 0
+
         if success:
             # Steal from target
             target.balance -= steal_amount
             user.balance += steal_amount
+
+            # Collect bounties on target
+            bounty_collected = collect_bounties(db, target_id, user_id)
+            if bounty_collected > 0:
+                user.balance += bounty_collected
+
             result_balance = user.balance
         else:
             # Pay fine
@@ -119,9 +128,11 @@ async def rob_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = (
             f"🔫 <b>Ограбление!</b>\n\n"
             f"Ты ограбил @{target_name}!\n"
-            f"💰 Украдено: {format_diamonds(steal_amount)}\n\n"
-            f"Баланс: {format_diamonds(result_balance)}"
+            f"💰 Украдено: {format_diamonds(steal_amount)}\n"
         )
+        if bounty_collected > 0:
+            text += f"🎯 Награда собрана: {format_diamonds(bounty_collected)}\n"
+        text += f"\nБаланс: {format_diamonds(result_balance)}"
     else:
         text = (
             f"🚨 <b>Провал!</b>\n\n"
