@@ -267,6 +267,11 @@ async def friend_accept_callback(update: Update, context: ContextTypes.DEFAULT_T
     friendship_id = int(query.data.split(":")[2])
 
     with get_db() as db:
+        # Ban check
+        user = db.query(User).filter(User.telegram_id == update.effective_user.id).first()
+        if not user or user.is_banned:
+            return
+
         friendship = db.query(Friendship).filter(Friendship.id == friendship_id).first()
 
         if not friendship:

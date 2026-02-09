@@ -122,6 +122,9 @@ class CasinoService:
         """Process casino game result (bet already deducted by reserve_bet)."""
         user = db.query(User).filter(User.telegram_id == user_id).first()
 
+        # Import premium helpers (must be at top of method to avoid NameError on loss path)
+        from app.handlers.premium import build_premium_nudge, has_active_boost
+
         # Calculate payout
         multipliers = PAYOUT_MULTIPLIERS.get(game_type, {})
         multiplier = multipliers.get(dice_value, 0)
@@ -130,8 +133,6 @@ class CasinoService:
         # Lucky charm bonus (+15%)
         lucky_bonus = 0
         if winnings > 0:
-            from app.handlers.premium import has_active_boost
-
             if has_active_boost(user_id, "lucky_charm", db=db):
                 lucky_bonus = int(winnings * 0.15)
                 winnings += lucky_bonus
@@ -187,8 +188,6 @@ class CasinoService:
             # Add lucky charm nudge on loss (throttled: max once per 30 min)
             nudge = ""
             if not has_active_boost(user_id, "lucky_charm", db=db):
-                from app.handlers.premium import build_premium_nudge
-
                 nudge = build_premium_nudge("casino_loss", user_id)
             message = (
                 f"😔 <b>Проигрыш</b>\n\n"

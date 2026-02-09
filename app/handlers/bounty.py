@@ -148,8 +148,8 @@ async def bounty_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         target_name = html.escape(str(target.username or f"ID {target.telegram_id}"))
         balance = user.balance
 
-        # Get total bounty on target
-        total_on_target = get_target_bounties(db, target.telegram_id) + amount
+        # Get total bounty on target (new bounty already in session, no need to add again)
+        total_on_target = get_target_bounties(db, target.telegram_id)
 
     await update.message.reply_text(
         f"🎯 <b>Награда назначена!</b>\n\n"

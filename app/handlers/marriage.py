@@ -166,9 +166,9 @@ async def propose_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 proposer = db.query(User).filter(User.telegram_id == proposer_id).first()
                 target_user = db.query(User).filter(User.telegram_id == target_id).first()
 
-                # Extract data before session closes
-                proposer_username = proposer.username or "User"
-                target_username = target_user.username or "User"
+                # Extract data before session closes (escape for HTML)
+                proposer_username = html.escape(proposer.username or "User")
+                target_username = html.escape(target_user.username or "User")
                 marriage_id = marriage.id
 
             await safe_edit_message(

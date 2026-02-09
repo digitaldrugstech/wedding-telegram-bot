@@ -174,6 +174,9 @@ class MarriageService:
             )
             marriage.family_bank_balance = 0
 
+        # Charge divorce cost BEFORE custody comparison so balance is accurate
+        user.balance -= DIVORCE_COST
+
         # Child custody: children go to parent with higher balance (or random if equal)
         from app.database.models import Child
 
@@ -200,9 +203,6 @@ class MarriageService:
                 custody_parent=custody_parent_id,
                 children_count=len(children),
             )
-
-        # Charge divorce cost
-        user.balance -= DIVORCE_COST
 
         # End marriage
         marriage.is_active = False
@@ -482,8 +482,8 @@ class MarriageService:
         time_married = datetime.utcnow() - marriage.created_at
         weeks_married = int(time_married.total_seconds() // (7 * 86400))
 
-        # Calculate reward (100 per week, max 1000)
-        reward_per_partner = min(weeks_married * ANNIVERSARY_REWARD_PER_WEEK, ANNIVERSARY_MAX_REWARD)
+        # Calculate reward (100 per week, max 1000, minimum 1 week's worth)
+        reward_per_partner = min(max(1, weeks_married) * ANNIVERSARY_REWARD_PER_WEEK, ANNIVERSARY_MAX_REWARD)
 
         # Give reward to both partners
         partner1_id = marriage.partner1_id

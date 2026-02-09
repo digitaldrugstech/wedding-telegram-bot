@@ -248,6 +248,7 @@ async def raid_go_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     raid = active_raids.pop(key)
 
+    db_committed = False
     try:
         raiders = raid["raiders"]
         count = len(raiders)
@@ -338,6 +339,7 @@ async def raid_go_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Try to notify target gang leader
             target_leader_id = target_gang.leader_id
 
+        db_committed = True
         await safe_edit_message(query, result_text)
 
         # Notify target gang leader
@@ -362,11 +364,15 @@ async def raid_go_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             chance=chance,
         )
     except Exception as e:
-        logger.error("Raid processing failed", error=str(e), exc_info=True)
-        try:
-            await safe_edit_message(query, "❌ Ошибка рейда")
-        except Exception:
-            pass
+        if not db_committed:
+            logger.error("Raid processing failed", error=str(e), exc_info=True)
+            try:
+                await safe_edit_message(query, "❌ Ошибка рейда")
+            except Exception:
+                pass
+        else:
+            # DB committed OK, only notification failed
+            logger.warning("Raid notification failed (DB OK)", error=str(e))
 
 
 def register_raid_handlers(application):

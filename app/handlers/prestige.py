@@ -114,15 +114,13 @@ async def prestige_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer("Доступ запрещён", show_alert=True)
             return
 
-    await query.answer()
+        await query.answer()
 
-    if action == "cancel":
-        await safe_edit_message(query, "❌ Престиж отменён")
-        return
+        if action == "cancel":
+            await safe_edit_message(query, "❌ Престиж отменён")
+            return
 
-    if action == "confirm":
-        with get_db() as db:
-            user = db.query(User).filter(User.telegram_id == user_id).first()
+        if action == "confirm":
             current_prestige = user.prestige_level or 0
 
             if current_prestige >= MAX_PRESTIGE:
@@ -144,16 +142,16 @@ async def prestige_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             new_prestige = user.prestige_level
             new_bonus = new_prestige * PRESTIGE_BONUS_PER_LEVEL
 
-        text = (
-            f"🔄 <b>ПРЕСТИЖ!</b>\n\n"
-            f"{get_prestige_display(new_prestige)} Уровень {new_prestige}/{MAX_PRESTIGE}\n\n"
-            f"Потрачено: {format_diamonds(old_balance)} (весь баланс)\n"
-            f"Бонус к доходу: <b>+{new_bonus}%</b>\n\n"
-            f"Все заработки теперь увеличены на {new_bonus}%!"
-        )
+    text = (
+        f"🔄 <b>ПРЕСТИЖ!</b>\n\n"
+        f"{get_prestige_display(new_prestige)} Уровень {new_prestige}/{MAX_PRESTIGE}\n\n"
+        f"Потрачено: {format_diamonds(old_balance)} (весь баланс)\n"
+        f"Бонус к доходу: <b>+{new_bonus}%</b>\n\n"
+        f"Все заработки теперь увеличены на {new_bonus}%!"
+    )
 
-        await safe_edit_message(query, text)
-        logger.info("Prestige up", user_id=user_id, new_level=new_prestige, old_balance=old_balance)
+    await safe_edit_message(query, text)
+    logger.info("Prestige up", user_id=user_id, new_level=new_prestige, old_balance=old_balance)
 
 
 def register_prestige_handlers(application):

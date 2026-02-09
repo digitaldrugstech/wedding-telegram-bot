@@ -256,6 +256,11 @@ async def ref_top_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
 
     with get_db() as db:
+        # Ban check
+        caller = db.query(User).filter(User.telegram_id == user_id).first()
+        if not caller or caller.is_banned:
+            return
+
         # Top inviters by completed referrals
         top_referrers = (
             db.query(
@@ -308,6 +313,11 @@ async def ref_mylink_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
     link = get_referral_link(user_id)
 
     with get_db() as db:
+        # Ban check
+        caller = db.query(User).filter(User.telegram_id == user_id).first()
+        if not caller or caller.is_banned:
+            return
+
         total_refs = db.query(Referral).filter(Referral.referrer_id == user_id).count()
         completed_refs = (
             db.query(Referral)

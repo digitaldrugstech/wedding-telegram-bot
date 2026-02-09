@@ -497,6 +497,12 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer("Эта кнопка не для тебя", show_alert=True)
             return
 
+    # Admin authorization check
+    from app.config import config
+
+    if user_id != config.admin_user_id:
+        return
+
     if action == "stats":
         # Build stats inline for callback (stats_command requires update.message)
         from datetime import datetime
