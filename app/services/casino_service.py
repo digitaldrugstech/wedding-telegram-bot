@@ -80,8 +80,8 @@ class CasinoService:
     """Service for casino games."""
 
     @staticmethod
-    def can_bet(db: Session, user_id: int, bet_amount: int) -> Tuple[bool, str]:
-        """Check if user can place a bet."""
+    def reserve_bet(db: Session, user_id: int, bet_amount: int) -> Tuple[bool, str]:
+        """Validate and immediately deduct bet (prevents TOCTOU race condition)."""
         # Validate bet amount
         if bet_amount < MIN_BET:
             return False, f"Минимальная ставка: {format_diamonds(MIN_BET)}"
@@ -107,28 +107,24 @@ class CasinoService:
                     remaining = CASINO_COOLDOWN_SECONDS - int(time_since_last.total_seconds())
                     return False, f"⏰ Подожди: {remaining} сек"
 
+        # Deduct bet immediately (atomic with check)
+        user.balance -= bet_amount
+
         return True, ""
 
     @staticmethod
     def play_game(
         db: Session, user_id: int, game_type: str, bet_amount: int, dice_value: int
     ) -> Tuple[bool, str, int, int]:
-        """Process casino game result."""
+        """Process casino game result (bet already deducted by reserve_bet)."""
         user = db.query(User).filter(User.telegram_id == user_id).first()
-
-        # Re-check balance (TOCTOU protection: balance may have changed since can_bet)
-        if user.balance < bet_amount:
-            return False, f"❌ Недостаточно алмазов (баланс: {format_diamonds(user.balance)})", 0, user.balance
 
         # Calculate payout
         multipliers = PAYOUT_MULTIPLIERS.get(game_type, {})
         multiplier = multipliers.get(dice_value, 0)
         winnings = int(bet_amount * multiplier) if multiplier > 0 else 0
 
-        # Deduct bet from balance
-        user.balance -= bet_amount
-
-        # Add winnings
+        # Add winnings (bet already deducted)
         if winnings > 0:
             user.balance += winnings
             result = "win"

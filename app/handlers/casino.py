@@ -67,14 +67,14 @@ async def _play_casino_game(update: Update, context: ContextTypes.DEFAULT_TYPE, 
         await update.message.reply_text("❌ Ставка должна быть числом")
         return
 
-    # Check if user can bet
+    # Reserve bet (deduct immediately to prevent TOCTOU race condition)
     with get_db() as db:
-        can_bet, error_msg = CasinoService.can_bet(db, user_id, bet_amount)
+        can_bet, error_msg = CasinoService.reserve_bet(db, user_id, bet_amount)
         if not can_bet:
             await update.message.reply_text(f"❌ {error_msg}")
             return
 
-    # Send dice
+    # Send dice (bet already deducted)
     await update.message.chat.send_action(ChatAction.TYPING)
     dice_message = await update.message.reply_dice(emoji=emoji)
     dice_value = dice_message.dice.value
