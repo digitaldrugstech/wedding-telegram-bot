@@ -11,7 +11,7 @@ from app.database.connection import get_db
 from app.database.models import Bounty, User
 from app.handlers.quest import update_quest_progress
 from app.utils.decorators import require_registered
-from app.utils.formatters import format_diamonds
+from app.utils.formatters import format_diamonds, format_word
 
 logger = structlog.get_logger()
 
@@ -235,7 +235,7 @@ async def bounties_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for i, t in enumerate(sorted_targets[:10], 1):
             text += f"{i}. @{html.escape(str(t['name']))} — {format_diamonds(t['amount'])}"
             if t["count"] > 1:
-                text += f" ({t['count']} наград)"
+                text += f" ({format_word(t['count'], 'награда', 'награды', 'наград')})"
             text += "\n"
 
         text += (

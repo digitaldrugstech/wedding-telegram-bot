@@ -14,7 +14,7 @@ from app.database.connection import get_db
 from app.database.models import CasinoGame, User
 from app.handlers.quest import update_quest_progress
 from app.utils.decorators import require_registered
-from app.utils.formatters import format_diamonds
+from app.utils.formatters import format_diamonds, format_word
 
 logger = structlog.get_logger()
 
@@ -107,7 +107,7 @@ async def rr_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"👥 Игроки (1/{RR_MAX_PLAYERS}):\n"
         f"• @{username}\n\n"
         f"⏰ {RR_JOIN_TIMEOUT_SECONDS // 60}м {RR_JOIN_TIMEOUT_SECONDS % 60}с на вход\n"
-        f"Нужно минимум {RR_MIN_PLAYERS} игрока\n\n"
+        f"Нужно минимум {format_word(RR_MIN_PLAYERS, 'игрок', 'игрока', 'игроков')}\n\n"
         f"<i>Организатор нажимает «КРУТИТЬ!» когда все готовы</i>",
         parse_mode="HTML",
         reply_markup=keyboard,

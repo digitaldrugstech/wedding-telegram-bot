@@ -14,7 +14,7 @@ from app.handlers.work import PROFESSION_EMOJI, PROFESSION_NAMES
 from app.services.business_service import BUSINESS_TYPES, BusinessService
 from app.services.marriage_service import MarriageService
 from app.utils.decorators import button_owner_only, require_registered
-from app.utils.formatters import format_diamonds
+from app.utils.formatters import format_diamonds, format_word
 from app.utils.keyboards import gender_selection_keyboard, profile_keyboard
 from app.utils.telegram_helpers import safe_edit_message
 
@@ -330,7 +330,7 @@ def build_top_message(category: str, user_id: int):
                 medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
                 name = html.escape(username or f"User{tid}")
                 badge = get_vip_badge(tid, db=db)
-                rows.append(f"{medal} @{name}{badge} — {cnt} достижений")
+                rows.append(f"{medal} @{name}{badge} — {format_word(cnt, 'достижение', 'достижения', 'достижений')}")
 
         else:
             title = "💰 Топ по балансу"

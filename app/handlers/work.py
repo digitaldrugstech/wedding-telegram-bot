@@ -685,7 +685,7 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
                 cooldown_hours = COOLDOWN_BY_LEVEL.get(job.job_level, 4)
 
-                set_cooldown(update, user_id, "job", cooldown_hours)
+                set_cooldown(update, user_id, "job", cooldown_hours, db=db)
 
                 # Response
                 response = f"🚔 @{html.escape(victim_username)} оштрафован\n\n"
@@ -809,7 +809,7 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             cooldown_hours = COOLDOWN_BY_LEVEL.get(job.job_level, 4)
 
-        set_cooldown(update, user_id, "job", cooldown_hours)
+        set_cooldown(update, user_id, "job", cooldown_hours, db=db)
 
         # Generate work flavor text
         flavor = random.choice(FLAVOR_TEXTS.get(job.job_type, ["Отработал смену"]))
@@ -860,7 +860,7 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             from app.handlers.premium import add_loyalty_points
 
-            add_loyalty_points(user_id, 1)
+            add_loyalty_points(user_id, 1, db=db)
         except Exception:
             pass
 
@@ -1008,7 +1008,7 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
                 cooldown_hours = COOLDOWN_BY_LEVEL.get(job.job_level, 4)
 
-            set_cooldown(update, user_id, "job", cooldown_hours)
+            set_cooldown(update, user_id, "job", cooldown_hours, db=db)
 
             # Generate work flavor text
             flavor = random.choice(FLAVOR_TEXTS.get(job.job_type, ["Отработал смену"]))

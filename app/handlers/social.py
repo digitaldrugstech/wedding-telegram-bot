@@ -17,7 +17,7 @@ from app.database.models import (
     UserAchievement,
 )
 from app.utils.decorators import button_owner_only, require_registered
-from app.utils.formatters import format_diamonds
+from app.utils.formatters import format_diamonds, format_word
 from app.utils.telegram_helpers import safe_edit_message
 
 logger = structlog.get_logger()
@@ -488,7 +488,7 @@ async def show_rating(message, user_id: int, category: str):
                 user = db.query(User).filter(User.telegram_id == job.user_id).first()
                 if user:
                     username = f"@{html.escape(user.username)}" if user.username else f"ID {user.telegram_id}"
-                    text += f"{idx}. {username} — {job.times_worked} работ\n"
+                    text += f"{idx}. {username} — {format_word(job.times_worked, 'работа', 'работы', 'работ')}\n"
 
         elif category == "casino":
             text += "<b>🎰 По выигрышам в казино</b>\n\n"
@@ -536,7 +536,7 @@ async def rating_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 user = db.query(User).filter(User.telegram_id == job.user_id).first()
                 if user:
                     username = f"@{html.escape(user.username)}" if user.username else f"ID {user.telegram_id}"
-                    text += f"{idx}. {username} — {job.times_worked} работ\n"
+                    text += f"{idx}. {username} — {format_word(job.times_worked, 'работа', 'работы', 'работ')}\n"
 
         elif category == "casino":
             text += "<b>🎰 По выигрышам в казино</b>\n\n"

@@ -239,9 +239,9 @@ async def marriage_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"💍 <b>Брак</b>\n\n"
             f"👫 @{partner_name}\n"
             f"📅 {format_word(days_married, 'день', 'дня', 'дней')}\n"
-            f"❤️ Любовь: {marriage.love_count} раз\n\n"
+            f"❤️ Любовь: {format_word(marriage.love_count, 'раз', 'раза', 'раз')}\n\n"
             f"💰 Ты: {format_diamonds(user.balance)}\n"
-            f"💰 Супруг: {format_diamonds(partner.balance)}"
+            f"💰 Партнёр: {format_diamonds(partner.balance)}"
         )
 
         await update.message.reply_text(message, reply_markup=reply_markup, parse_mode="HTML")
@@ -338,7 +338,7 @@ async def marriage_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"💍 <b>Брак</b>\n\n"
                     f"👫 @{partner_name}\n"
                     f"📅 {format_word(days_married, 'день', 'дня', 'дней')}\n"
-                    f"❤️ Любовь: {marriage.love_count} раз\n\n"
+                    f"❤️ Любовь: {format_word(marriage.love_count, 'раз', 'раза', 'раз')}\n\n"
                     f"💰 Ты: {format_diamonds(user.balance)}\n"
                     f"💰 Партнёр: {format_diamonds(partner.balance)}"
                 )

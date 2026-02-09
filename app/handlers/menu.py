@@ -79,7 +79,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         from app.handlers.work import PROFESSION_EMOJI, PROFESSION_NAMES
         from app.services.business_service import BusinessService
         from app.services.marriage_service import MarriageService
-        from app.utils.formatters import format_diamonds
+        from app.utils.formatters import format_diamonds, format_word
         from app.utils.keyboards import profile_keyboard
 
         with get_db() as db:
@@ -170,7 +170,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     query,
                     f"💼 <b>{track_name}</b>\n\n"
                     f"{emoji} {job_name} ({job.job_level}/{max_level})\n"
-                    f"📊 Работал: {job.times_worked} раз\n"
+                    f"📊 Работал: {format_word(job.times_worked, 'раз', 'раза', 'раз')}\n"
                     f"{next_level_text}",
                     reply_markup=work_menu_keyboard(has_job=True, user_id=user_id),
                 )
@@ -321,6 +321,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         from app.database.models import Marriage
         from app.services.children_service import ChildrenService
         from app.services.marriage_service import MarriageService
+        from app.utils.formatters import format_word as _fw
         from app.utils.keyboards import family_menu_keyboard
 
         with get_db() as db:
@@ -341,7 +342,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             if children:
                 alive = [c for c in children if c.is_alive]
-                message = f"👨‍👩‍👧‍👦 <b>Семья</b> — {len(alive)} детей\n\n"
+                message = f"👨‍👩‍👧‍👦 <b>Семья</b> — {_fw(len(alive), 'ребёнок', 'ребёнка', 'детей')}\n\n"
                 for child in alive[:5]:
                     info = ChildrenService.get_child_info(child)
                     message += f"{info['age_emoji']} {info['name']} {info['gender_emoji']} — {info['status']}\n"

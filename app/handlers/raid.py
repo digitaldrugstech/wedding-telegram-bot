@@ -11,7 +11,7 @@ from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 from app.database.connection import get_db
 from app.database.models import Cooldown, Gang, GangMember, User
 from app.utils.decorators import button_owner_only, require_registered
-from app.utils.formatters import format_diamonds
+from app.utils.formatters import format_diamonds, format_word
 from app.utils.telegram_helpers import safe_edit_message
 
 logger = structlog.get_logger()
@@ -154,7 +154,7 @@ async def raid_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"👥 Рейдеров: 1\n\n"
         f"@{html.escape(str(username))} начинает рейд!\n\n"
         f"⏰ {RAID_JOIN_TIMEOUT_SECONDS // 60} мин на сбор — жми «Присоединиться»!\n"
-        f"Нужно минимум {RAID_MIN_MEMBERS} участника\n\n"
+        f"Нужно минимум {format_word(RAID_MIN_MEMBERS, 'участник', 'участника', 'участников')}\n\n"
         f"Лидер жмёт «НАЧАТЬ РЕЙД» когда готовы",
         parse_mode="HTML",
         reply_markup=keyboard,
@@ -251,7 +251,7 @@ async def raid_go_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             query,
             f"❌ <b>Рейд отменён</b>\n\n"
             f"Недостаточно участников: {count}/{RAID_MIN_MEMBERS}\n"
-            f"Нужно минимум {RAID_MIN_MEMBERS} рейдера",
+            f"Нужно минимум {format_word(RAID_MIN_MEMBERS, 'рейдер', 'рейдера', 'рейдеров')}",
         )
         return
 

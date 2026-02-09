@@ -14,7 +14,7 @@ from app.database.connection import get_db
 from app.database.models import Cooldown, User
 from app.handlers.quest import update_quest_progress
 from app.utils.decorators import require_registered
-from app.utils.formatters import format_diamonds
+from app.utils.formatters import format_diamonds, format_word
 
 logger = structlog.get_logger()
 
@@ -164,7 +164,7 @@ async def heist_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"👥 Участники (1/{HEIST_MAX_PLAYERS}):\n"
         f"• @{username}\n\n"
         f"⏰ {HEIST_JOIN_TIMEOUT_SECONDS // 60} мин на сбор\n"
-        f"Нужно минимум {HEIST_MIN_PLAYERS} участника\n\n"
+        f"Нужно минимум {format_word(HEIST_MIN_PLAYERS, 'участник', 'участника', 'участников')}\n\n"
         f"<i>Организатор жмёт «НАЧАТЬ!» когда все готовы</i>",
         parse_mode="HTML",
         reply_markup=keyboard,

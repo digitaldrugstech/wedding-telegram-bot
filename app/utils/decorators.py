@@ -11,15 +11,11 @@ from app.database.connection import get_db
 from app.database.models import ChatActivity, Cooldown, User
 
 
-def set_cooldown(update: Update, user_id: int, action: str, hours: float):
+def set_cooldown(update: Update, user_id: int, action: str, hours: float, db=None):
     """
     Set cooldown for a user action (skips for debug chat).
 
-    Args:
-        update: Telegram update
-        user_id: User ID
-        action: Cooldown action name
-        hours: Cooldown duration in hours
+    Pass an existing db session to avoid opening a nested one.
     """
     from app.config import config
 
@@ -27,15 +23,19 @@ def set_cooldown(update: Update, user_id: int, action: str, hours: float):
     if update.effective_chat and update.effective_chat.id == config.debug_chat_id:
         return
 
-    with get_db() as db:
+    def _set(session):
         expires_at = datetime.utcnow() + timedelta(hours=hours)
-        cooldown_entry = db.query(Cooldown).filter(Cooldown.user_id == user_id, Cooldown.action == action).first()
-
+        cooldown_entry = session.query(Cooldown).filter(Cooldown.user_id == user_id, Cooldown.action == action).first()
         if cooldown_entry:
             cooldown_entry.expires_at = expires_at
         else:
-            cooldown_entry = Cooldown(user_id=user_id, action=action, expires_at=expires_at)
-            db.add(cooldown_entry)
+            session.add(Cooldown(user_id=user_id, action=action, expires_at=expires_at))
+
+    if db is not None:
+        _set(db)
+    else:
+        with get_db() as session:
+            _set(session)
 
 
 def require_registered(func: Callable) -> Callable:
