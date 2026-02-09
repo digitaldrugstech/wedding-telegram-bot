@@ -143,28 +143,118 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def top_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /top command - show leaderboards."""
+    """Handle /top command — show leaderboards with category buttons."""
     if not update.effective_user or not update.message:
         return
 
+    user_id = update.effective_user.id
+    text, reply_markup = build_top_message("balance", user_id)
+    await update.message.reply_text(text, parse_mode="HTML", reply_markup=reply_markup)
+
+
+def build_top_message(category: str, user_id: int):
+    """Build top message for given category."""
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+    keyboard = [
+        [
+            InlineKeyboardButton("💰 Баланс", callback_data=f"top:balance:{user_id}"),
+            InlineKeyboardButton("⭐ Репутация", callback_data=f"top:rep:{user_id}"),
+        ],
+        [
+            InlineKeyboardButton("🔄 Престиж", callback_data=f"top:prestige:{user_id}"),
+            InlineKeyboardButton("🏆 Достижения", callback_data=f"top:achievements:{user_id}"),
+        ],
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
     with get_db() as db:
-        # Top by balance
-        top_balance = db.query(User).filter(User.is_banned.is_(False)).order_by(User.balance.desc()).limit(10).all()
+        if category == "balance":
+            users = db.query(User).filter(User.is_banned.is_(False)).order_by(User.balance.desc()).limit(10).all()
+            title = "💰 Топ по балансу"
+            rows = []
+            for i, u in enumerate(users, 1):
+                medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
+                name = u.username or f"User{u.telegram_id}"
+                rows.append(f"{medal} @{name} — {format_diamonds(u.balance)}")
 
-        # Build message
-        message = "🏆 <b>Топ по балансу</b>\n\n"
+        elif category == "rep":
+            users = (
+                db.query(User)
+                .filter(User.is_banned.is_(False), User.reputation != 0)
+                .order_by(User.reputation.desc())
+                .limit(10)
+                .all()
+            )
+            title = "⭐ Топ по репутации"
+            rows = []
+            for i, u in enumerate(users, 1):
+                medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
+                name = u.username or f"User{u.telegram_id}"
+                rows.append(f"{medal} @{name} — {u.reputation:+d}")
 
-        for i, user in enumerate(top_balance, 1):
-            medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
-            username = user.username or f"User{user.telegram_id}"
-            message += f"{medal} @{username} — {format_diamonds(user.balance)}\n"
+        elif category == "prestige":
+            users = (
+                db.query(User)
+                .filter(User.is_banned.is_(False), User.prestige_level > 0)
+                .order_by(User.prestige_level.desc())
+                .limit(10)
+                .all()
+            )
+            title = "🔄 Топ по престижу"
+            rows = []
+            for i, u in enumerate(users, 1):
+                medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
+                name = u.username or f"User{u.telegram_id}"
+                rows.append(f"{medal} @{name} — уровень {u.prestige_level} (+{u.prestige_level * 5}%)")
 
-        if not top_balance:
-            message += "Пусто\n"
+        elif category == "achievements":
+            from sqlalchemy import func as sqlfunc
 
-        message += "\n💡 /profile — твой профиль"
+            results = (
+                db.query(User.username, User.telegram_id, sqlfunc.count(UserAchievement.id).label("cnt"))
+                .join(UserAchievement, UserAchievement.user_id == User.telegram_id)
+                .filter(User.is_banned.is_(False))
+                .group_by(User.telegram_id, User.username)
+                .order_by(sqlfunc.count(UserAchievement.id).desc())
+                .limit(10)
+                .all()
+            )
+            title = "🏆 Топ по достижениям"
+            rows = []
+            for i, (username, tid, cnt) in enumerate(results, 1):
+                medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
+                name = username or f"User{tid}"
+                rows.append(f"{medal} @{name} — {cnt} достижений")
 
-        await update.message.reply_text(message, parse_mode="HTML")
+        else:
+            title = "💰 Топ по балансу"
+            rows = []
+
+    text = f"🏆 <b>{title}</b>\n\n"
+    if rows:
+        text += "\n".join(rows)
+    else:
+        text += "Пусто"
+
+    return text, reply_markup
+
+
+@button_owner_only
+async def top_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle top category switching."""
+    query = update.callback_query
+    await query.answer()
+
+    if not update.effective_user:
+        return
+
+    user_id = update.effective_user.id
+    parts = query.data.split(":")
+    category = parts[1]
+
+    text, reply_markup = build_top_message(category, user_id)
+    await safe_edit_message(query, text, reply_markup=reply_markup)
 
 
 def register_start_handlers(application):
@@ -172,3 +262,4 @@ def register_start_handlers(application):
     application.add_handler(CommandHandler("profile", profile_command))
     application.add_handler(CommandHandler("top", top_command))
     application.add_handler(CallbackQueryHandler(gender_selection_callback, pattern="^gender:"))
+    application.add_handler(CallbackQueryHandler(top_callback, pattern="^top:"))

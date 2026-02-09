@@ -294,7 +294,9 @@ async def help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/quest — случайный квест\n"
             "/pet — питомец\n"
             "/pet shop — аксессуары для питомца\n"
-            "/pet rename — переименовать питомца"
+            "/pet rename — переименовать питомца\n"
+            "/fish — рыбалка\n"
+            "/fishlist — виды рыб"
         )
 
     elif category == "social":
