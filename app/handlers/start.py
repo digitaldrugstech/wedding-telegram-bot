@@ -1,14 +1,18 @@
 """Start and profile handlers."""
 
+from sqlalchemy import func
 from telegram import Update
 from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
 from app.database.connection import get_db
-from app.database.models import Child, Job, User
+from app.database.models import Business, Child, Job, User, UserAchievement
+from app.handlers.work import PROFESSION_EMOJI, PROFESSION_NAMES
+from app.services.business_service import BUSINESS_TYPES, BusinessService
 from app.services.marriage_service import MarriageService
 from app.utils.decorators import button_owner_only, require_registered
 from app.utils.formatters import format_diamonds
 from app.utils.keyboards import profile_keyboard
+from app.utils.telegram_helpers import safe_edit_message
 
 
 @button_owner_only
@@ -24,6 +28,7 @@ async def gender_selection_callback(update: Update, context: ContextTypes.DEFAUL
     username = update.effective_user.username or update.effective_user.first_name
     gender = query.data.split(":")[1]  # "gender:male:user_id" -> "male"
 
+    is_new_user = False
     with get_db() as db:
         user = db.query(User).filter(User.telegram_id == user_id).first()
 
@@ -35,9 +40,17 @@ async def gender_selection_callback(update: Update, context: ContextTypes.DEFAUL
             # Create new user
             user = User(telegram_id=user_id, username=username, gender=gender, balance=0)
             db.add(user)
+            is_new_user = True
+
+    # Award "first_steps" achievement for new users
+    if is_new_user:
+        from app.handlers.social import check_and_award_achievement
+
+        check_and_award_achievement(user_id, "first_steps")
 
     gender_emoji = "♂️" if gender == "male" else "♀️"
-    await query.edit_message_text(
+    await safe_edit_message(
+        query,
         f"✅ {gender_emoji} Регистрация завершена\n\n" f"/profile — профиль\n" f"/work — работа",
         reply_markup=profile_keyboard(user_id),
     )
@@ -61,14 +74,17 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         job = db.query(Job).filter(Job.user_id == user_id).first()
         job_info = "Нет работы"
         if job:
-            job_names = {
-                "interpol": "🚔 Интерпол",
-                "banker": "💳 Банкир",
-                "infrastructure": "🏗️ Инфраструктура",
-                "court": "⚖️ Суд",
-                "culture": "🎭 Культура",
-            }
-            job_info = f"{job_names.get(job.job_type, job.job_type)} (уровень {job.job_level})"
+            emoji = PROFESSION_EMOJI.get(job.job_type, "💼")
+            name = PROFESSION_NAMES.get(job.job_type, job.job_type)
+            job_info = f"{emoji} {name} (уровень {job.job_level})"
+
+        # Get business info
+        businesses = BusinessService.get_user_businesses(db, user_id)
+        if businesses:
+            total_income = sum(b["weekly_payout"] for b in businesses)
+            business_info = f"{len(businesses)} бизнесов (+{format_diamonds(total_income)}/нед)"
+        else:
+            business_info = "Нет бизнесов"
 
         # Get marriage info
         marriage = MarriageService.get_active_marriage(db, user_id)
@@ -87,22 +103,55 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             .count()
         )
 
+        # Get achievements count
+        achievements_count = db.query(UserAchievement).filter(UserAchievement.user_id == user_id).count()
+
         gender_emoji = "♂️" if user.gender == "male" else "♀️"
+        rep_emoji = "⭐" if user.reputation >= 0 else "💀"
 
         profile_text = (
             f"👤 {user.username} {gender_emoji}\n"
             f"🎮 Сервер: не привязан\n\n"
             f"💰 {format_diamonds(user.balance)}\n"
             f"💼 {job_info}\n"
+            f"🏢 {business_info}\n"
             f"💍 {marriage_info}\n"
-            f"👶 Детей: {children_count}\n\n"
+            f"👶 Детей: {children_count}\n"
+            f"{rep_emoji} Репутация: {user.reputation:+d}\n"
+            f"🏆 Достижений: {achievements_count}\n\n"
             f"📅 С {user.created_at.strftime('%d.%m.%Y')}"
         )
 
         await update.message.reply_text(profile_text, reply_markup=profile_keyboard(user_id))
 
 
+async def top_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /top command - show leaderboards."""
+    if not update.effective_user or not update.message:
+        return
+
+    with get_db() as db:
+        # Top by balance
+        top_balance = db.query(User).filter(User.is_banned.is_(False)).order_by(User.balance.desc()).limit(10).all()
+
+        # Build message
+        message = "🏆 <b>Топ по балансу</b>\n\n"
+
+        for i, user in enumerate(top_balance, 1):
+            medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
+            username = user.username or f"User{user.telegram_id}"
+            message += f"{medal} @{username} — {format_diamonds(user.balance)}\n"
+
+        if not top_balance:
+            message += "Пусто\n"
+
+        message += "\n💡 /profile — твой профиль"
+
+        await update.message.reply_text(message, parse_mode="HTML")
+
+
 def register_start_handlers(application):
     """Register start and profile handlers."""
     application.add_handler(CommandHandler("profile", profile_command))
+    application.add_handler(CommandHandler("top", top_command))
     application.add_handler(CallbackQueryHandler(gender_selection_callback, pattern="^gender:"))

@@ -1,5 +1,7 @@
 """Admin commands for bot management."""
 
+import asyncio
+
 import structlog
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
@@ -8,6 +10,7 @@ from app.database.connection import get_db
 from app.database.models import Business, Child, Cooldown, Marriage, User
 from app.utils.decorators import admin_only, admin_only_private
 from app.utils.formatters import format_diamonds
+from app.utils.telegram_helpers import safe_edit_message
 
 logger = structlog.get_logger()
 
@@ -72,11 +75,14 @@ async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
-@admin_only_private
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Show bot statistics."""
+    """Show bot statistics (available for all users)."""
     if not update.effective_user or not update.message:
         return
+
+    from datetime import datetime, timedelta
+
+    from app.database.models import CasinoGame
 
     with get_db() as db:
         # Count users
@@ -87,19 +93,26 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         total_businesses = db.query(Business).count()
 
         # Total diamonds
-        total_diamonds = db.query(db.func.sum(User.balance)).scalar() or 0
+        from sqlalchemy.sql import func
+
+        total_diamonds = db.query(func.sum(User.balance)).scalar() or 0
+
+        # Casino stats - today only
+        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        casino_games_today = db.query(CasinoGame).filter(CasinoGame.played_at >= today_start).count()
 
         # Top 10 richest
         top_users = db.query(User).order_by(User.balance.desc()).limit(10).all()
 
     message = (
         f"📊 <b>Статистика бота</b>\n\n"
-        f"👥 Пользователей: {total_users}\n"
-        f"💍 Активных браков: {active_marriages}\n"
-        f"👶 Живых детей: {total_children}\n"
+        f"👥 Игроков: {total_users}\n"
+        f"💍 Браков: {active_marriages}\n"
+        f"👶 Детей: {total_children}\n"
         f"💀 Мёртвых детей: {dead_children}\n"
         f"💼 Бизнесов: {total_businesses}\n"
-        f"💰 Всего алмазов: {format_diamonds(total_diamonds)}\n\n"
+        f"💰 Алмазов в экономике: {format_diamonds(total_diamonds)}\n"
+        f"🎰 Игр в казино за сегодня: {casino_games_today}\n\n"
         f"<b>Топ 10 богатых:</b>\n"
     )
 
@@ -171,24 +184,26 @@ async def user_info_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(message, parse_mode="HTML")
 
 
-@admin_only_private
+@admin_only
 async def give_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Give diamonds to user."""
+    """Give diamonds to user (works with @username or telegram_id)."""
     if not update.effective_user or not update.message or len(context.args) < 2:
         await update.message.reply_text(
             "💰 <b>Выдать алмазы</b>\n\n"
             "Использование:\n"
+            "/give @username [amount]\n"
             "/give [telegram_id] [amount]\n\n"
-            "Пример: /give 123456789 1000",
+            "Примеры:\n"
+            "/give @user 1000\n"
+            "/give 123456789 1000",
             parse_mode="HTML",
         )
         return
 
     try:
-        target_id = int(context.args[0])
         amount = int(context.args[1])
     except ValueError:
-        await update.message.reply_text("❌ Неверные параметры")
+        await update.message.reply_text("❌ Сумма должна быть числом")
         return
 
     if amount <= 0:
@@ -196,10 +211,23 @@ async def give_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     with get_db() as db:
-        user = db.query(User).filter(User.telegram_id == target_id).first()
+        # Check if first arg is @username or telegram_id
+        target_input = context.args[0].lstrip("@")
+
+        # Try as username first
+        user = db.query(User).filter(User.username == target_input).first()
+
+        # If not found, try as telegram_id
+        if not user:
+            try:
+                target_id = int(context.args[0])
+                user = db.query(User).filter(User.telegram_id == target_id).first()
+            except ValueError:
+                await update.message.reply_text(f"❌ Пользователь @{target_input} не найден")
+                return
 
         if not user:
-            await update.message.reply_text(f"❌ Пользователь {target_id} не найден")
+            await update.message.reply_text(f"❌ Пользователь {context.args[0]} не найден")
             return
 
         user.balance += amount
@@ -207,11 +235,17 @@ async def give_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await update.message.reply_text(
             f"✅ Выдано {format_diamonds(amount)}\n"
-            f"@{user.username or target_id}\n"
+            f"@{user.username or user.telegram_id}\n"
             f"Новый баланс: {format_diamonds(user.balance)}"
         )
 
-        logger.info("Admin gave diamonds", admin_id=update.effective_user.id, target_id=target_id, amount=amount)
+        logger.info(
+            "Admin gave diamonds",
+            admin_id=update.effective_user.id,
+            target_id=user.telegram_id,
+            target_username=user.username,
+            amount=amount,
+        )
 
 
 @admin_only_private
@@ -257,69 +291,108 @@ async def take_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info("Admin took diamonds", admin_id=update.effective_user.id, target_id=target_id, amount=amount)
 
 
-@admin_only_private
+@admin_only
 async def ban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Ban user."""
+    """Ban user (works with @username or telegram_id, optional reason)."""
     if not update.effective_user or not update.message or not context.args:
         await update.message.reply_text(
-            "🚫 <b>Забанить пользователя</b>\n\n" "Использование:\n" "/ban [telegram_id]\n\n" "Пример: /ban 123456789",
+            "🚫 <b>Забанить пользователя</b>\n\n"
+            "Использование:\n"
+            "/ban @username [причина]\n"
+            "/ban [telegram_id] [причина]\n\n"
+            "Примеры:\n"
+            "/ban @user читерство\n"
+            "/ban 123456789",
             parse_mode="HTML",
         )
         return
 
-    try:
-        target_id = int(context.args[0])
-    except ValueError:
-        await update.message.reply_text("❌ Неверный ID")
-        return
+    # Get reason if provided
+    reason = " ".join(context.args[1:]) if len(context.args) > 1 else "Не указана"
 
     with get_db() as db:
-        user = db.query(User).filter(User.telegram_id == target_id).first()
+        # Check if first arg is @username or telegram_id
+        target_input = context.args[0].lstrip("@")
+
+        # Try as username first
+        user = db.query(User).filter(User.username == target_input).first()
+
+        # If not found, try as telegram_id
+        if not user:
+            try:
+                target_id = int(context.args[0])
+                user = db.query(User).filter(User.telegram_id == target_id).first()
+            except ValueError:
+                await update.message.reply_text(f"❌ Пользователь @{target_input} не найден")
+                return
 
         if not user:
-            await update.message.reply_text(f"❌ Пользователь {target_id} не найден")
+            await update.message.reply_text(f"❌ Пользователь {context.args[0]} не найден")
             return
 
         user.is_banned = True
         db.commit()
 
-        await update.message.reply_text(f"✅ Пользователь @{user.username or target_id} забанен")
+        await update.message.reply_text(
+            f"✅ Пользователь @{user.username or user.telegram_id} забанен\n\n" f"Причина: {reason}"
+        )
 
-        logger.info("Admin banned user", admin_id=update.effective_user.id, target_id=target_id)
+        logger.info(
+            "Admin banned user",
+            admin_id=update.effective_user.id,
+            target_id=user.telegram_id,
+            target_username=user.username,
+            reason=reason,
+        )
 
 
-@admin_only_private
+@admin_only
 async def unban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Unban user."""
+    """Unban user (works with @username or telegram_id)."""
     if not update.effective_user or not update.message or not context.args:
         await update.message.reply_text(
             "✅ <b>Разбанить пользователя</b>\n\n"
             "Использование:\n"
+            "/unban @username\n"
             "/unban [telegram_id]\n\n"
-            "Пример: /unban 123456789",
+            "Примеры:\n"
+            "/unban @user\n"
+            "/unban 123456789",
             parse_mode="HTML",
         )
         return
 
-    try:
-        target_id = int(context.args[0])
-    except ValueError:
-        await update.message.reply_text("❌ Неверный ID")
-        return
-
     with get_db() as db:
-        user = db.query(User).filter(User.telegram_id == target_id).first()
+        # Check if first arg is @username or telegram_id
+        target_input = context.args[0].lstrip("@")
+
+        # Try as username first
+        user = db.query(User).filter(User.username == target_input).first()
+
+        # If not found, try as telegram_id
+        if not user:
+            try:
+                target_id = int(context.args[0])
+                user = db.query(User).filter(User.telegram_id == target_id).first()
+            except ValueError:
+                await update.message.reply_text(f"❌ Пользователь @{target_input} не найден")
+                return
 
         if not user:
-            await update.message.reply_text(f"❌ Пользователь {target_id} не найден")
+            await update.message.reply_text(f"❌ Пользователь {context.args[0]} не найден")
             return
 
         user.is_banned = False
         db.commit()
 
-        await update.message.reply_text(f"✅ Пользователь @{user.username or target_id} разбанен")
+        await update.message.reply_text(f"✅ Пользователь @{user.username or user.telegram_id} разбанен")
 
-        logger.info("Admin unbanned user", admin_id=update.effective_user.id, target_id=target_id)
+        logger.info(
+            "Admin unbanned user",
+            admin_id=update.effective_user.id,
+            target_id=user.telegram_id,
+            target_username=user.username,
+        )
 
 
 @admin_only_private
@@ -335,18 +408,19 @@ async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message_text = " ".join(context.args)
 
     with get_db() as db:
-        users = db.query(User).filter(User.is_banned.is_(False)).all()
+        user_ids = [u.telegram_id for u in db.query(User).filter(User.is_banned.is_(False)).all()]
 
     sent_count = 0
     failed_count = 0
 
-    for user in users:
+    for user_id in user_ids:
         try:
-            await context.bot.send_message(chat_id=user.telegram_id, text=message_text, parse_mode="HTML")
+            await context.bot.send_message(chat_id=user_id, text=message_text, parse_mode="HTML")
             sent_count += 1
         except Exception as e:
             failed_count += 1
-            logger.warning("Failed to send broadcast", user_id=user.telegram_id, error=str(e))
+            logger.warning("Failed to send broadcast", user_id=user_id, error=str(e))
+        await asyncio.sleep(0.05)  # Rate limit: 20 msg/sec
 
     await update.message.reply_text(
         f"📢 <b>Рассылка завершена</b>\n\n" f"✅ Отправлено: {sent_count}\n" f"❌ Ошибок: {failed_count}",
@@ -407,11 +481,38 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
     if action == "stats":
-        # Show stats inline
-        await stats_command(update, context)
+        # Build stats inline for callback (stats_command requires update.message)
+        from datetime import datetime
+
+        from app.database.models import CasinoGame
+
+        with get_db() as db:
+            total_users = db.query(User).count()
+            active_marriages = db.query(Marriage).filter(Marriage.is_active.is_(True)).count()
+            total_children = db.query(Child).filter(Child.is_alive.is_(True)).count()
+            total_businesses = db.query(Business).count()
+
+            from sqlalchemy.sql import func
+
+            total_diamonds = db.query(func.sum(User.balance)).scalar() or 0
+
+            today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+            casino_games_today = db.query(CasinoGame).filter(CasinoGame.played_at >= today_start).count()
+
+        stats_text = (
+            f"📊 <b>Статистика</b>\n\n"
+            f"👥 Игроков: {total_users}\n"
+            f"💍 Браков: {active_marriages}\n"
+            f"👶 Детей: {total_children}\n"
+            f"💼 Бизнесов: {total_businesses}\n"
+            f"💰 В экономике: {format_diamonds(total_diamonds)}\n"
+            f"🎰 Казино сегодня: {casino_games_today}"
+        )
+        await safe_edit_message(query, stats_text)
 
     elif action == "users":
-        await query.edit_message_text(
+        await safe_edit_message(
+            query,
             "👤 <b>Управление пользователями</b>\n\n"
             "Команды:\n"
             "/user_info [id] - информация\n"
@@ -419,37 +520,33 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/take [id] [amount] - забрать💎\n"
             "/ban [id] - забанить\n"
             "/unban [id] - разбанить",
-            parse_mode="HTML",
         )
 
     elif action == "broadcast":
-        await query.edit_message_text(
-            "📢 <b>Рассылка</b>\n\n" "Команда:\n" "/broadcast [текст сообщения]", parse_mode="HTML"
-        )
+        await safe_edit_message(query, "📢 <b>Рассылка</b>\n\n" "Команда:\n" "/broadcast [текст сообщения]")
 
     elif action == "maintenance":
         status = "🔴 Включён" if MAINTENANCE_MODE else "🟢 Выключен"
-        await query.edit_message_text(
+        await safe_edit_message(
+            query,
             f"🔧 <b>Режим обслуживания</b>\n\n"
             f"Статус: {status}\n\n"
             f"Команды:\n"
             f"/maintenance on - включить\n"
             f"/maintenance off - выключить",
-            parse_mode="HTML",
         )
 
     elif action == "backup":
-        await query.edit_message_text(
-            "💾 <b>Backup</b>\n\n" "⚠️ Функция в разработке\n\n" "Используй pg_dump для бэкапа PostgreSQL",
-            parse_mode="HTML",
+        await safe_edit_message(
+            query, "💾 <b>Backup</b>\n\n" "⚠️ Функция в разработке\n\n" "Используй pg_dump для бэкапа PostgreSQL"
         )
 
     elif action == "logs":
-        await query.edit_message_text(
+        await safe_edit_message(
+            query,
             "📋 <b>Логи</b>\n\n"
             "⚠️ Функция в разработке\n\n"
             "Используй docker logs wedding-bot-dev для просмотра логов",
-            parse_mode="HTML",
         )
 
 

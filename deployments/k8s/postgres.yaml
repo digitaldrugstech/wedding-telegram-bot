@@ -7,7 +7,18 @@ metadata:
 data:
   POSTGRES_DB: wedding_bot
   POSTGRES_USER: wedding_bot
-  POSTGRES_PASSWORD: wedding_bot_pass
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: postgres-secret
+  namespace: dev-backend-services
+type: Opaque
+stringData:
+  # IMPORTANT: Replace with a secure password before deploying!
+  # Generate with: openssl rand -base64 32
+  POSTGRES_PASSWORD: "REPLACE_WITH_SECURE_PASSWORD"
 
 ---
 apiVersion: v1
@@ -48,6 +59,8 @@ spec:
           envFrom:
             - configMapRef:
                 name: postgres-config
+            - secretRef:
+                name: postgres-secret
           volumeMounts:
             - name: postgres-storage
               mountPath: /var/lib/postgresql/data

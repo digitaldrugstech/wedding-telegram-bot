@@ -10,14 +10,24 @@ from telegram.ext import Application, ContextTypes
 
 from app.config import config
 from app.handlers.admin import register_admin_handlers
+from app.handlers.blackjack import register_blackjack_handlers
 from app.handlers.business import register_business_handlers
 from app.handlers.casino import register_casino_handlers
 from app.handlers.children import register_children_handlers
+from app.handlers.duel import register_duel_handlers
+from app.handlers.economy import register_economy_handlers
+from app.handlers.feedback import register_feedback_handlers
 from app.handlers.house import register_house_handlers
 from app.handlers.marriage import register_marriage_handlers
 from app.handlers.menu import register_menu_handlers
+from app.handlers.mine import register_mine_handlers
+from app.handlers.pet import register_pet_handlers
+from app.handlers.quest import initialize_quests, register_quest_handlers
+from app.handlers.scratch import register_scratch_handlers
+from app.handlers.social import register_social_handlers
 from app.handlers.start import register_start_handlers
 from app.handlers.utils import register_utils_handlers
+from app.handlers.wheel import register_wheel_handlers
 from app.handlers.work import register_work_handlers
 
 logger = structlog.get_logger()
@@ -50,7 +60,7 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
     if isinstance(update, Update) and update.effective_message:
         try:
             await update.effective_message.reply_text(
-                "❌ <b>Ошибка</b>\n\nПроизошла ошибка при обработке команды\n\nПопробуй ещё раз или обратись к @haffk",
+                "❌ <b>Ошибка</b>\n\nПроизошла ошибка при обработке команды\n\nПопробуй ещё раз или напиши /bug_report",
                 parse_mode="HTML",
             )
         except Exception as e:
@@ -74,10 +84,23 @@ def create_bot() -> Application:
     register_house_handlers(application)
     register_business_handlers(application)
     register_casino_handlers(application)
+    register_economy_handlers(application)
+    register_social_handlers(application)
+    register_quest_handlers(application)
+    register_pet_handlers(application)
+    register_duel_handlers(application)
+    register_mine_handlers(application)
+    register_wheel_handlers(application)
+    register_scratch_handlers(application)
+    register_blackjack_handlers(application)
+    register_feedback_handlers(application)
     register_admin_handlers(application)
 
     # Register error handler
     application.add_error_handler(error_handler)
+
+    # Initialize quest templates (once at startup)
+    initialize_quests()
 
     logger.info("Bot handlers registered")
 

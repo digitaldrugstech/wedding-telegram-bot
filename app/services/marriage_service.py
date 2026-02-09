@@ -23,6 +23,9 @@ GIFT_MIN = 10  # минимум для подарка
 DATE_COOLDOWN_HOURS = 12
 LOVE_COOLDOWN_HOURS = 24
 CHEAT_RISK_PERCENTAGE = 30  # 30% шанс поймают
+ANNIVERSARY_COOLDOWN_DAYS = 7  # 1 week
+ANNIVERSARY_REWARD_PER_WEEK = 100  # алмазы за каждую неделю брака
+ANNIVERSARY_MAX_REWARD = 1000  # макс награда
 
 
 class MarriageService:
@@ -140,19 +143,62 @@ class MarriageService:
         return marriage.partner2_id if marriage.partner1_id == user_id else marriage.partner1_id
 
     @staticmethod
-    def divorce(db: Session, user_id: int) -> Tuple[bool, str]:
-        """Divorce current marriage.
+    def divorce(db: Session, user_id: int) -> Tuple[bool, str, Optional[int]]:
+        """Divorce current marriage with settlement.
 
         Returns:
-            (success, message)
+            (success, message, partner_id)
         """
         user = db.query(User).filter(User.telegram_id == user_id).first()
         if user.balance < DIVORCE_COST:
-            return False, f"Развод стоит {format_diamonds(DIVORCE_COST)}"
+            return False, f"Развод стоит {format_diamonds(DIVORCE_COST)}", None
 
         marriage = MarriageService.get_active_marriage(db, user_id)
         if not marriage:
-            return False, "Ты не женат/замужем"
+            return False, "Ты не женат/замужем", None
+
+        partner_id = MarriageService.get_partner_id(marriage, user_id)
+        partner = db.query(User).filter(User.telegram_id == partner_id).first()
+
+        # Divorce settlement: split family bank 50/50
+        if marriage.family_bank_balance > 0:
+            split_amount = marriage.family_bank_balance // 2
+            user.balance += split_amount
+            partner.balance += split_amount
+            logger.info(
+                "Divorce settlement",
+                marriage_id=marriage.id,
+                split_amount=split_amount,
+                family_bank=marriage.family_bank_balance,
+            )
+            marriage.family_bank_balance = 0
+
+        # Child custody: children go to parent with higher balance (or random if equal)
+        from app.database.models import Child
+
+        children = db.query(Child).filter(Child.marriage_id == marriage.id, Child.is_alive.is_(True)).all()
+
+        if children:
+            # Decide custody
+            if user.balance > partner.balance:
+                custody_parent_id = user_id
+            elif partner.balance > user.balance:
+                custody_parent_id = partner_id
+            else:
+                # Equal balance - random
+                custody_parent_id = random.choice([user_id, partner_id])
+
+            # Update all children's parent1_id to custody parent
+            for child in children:
+                child.parent1_id = custody_parent_id
+                child.parent2_id = custody_parent_id  # Both parents same (single parent)
+
+            logger.info(
+                "Child custody assigned",
+                marriage_id=marriage.id,
+                custody_parent=custody_parent_id,
+                children_count=len(children),
+            )
 
         # Charge divorce cost
         user.balance -= DIVORCE_COST
@@ -163,8 +209,8 @@ class MarriageService:
 
         db.commit()
 
-        logger.info("Divorce processed", user_id=user_id, marriage_id=marriage.id)
-        return True, "Вы развелись"
+        logger.info("Divorce processed", user_id=user_id, marriage_id=marriage.id, partner_id=partner_id)
+        return True, "Развод оформлен", partner_id
 
     @staticmethod
     def gift_diamonds(db: Session, giver_id: int, amount: int) -> Tuple[bool, str]:
@@ -397,3 +443,125 @@ class MarriageService:
     def get_family_members(db: Session, marriage_id: int) -> list:
         """Get all family members."""
         return db.query(FamilyMember).filter(FamilyMember.marriage_id == marriage_id).all()
+
+    @staticmethod
+    def can_celebrate_anniversary(db: Session, user_id: int) -> Tuple[bool, Optional[str], Optional[int]]:
+        """Check if can celebrate anniversary.
+
+        Returns:
+            (can_celebrate, error_message, cooldown_seconds)
+        """
+        marriage = MarriageService.get_active_marriage(db, user_id)
+        if not marriage:
+            return False, "Ты не женат/замужем", None
+
+        # Skip cooldown check in DEBUG mode
+        if IS_DEBUG:
+            return True, None, None
+
+        if marriage.last_anniversary_at:
+            cooldown_until = marriage.last_anniversary_at + timedelta(days=ANNIVERSARY_COOLDOWN_DAYS)
+            if datetime.utcnow() < cooldown_until:
+                remaining = (cooldown_until - datetime.utcnow()).total_seconds()
+                return False, None, int(remaining)
+
+        return True, None, None
+
+    @staticmethod
+    def celebrate_anniversary(db: Session, user_id: int) -> Tuple[int, int]:
+        """Celebrate wedding anniversary.
+
+        Returns:
+            (reward_per_partner, weeks_married)
+        """
+        marriage = MarriageService.get_active_marriage(db, user_id)
+        marriage.last_anniversary_at = datetime.utcnow()
+
+        # Calculate weeks married
+        time_married = datetime.utcnow() - marriage.created_at
+        weeks_married = int(time_married.total_seconds() // (7 * 86400))
+
+        # Calculate reward (100 per week, max 1000)
+        reward_per_partner = min(weeks_married * ANNIVERSARY_REWARD_PER_WEEK, ANNIVERSARY_MAX_REWARD)
+
+        # Give reward to both partners
+        partner1_id = marriage.partner1_id
+        partner2_id = marriage.partner2_id
+
+        partner1 = db.query(User).filter(User.telegram_id == partner1_id).first()
+        partner2 = db.query(User).filter(User.telegram_id == partner2_id).first()
+
+        partner1.balance += reward_per_partner
+        partner2.balance += reward_per_partner
+
+        db.commit()
+
+        logger.info("Anniversary celebrated", user_id=user_id, weeks=weeks_married, reward=reward_per_partner)
+        return reward_per_partner, weeks_married
+
+    @staticmethod
+    def deposit_to_family_bank(db: Session, user_id: int, amount: int) -> Tuple[bool, str]:
+        """Deposit diamonds to family bank.
+
+        Returns:
+            (success, message)
+        """
+        if amount <= 0:
+            return False, "Укажи положительное число"
+
+        user = db.query(User).filter(User.telegram_id == user_id).first()
+        if user.balance < amount:
+            return False, "Недостаточно алмазов"
+
+        marriage = MarriageService.get_active_marriage(db, user_id)
+        if not marriage:
+            return False, "Ты не женат/замужем"
+
+        # Transfer
+        user.balance -= amount
+        marriage.family_bank_balance += amount
+
+        db.commit()
+
+        logger.info(
+            "Deposited to family bank", user_id=user_id, amount=amount, new_balance=marriage.family_bank_balance
+        )
+        return True, f"Внесено {format_diamonds(amount)} в семейный банк"
+
+    @staticmethod
+    def withdraw_from_family_bank(db: Session, user_id: int, amount: int) -> Tuple[bool, str]:
+        """Withdraw diamonds from family bank.
+
+        Returns:
+            (success, message)
+        """
+        if amount <= 0:
+            return False, "Укажи положительное число"
+
+        marriage = MarriageService.get_active_marriage(db, user_id)
+        if not marriage:
+            return False, "Ты не женат/замужем"
+
+        if marriage.family_bank_balance < amount:
+            return False, f"В семейном банке только {format_diamonds(marriage.family_bank_balance)}"
+
+        user = db.query(User).filter(User.telegram_id == user_id).first()
+
+        # Transfer
+        marriage.family_bank_balance -= amount
+        user.balance += amount
+
+        db.commit()
+
+        logger.info(
+            "Withdrawn from family bank", user_id=user_id, amount=amount, new_balance=marriage.family_bank_balance
+        )
+        return True, f"Снято {format_diamonds(amount)} из семейного банка"
+
+    @staticmethod
+    def get_family_bank_balance(db: Session, user_id: int) -> Optional[int]:
+        """Get family bank balance."""
+        marriage = MarriageService.get_active_marriage(db, user_id)
+        if not marriage:
+            return None
+        return marriage.family_bank_balance

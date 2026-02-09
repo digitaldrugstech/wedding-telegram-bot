@@ -7,7 +7,8 @@ services:
     environment:
       POSTGRES_DB: wedding_bot_prod
       POSTGRES_USER: wedding_bot_prod
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_PROD:-wedding_prod_secure_pass_2024}
+      # REQUIRED: Set POSTGRES_PASSWORD_PROD env variable before running
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_PROD:?POSTGRES_PASSWORD_PROD is required}
       TZ: Europe/Moscow
     volumes:
       - postgres_prod_data:/var/lib/postgresql/data
@@ -32,7 +33,7 @@ services:
       - ../alembic.ini:/app/alembic.ini:ro
     environment:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN_PROD}
-      DATABASE_URL: postgresql://wedding_bot_prod:${POSTGRES_PASSWORD_PROD:-wedding_prod_secure_pass_2024}@postgres-prod:5432/wedding_bot_prod
+      DATABASE_URL: postgresql://wedding_bot_prod:${POSTGRES_PASSWORD_PROD}@postgres-prod:5432/wedding_bot_prod
       ADMIN_USER_ID: "710573786"
       TZ: Europe/Moscow
       LOG_LEVEL: INFO

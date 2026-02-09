@@ -244,10 +244,9 @@ def button_owner_only(func: Callable) -> Callable:
                 await query.answer("⚠️ Эта кнопка не для тебя", show_alert=True)
                 return
         else:
-            # Fallback: check if message belongs to user (not reliable in groups)
-            # Store user_id in context for this session
-            if not context.user_data.get("button_owner_checked"):
-                context.user_data["button_owner_checked"] = True
+            # No user_id in callback_data — deny by default for safety
+            await query.answer("⚠️ Эта кнопка не для тебя", show_alert=True)
+            return
 
         return await func(update, context, *args, **kwargs)
 

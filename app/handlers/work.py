@@ -16,17 +16,20 @@ from app.constants import (
 )
 from app.database.connection import get_db
 from app.database.models import Cooldown, InterpolFine, Job, User
+from app.handlers.quest import update_quest_progress
 from app.utils.decorators import require_registered, set_cooldown
 from app.utils.formatters import format_diamonds
 from app.utils.keyboards import profession_selection_keyboard, work_menu_keyboard
+from app.utils.telegram_helpers import safe_edit_message
 
 logger = structlog.get_logger()
 
 # Check if DEBUG mode (DEV environment)
 IS_DEBUG = os.environ.get("LOG_LEVEL", "INFO").upper() == "DEBUG"
 
-# Job titles by profession and level
+# Job titles by profession and level (18 professions total)
 JOB_TITLES = {
+    # === ORIGINAL 6 PROFESSIONS ===
     "interpol": [
         "Стажер",
         "Младший сотрудник интерпола",
@@ -94,6 +97,151 @@ JOB_TITLES = {
         "проверенный посан",
         "четкий пацык",
         "лучший сын",
+    ],
+    # === NEW 12 PROFESSIONS ===
+    "medic": [
+        "Санитар",
+        "Медсестра",
+        "Фельдшер",
+        "Терапевт",
+        "Хирург",
+        "Заведующий отделением",
+        "Главврач поликлиники",
+        "Зам министра здравоохранения",
+        "Первый зам министра",
+        "Министр здравоохранения",
+    ],
+    "teacher": [
+        "Практикант",
+        "Воспитатель",
+        "Учитель начальных классов",
+        "Учитель средних классов",
+        "Учитель старших классов",
+        "Завуч",
+        "Директор школы",
+        "Зам министра образования",
+        "Первый зам министра",
+        "Министр образования",
+    ],
+    "journalist": [
+        "Стажер редакции",
+        "Корреспондент",
+        "Репортер",
+        "Ведущий новостей",
+        "Главный редактор рубрики",
+        "Шеф-редактор",
+        "Главный редактор",
+        "Зам генерального директора СМИ",
+        "Генеральный директор СМИ",
+        "Медиамагнат",
+    ],
+    "transport": [
+        "Кондуктор",
+        "Водитель автобуса",
+        "Машинист метро",
+        "Пилот вертолета",
+        "Капитан корабля",
+        "Командир экипажа самолета",
+        "Начальник депо",
+        "Зам министра транспорта",
+        "Первый зам министра",
+        "Министр транспорта",
+    ],
+    "security": [
+        "Охранник",
+        "Старший охранник",
+        "Начальник смены",
+        "Телохранитель",
+        "Личный телохранитель VIP",
+        "Начальник охраны",
+        "Глава службы безопасности",
+        "Зам директора ЧОП",
+        "Директор ЧОП",
+        "Владелец охранного холдинга",
+    ],
+    "chef": [
+        "Посудомойщик",
+        "Помощник повара",
+        "Повар",
+        "Старший повар",
+        "Су-шеф",
+        "Шеф-повар",
+        "Шеф ресторана",
+        "Бренд-шеф сети",
+        "Знаменитый шеф",
+        "Шеф со звездой Мишлен",
+    ],
+    "artist": [
+        "Начинающий художник",
+        "Уличный художник",
+        "Иллюстратор",
+        "Дизайнер",
+        "Арт-директор",
+        "Известный художник",
+        "Галерист",
+        "Владелец галереи",
+        "Коллекционер искусства",
+        "Легенда искусства",
+    ],
+    "scientist": [
+        "Лаборант",
+        "Младший научный сотрудник",
+        "Научный сотрудник",
+        "Старший научный сотрудник",
+        "Ведущий научный сотрудник",
+        "Заведующий лабораторией",
+        "Профессор",
+        "Академик",
+        "Директор института",
+        "Нобелевский лауреат",
+    ],
+    "programmer": [
+        "Джун",
+        "Мидл",
+        "Сеньор",
+        "Тимлид",
+        "Архитектор",
+        "Технический директор",
+        "VP of Engineering",
+        "CTO стартапа",
+        "CTO корпорации",
+        "Основатель IT-компании",
+    ],
+    "lawyer": [
+        "Помощник юриста",
+        "Юрист",
+        "Старший юрист",
+        "Ведущий юрист",
+        "Партнер-юниор",
+        "Партнер",
+        "Старший партнер",
+        "Управляющий партнер",
+        "Глава юридической фирмы",
+        "Легенда адвокатуры",
+    ],
+    "athlete": [
+        "Новичок",
+        "Любитель",
+        "Кандидат в мастера спорта",
+        "Мастер спорта",
+        "Мастер спорта международного класса",
+        "Чемпион региона",
+        "Чемпион страны",
+        "Призер Олимпиады",
+        "Олимпийский чемпион",
+        "Легенда спорта",
+    ],
+    "streamer": [
+        "Начинающий стример",
+        "Стример (100 подписчиков)",
+        "Стример (1К подписчиков)",
+        "Стример (10К подписчиков)",
+        "Стример (100К подписчиков)",
+        "Стример (500К подписчиков)",
+        "Стример (1М подписчиков)",
+        "Топ-стример",
+        "Партнер Twitch",
+        "Легенда стриминга",
     ],
 }
 
@@ -166,6 +314,180 @@ COOLDOWN_BY_LEVEL = {
 # Selfmade cooldown (самый короткий)
 SELFMADE_COOLDOWN = 0.5  # 30 minutes
 
+# Centralized profession metadata (emoji, name, flavor texts)
+PROFESSION_EMOJI = {
+    # Original 6
+    "interpol": "🚔",
+    "banker": "💳",
+    "infrastructure": "🏗️",
+    "court": "⚖️",
+    "culture": "🎭",
+    "selfmade": "🐦",
+    # New 12
+    "medic": "🏥",
+    "teacher": "📚",
+    "journalist": "📰",
+    "transport": "🚂",
+    "security": "🛡️",
+    "chef": "👨‍🍳",
+    "artist": "🎨",
+    "scientist": "🔬",
+    "programmer": "💻",
+    "lawyer": "⚖️",
+    "athlete": "🏆",
+    "streamer": "🎮",
+}
+
+PROFESSION_NAMES = {
+    # Original 6
+    "interpol": "Интерпол",
+    "banker": "Банкир",
+    "infrastructure": "Инфраструктура",
+    "court": "Суд",
+    "culture": "Культура",
+    "selfmade": "Селфмейд",
+    # New 12
+    "medic": "Медицина",
+    "teacher": "Образование",
+    "journalist": "Журналистика",
+    "transport": "Транспорт",
+    "security": "Охрана",
+    "chef": "Кулинария",
+    "artist": "Искусство",
+    "scientist": "Наука",
+    "programmer": "IT",
+    "lawyer": "Юриспруденция",
+    "athlete": "Спорт",
+    "streamer": "Стриминг",
+}
+
+FLAVOR_TEXTS = {
+    # Original 6
+    "interpol": [
+        "Обеспечил безопасность на ивенте",
+        "Патрулировал территорию сервера",
+        "Дежурил на охране мероприятия",
+        "Проверил документы у игроков",
+    ],
+    "banker": [
+        "Обслужил клиентов в банке",
+        "Провёл финансовые транзакции",
+        "Одобрил кредитные заявки",
+        "Обработал платежи",
+    ],
+    "infrastructure": [
+        "Собрал ресурсы для строительства",
+        "Построил новые объекты",
+        "Отремонтировал здания на спавне",
+        "Обслужил инфраструктуру города",
+    ],
+    "court": [
+        "Рассмотрел судебные дела",
+        "Вынес обоснованные приговоры",
+        "Провёл судебные слушания",
+        "Изучил материалы дел",
+    ],
+    "culture": [
+        "Провёл крутые ивенты",
+        "Организовал мероприятия для игроков",
+        "Подготовил концерты",
+        "Развлекал население города",
+    ],
+    "selfmade": [
+        "крутить каз",
+        "забирать муку",
+        "звонить юристам",
+        "НЕ мыться",
+        "заебаться",
+        "планировать месть",
+    ],
+    # New 12
+    "medic": [
+        "Вылечил пациентов",
+        "Провёл операцию",
+        "Поставил диагнозы",
+        "Выписал рецепты",
+        "Спас чью-то жизнь",
+    ],
+    "teacher": [
+        "Провёл уроки",
+        "Проверил контрольные",
+        "Подготовил учебный план",
+        "Воспитал будущих гениев",
+        "Объяснил сложную тему",
+    ],
+    "journalist": [
+        "Написал статью",
+        "Провёл расследование",
+        "Взял интервью у звезды",
+        "Снял репортаж",
+        "Раскрыл громкое дело",
+    ],
+    "transport": [
+        "Перевёз пассажиров",
+        "Доставил грузы вовремя",
+        "Провёл рейс без происшествий",
+        "Обслужил транспорт",
+        "Спланировал маршруты",
+    ],
+    "security": [
+        "Охранял объект",
+        "Предотвратил кражу",
+        "Провёл патрулирование",
+        "Обеспечил безопасность VIP",
+        "Нейтрализовал угрозу",
+    ],
+    "chef": [
+        "Приготовил изысканные блюда",
+        "Накормил голодных гостей",
+        "Придумал новый рецепт",
+        "Прошёл проверку санэпидемстанции",
+        "Получил похвалу от критика",
+    ],
+    "artist": [
+        "Нарисовал картину",
+        "Продал работу коллекционеру",
+        "Провёл выставку",
+        "Создал шедевр",
+        "Вдохновил молодых художников",
+    ],
+    "scientist": [
+        "Провёл эксперимент",
+        "Сделал открытие",
+        "Опубликовал статью в Nature",
+        "Получил грант на исследования",
+        "Защитил диссертацию",
+    ],
+    "programmer": [
+        "Написал код без багов",
+        "Исправил критический баг",
+        "Сделал code review",
+        "Выкатил релиз в прод",
+        "Оптимизировал алгоритм",
+    ],
+    "lawyer": [
+        "Выиграл дело в суде",
+        "Заключил выгодную сделку",
+        "Защитил невиновного",
+        "Составил контракт",
+        "Провёл консультацию",
+    ],
+    "athlete": [
+        "Выиграл соревнования",
+        "Побил личный рекорд",
+        "Провёл изнурительную тренировку",
+        "Получил медаль",
+        "Вдохновил болельщиков",
+    ],
+    "streamer": [
+        "Провёл эпичный стрим",
+        "Набрал новых подписчиков",
+        "Получил донаты от фанатов",
+        "Сделал вирусный клип",
+        "Затащил на стриме",
+    ],
+}
+
 
 @require_registered
 async def work_menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -180,26 +502,8 @@ async def work_menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if job:
             job_name = JOB_TITLES[job.job_type][job.job_level - 1]
-            profession_emoji = {
-                "interpol": "🚔",
-                "banker": "💳",
-                "infrastructure": "🏗️",
-                "court": "⚖️",
-                "culture": "🎭",
-                "selfmade": "🐦",
-            }
-            emoji = profession_emoji.get(job.job_type, "💼")
-
-            # Название трека
-            profession_names = {
-                "interpol": "Интерпол",
-                "banker": "Банкир",
-                "infrastructure": "Инфраструктура",
-                "court": "Суд",
-                "culture": "Культура",
-                "selfmade": "Селфмейд",
-            }
-            track_name = profession_names.get(job.job_type, "")
+            emoji = PROFESSION_EMOJI.get(job.job_type, "💼")
+            track_name = PROFESSION_NAMES.get(job.job_type, "")
 
             # Следующая должность
             max_level = 6 if job.job_type == "selfmade" else 10
@@ -459,19 +763,19 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         promotion_chance = PROMOTION_CHANCES.get(job.job_level, 0.02)
         guaranteed_works = GUARANTEED_PROMOTION_WORKS.get(job.job_level, 999)
 
-        if job.job_level < max_level:  # Not max level
+        # Selfmade trap: при попытке апа с максимального уровня (отдельная проверка)
+        if job.job_type == "selfmade" and job.job_level == SELFMADE_TRAP_LEVEL:
             if random.random() < promotion_chance or job.times_worked >= guaranteed_works:
-                # Selfmade trap: при попытке апа с максимального уровня
-                if job.job_type == "selfmade" and job.job_level == SELFMADE_TRAP_LEVEL:
-                    # НАЕБАЛИ!
-                    user.balance = 0  # Обнуляем баланс
-                    job.job_level = 1  # Сбрасываем на нищий
-                    job.times_worked = 0
-                    scammed = True
-                else:
-                    job.job_level += 1
-                    job.times_worked = 0  # Reset counter
-                    promoted = True
+                # НАЕБАЛИ!
+                user.balance = 0  # Обнуляем баланс
+                job.job_level = 1  # Сбрасываем на нищий
+                job.times_worked = 0
+                scammed = True
+        elif job.job_level < max_level:  # Not max level
+            if random.random() < promotion_chance or job.times_worked >= guaranteed_works:
+                job.job_level += 1
+                job.times_worked = 0  # Reset counter
+                promoted = True
 
         # Set cooldown AFTER successful work (skip for debug chat)
 
@@ -488,59 +792,10 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db.commit()
 
         # Generate work flavor text
-        flavor_texts = {
-            "interpol": [
-                "Обеспечил безопасность на ивенте",
-                "Патрулировал территорию сервера",
-                "Дежурил на охране мероприятия",
-                "Проверил документы у игроков",
-            ],
-            "banker": [
-                f"Обслужил {random.randint(15, 30)} клиентов в банке",
-                f"Провёл {random.randint(10, 25)} финансовых транзакций",
-                f"Одобрил {random.randint(5, 15)} кредитных заявок",
-                f"Обработал {random.randint(20, 35)} платежей",
-            ],
-            "infrastructure": [
-                f"Собрал {random.randint(20, 40)} единиц ресурсов",
-                f"Построил {random.randint(5, 15)} новых объектов",
-                f"Отремонтировал {random.randint(3, 10)} зданий на спавне",
-                "Обслужил инфраструктуру города",
-            ],
-            "court": [
-                f"Рассмотрел {random.randint(3, 8)} судебных дел",
-                f"Вынес {random.randint(2, 6)} обоснованных приговоров",
-                f"Провёл {random.randint(1, 4)} судебных слушания",
-                "Изучил материалы дел",
-            ],
-            "culture": [
-                f"Провёл {random.randint(2, 5)} крутых ивентов",
-                f"Организовал {random.randint(1, 3)} мероприятия для игроков",
-                f"Подготовил {random.randint(2, 4)} концерта",
-                "Развлекал население города",
-            ],
-            "selfmade": [
-                "крутить каз",
-                "забирать муку",
-                "звонить юристам",
-                "НЕ мыться",
-                "заебаться",
-                "планировать месть",
-            ],
-        }
-
-        flavor = random.choice(flavor_texts.get(job.job_type, ["Отработал смену"]))
+        flavor = random.choice(FLAVOR_TEXTS.get(job.job_type, ["Отработал смену"]))
 
         # Build response with clear structure
-        job_emoji = {
-            "interpol": "🚔",
-            "banker": "💳",
-            "infrastructure": "🏗️",
-            "court": "⚖️",
-            "culture": "🎭",
-            "selfmade": "🐦",
-        }
-        emoji = job_emoji.get(job.job_type, "💼")
+        emoji = PROFESSION_EMOJI.get(job.job_type, "💼")
 
         # Check if scammed
         if scammed:
@@ -575,6 +830,12 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await update.message.reply_text(response, parse_mode="HTML")
 
+        # Track quest progress
+        try:
+            update_quest_progress(user_id, "work")
+        except Exception:
+            pass  # Quest tracking is non-critical
+
 
 async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle work menu callbacks."""
@@ -596,15 +857,10 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
     if action == "choose_profession":
-        await query.edit_message_text(
-            "💼 Профессия\n\n"
-            "🚔 Интерпол — штрафы\n"
-            "💳 Банкир — транзакции\n"
-            "🏗️ Инфраструктура — ресурсы\n"
-            "⚖️ Суд — приговоры\n"
-            "🎭 Культура — ивенты\n"
-            "🐦 Селфмейд — крути каз и забирай муку",
-            reply_markup=profession_selection_keyboard(user_id=user_id),
+        await safe_edit_message(
+            query,
+            "💼 Профессия\n\n" "Выбери сферу деятельности:",
+            reply_markup=profession_selection_keyboard(user_id=user_id, page=1),
         )
 
     elif action == "do_job":
@@ -617,13 +873,14 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             job = db.query(Job).filter(Job.user_id == user_id).first()
 
             if not job:
-                await query.edit_message_text("⚠️ Нет работы. Используй /work")
+                await safe_edit_message(query, "⚠️ Нет работы. Используй /work")
                 return
 
             # Interpol must use /job with reply
             if job.job_type == "interpol":
-                await query.edit_message_text(
-                    "🚔 Интерпол\n\n" "💡 Штраф:\n" "• /job (ответь)\n" "• /job @username\n\n" "💡 Охрана:\n" "/job"
+                await safe_edit_message(
+                    query,
+                    "🚔 Интерпол\n\n" "💡 Штраф:\n" "• /job (ответь)\n" "• /job @username\n\n" "💡 Охрана:\n" "/job",
                 )
                 return
 
@@ -646,7 +903,7 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     if seconds_remaining > 0 and not time_str:
                         time_str.append(f"{int(seconds_remaining)}с")
 
-                    await query.edit_message_text(f"Можешь работать через {' '.join(time_str)}")
+                    await safe_edit_message(query, f"Можешь работать через {' '.join(time_str)}")
                     return
 
             # Calculate salary
@@ -672,18 +929,19 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             promotion_chance = PROMOTION_CHANCES.get(job.job_level, 0.02)
             guaranteed_works = GUARANTEED_PROMOTION_WORKS.get(job.job_level, 999)
 
-            if job.job_level < max_level:
+            # Selfmade trap: при попытке апа с максимального уровня
+            if job.job_type == "selfmade" and job.job_level == SELFMADE_TRAP_LEVEL:
                 if random.random() < promotion_chance or job.times_worked >= guaranteed_works:
-                    if job.job_type == "selfmade" and job.job_level == SELFMADE_TRAP_LEVEL:
-                        # НАЕБАЛИ!
-                        user.balance = 0
-                        job.job_level = 1
-                        job.times_worked = 0
-                        scammed = True
-                    else:
-                        job.job_level += 1
-                        job.times_worked = 0
-                        promoted = True
+                    # НАЕБАЛИ!
+                    user.balance = 0
+                    job.job_level = 1
+                    job.times_worked = 0
+                    scammed = True
+            elif job.job_level < max_level:
+                if random.random() < promotion_chance or job.times_worked >= guaranteed_works:
+                    job.job_level += 1
+                    job.times_worked = 0
+                    promoted = True
 
             # Set cooldown (skip for debug chat)
 
@@ -700,59 +958,10 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             db.commit()
 
             # Generate work flavor text
-            flavor_texts = {
-                "interpol": [
-                    "Проверил документы у подозрительных личностей",
-                    "Провёл рейд по нелегальным точкам",
-                    "Задержал нарушителей порядка",
-                    "Патрулировал территорию сервера",
-                ],
-                "banker": [
-                    f"Обслужил {random.randint(15, 30)} клиентов в банке",
-                    f"Провёл {random.randint(10, 25)} финансовых транзакций",
-                    f"Одобрил {random.randint(5, 15)} кредитных заявок",
-                    f"Обработал {random.randint(20, 35)} платежей",
-                ],
-                "infrastructure": [
-                    f"Собрал {random.randint(20, 40)} единиц ресурсов",
-                    f"Построил {random.randint(5, 15)} новых объектов",
-                    f"Отремонтировал {random.randint(3, 10)} зданий на спавне",
-                    "Обслужил инфраструктуру города",
-                ],
-                "court": [
-                    f"Рассмотрел {random.randint(3, 8)} судебных дел",
-                    f"Вынес {random.randint(2, 6)} обоснованных приговоров",
-                    f"Провёл {random.randint(1, 4)} судебных слушания",
-                    "Изучил материалы дел",
-                ],
-                "culture": [
-                    f"Провёл {random.randint(2, 5)} крутых ивентов",
-                    f"Организовал {random.randint(1, 3)} мероприятия для игроков",
-                    f"Подготовил {random.randint(2, 4)} концерта",
-                    "Развлекал население города",
-                ],
-                "selfmade": [
-                    "крутить каз",
-                    "забирать муку",
-                    "звонить юристам",
-                    "НЕ мыться",
-                    "заебаться",
-                    "планировать месть",
-                ],
-            }
-
-            flavor = random.choice(flavor_texts.get(job.job_type, ["Отработал смену"]))
+            flavor = random.choice(FLAVOR_TEXTS.get(job.job_type, ["Отработал смену"]))
 
             # Build response with clear structure
-            job_emoji = {
-                "interpol": "🚔",
-                "banker": "💳",
-                "infrastructure": "🏗️",
-                "court": "⚖️",
-                "culture": "🎭",
-                "selfmade": "🐦",
-            }
-            emoji = job_emoji.get(job.job_type, "💼")
+            emoji = PROFESSION_EMOJI.get(job.job_type, "💼")
 
             # Check if scammed
             if scammed:
@@ -781,13 +990,14 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 if IS_DEBUG:
                     response += "\n\n🔧 <i>Кулдаун убран (DEV)</i>"
 
-            await query.edit_message_text(response, parse_mode="HTML")
+            await safe_edit_message(query, response)
 
     elif action == "quit":
         # Show confirmation dialog
         from app.utils.keyboards import confirm_keyboard
 
-        await query.edit_message_text(
+        await safe_edit_message(
+            query,
             "⚠️ Точно?\n\nПотеряешь должность и прогресс",
             reply_markup=confirm_keyboard("quit_job", user_id=user_id),
         )
@@ -798,12 +1008,12 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if job:
                 db.delete(job)
                 db.commit()
-                await query.edit_message_text(
-                    "❌ Уволен", reply_markup=work_menu_keyboard(has_job=False, user_id=user_id)
+                await safe_edit_message(
+                    query, "❌ Уволен", reply_markup=work_menu_keyboard(has_job=False, user_id=user_id)
                 )
             else:
-                await query.edit_message_text(
-                    "⚠️ Нет работы", reply_markup=work_menu_keyboard(has_job=False, user_id=user_id)
+                await safe_edit_message(
+                    query, "⚠️ Нет работы", reply_markup=work_menu_keyboard(has_job=False, user_id=user_id)
                 )
 
     elif action == "quit_job_cancelled":
@@ -813,25 +1023,8 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             if job:
                 job_name = JOB_TITLES[job.job_type][job.job_level - 1]
-                profession_emoji = {
-                    "interpol": "🚔",
-                    "banker": "💳",
-                    "infrastructure": "🏗️",
-                    "court": "⚖️",
-                    "culture": "🎭",
-                    "selfmade": "🐦",
-                }
-                emoji = profession_emoji.get(job.job_type, "💼")
-
-                profession_names = {
-                    "interpol": "Интерпол",
-                    "banker": "Банкир",
-                    "infrastructure": "Инфраструктура",
-                    "court": "Суд",
-                    "culture": "Культура",
-                    "selfmade": "Селфмейд",
-                }
-                track_name = profession_names.get(job.job_type, "")
+                emoji = PROFESSION_EMOJI.get(job.job_type, "💼")
+                track_name = PROFESSION_NAMES.get(job.job_type, "")
 
                 max_level = 6 if job.job_type == "selfmade" else 10
                 if job.job_level < max_level:
@@ -840,7 +1033,8 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 else:
                     next_level_text = "🏆 Максимум"
 
-                await query.edit_message_text(
+                await safe_edit_message(
+                    query,
                     f"💼 {track_name}\n"
                     f"{emoji} {job_name} ({job.job_level}/{max_level})\n"
                     f"📊 {job.times_worked}\n"
@@ -848,7 +1042,8 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     reply_markup=work_menu_keyboard(has_job=True, user_id=user_id),
                 )
             else:
-                await query.edit_message_text(
+                await safe_edit_message(
+                    query,
                     "💼 Нет работы\n\nВыбери профессию:",
                     reply_markup=work_menu_keyboard(has_job=False, user_id=user_id),
                 )
@@ -887,12 +1082,12 @@ async def profession_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
             db.commit()
 
             new_title = JOB_TITLES[profession][new_level - 1]
-            await query.edit_message_text(
+            await safe_edit_message(
+                query,
                 f"✅ Профессия сменена\n\n"
                 f"📋 {new_title} ({new_level} ур.)\n\n"
                 f"⚠️ Потерял {level_penalty} {'уровень' if level_penalty == 1 else 'уровня'}",
                 reply_markup=work_menu_keyboard(has_job=True, user_id=user_id),
-                parse_mode="HTML",
             )
         else:
             # First job
@@ -908,11 +1103,37 @@ async def profession_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
             else:
                 min_sal, max_sal = SALARY_RANGES[1]
 
-            await query.edit_message_text(
+            await safe_edit_message(
+                query,
                 f"✅ Принят\n\n" f"📋 {job_title} (1 ур.)\n" f"💰 {min_sal}-{max_sal} алмазов\n\n" f"/job — работать",
                 reply_markup=work_menu_keyboard(has_job=True, user_id=user_id),
-                parse_mode="HTML",
             )
+
+
+async def profession_page_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle profession page navigation."""
+    query = update.callback_query
+    await query.answer()
+
+    if not update.effective_user:
+        return
+
+    user_id = update.effective_user.id
+    parts = query.data.split(":")
+    page = int(parts[1])
+
+    # Check button owner
+    if len(parts) >= 3:
+        owner_id = int(parts[2])
+        if user_id != owner_id:
+            await query.answer("Эта кнопка не для тебя", show_alert=True)
+            return
+
+    await safe_edit_message(
+        query,
+        "💼 Профессия\n\n" "Выбери сферу деятельности:",
+        reply_markup=profession_selection_keyboard(user_id=user_id, page=page),
+    )
 
 
 def register_work_handlers(application):
@@ -920,4 +1141,5 @@ def register_work_handlers(application):
     application.add_handler(CommandHandler("work", work_menu_command))
     application.add_handler(CommandHandler("job", job_command))
     application.add_handler(CallbackQueryHandler(work_callback, pattern="^work:"))
+    application.add_handler(CallbackQueryHandler(profession_page_callback, pattern="^profession_page:"))
     application.add_handler(CallbackQueryHandler(profession_callback, pattern="^profession:"))

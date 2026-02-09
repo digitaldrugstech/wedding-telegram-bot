@@ -50,7 +50,7 @@ class HouseService:
         existing_house = db.query(House).filter(House.marriage_id == marriage.id).first()
 
         if existing_house:
-            return False, "У вашей семьи уже есть дом"
+            return False, "У твоей семьи уже есть дом"
 
         # Check balance
         user = db.query(User).filter(User.telegram_id == user_id).first()
@@ -127,7 +127,7 @@ class HouseService:
         house = db.query(House).filter(House.marriage_id == marriage.id).first()
 
         if not house:
-            return False, "У вашей семьи нет дома", None
+            return False, "У твоей семьи нет дома", None
 
         return True, "", house.id
 
@@ -151,7 +151,7 @@ class HouseService:
         house = db.query(House).filter(House.marriage_id == marriage.id).first()
 
         if not house:
-            return False, "У вашей семьи нет дома"
+            return False, "У твоей семьи нет дома"
 
         # Calculate refund (70%)
         refund_amount = int(house.purchase_price * SELL_REFUND_PERCENTAGE)

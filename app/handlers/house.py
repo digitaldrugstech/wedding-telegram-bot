@@ -9,6 +9,7 @@ from app.services.house_service import HouseService
 from app.utils.decorators import require_registered
 from app.utils.formatters import format_diamonds
 from app.utils.keyboards import house_buy_keyboard, house_menu_keyboard
+from app.utils.telegram_helpers import safe_edit_message
 
 logger = structlog.get_logger()
 
@@ -69,10 +70,10 @@ async def house_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if action == "buy":
         # Show buy menu
-        await query.edit_message_text(
+        await safe_edit_message(
+            query,
             "🏠 <b>Покупка дома</b>\n\n" "Выбери тип дома:",
             reply_markup=house_buy_keyboard(user_id=user_id),
-            parse_mode="HTML",
         )
 
     elif action == "buy_confirm":
@@ -83,15 +84,15 @@ async def house_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             can_buy, error = HouseService.can_buy_house(db, user_id, house_type)
 
             if not can_buy:
-                await query.edit_message_text(f"❌ {error}", parse_mode="HTML")
+                await safe_edit_message(query, f"❌ {error}")
                 return
 
             success, message, house_id = HouseService.buy_house(db, user_id, house_type)
 
             if success:
-                await query.edit_message_text(message, parse_mode="HTML")
+                await safe_edit_message(query, message)
             else:
-                await query.edit_message_text("❌ Ошибка покупки", parse_mode="HTML")
+                await safe_edit_message(query, "❌ Ошибка покупки")
 
     elif action == "sell":
         # Sell house
@@ -99,15 +100,15 @@ async def house_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             can_sell, error, house_id = HouseService.can_sell_house(db, user_id)
 
             if not can_sell:
-                await query.edit_message_text(f"❌ {error}", parse_mode="HTML")
+                await safe_edit_message(query, f"❌ {error}")
                 return
 
             success, message = HouseService.sell_house(db, user_id)
 
             if success:
-                await query.edit_message_text(message, parse_mode="HTML")
+                await safe_edit_message(query, message)
             else:
-                await query.edit_message_text("❌ Ошибка продажи", parse_mode="HTML")
+                await safe_edit_message(query, "❌ Ошибка продажи")
 
     elif action == "info":
         # Show house info
@@ -115,7 +116,7 @@ async def house_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             can_sell, error, house_id = HouseService.can_sell_house(db, user_id)
 
             if not can_sell:
-                await query.edit_message_text(f"❌ {error}", parse_mode="HTML")
+                await safe_edit_message(query, f"❌ {error}")
                 return
 
             house_info = HouseService.get_house_info(db, house_id)
@@ -128,9 +129,7 @@ async def house_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"💡 Дом защищает от похищения детей"
             )
 
-            await query.edit_message_text(
-                message, reply_markup=house_menu_keyboard(has_house=True, user_id=user_id), parse_mode="HTML"
-            )
+            await safe_edit_message(query, message, reply_markup=house_menu_keyboard(has_house=True, user_id=user_id))
 
 
 def register_house_handlers(application):

@@ -1,5 +1,6 @@
 """Children service - birth, feeding, aging, education."""
 
+import html
 import os
 import random
 from datetime import datetime, timedelta
@@ -19,9 +20,9 @@ IS_DEBUG = os.environ.get("LOG_LEVEL", "INFO").upper() == "DEBUG"
 # Constants
 NATURAL_BIRTH_CHANCE = 0.10  # 10% chance on /makelove
 IVF_COST = 5000  # 100% chance
-ADOPTION_COST = 500
+ADOPTION_COST = 5000  # New adoption (child, not infant)
 
-FEEDING_COST = 50  # Per child
+FEEDING_COST = 200  # Per child (increased from 50 to fix inflation)
 FEEDING_COOLDOWN_DAYS = 3  # Must feed every 3 days
 DEATH_THRESHOLD_DAYS = 5  # Dies after 5 days without food
 
@@ -38,6 +39,9 @@ BABYSITTER_DURATION_DAYS = 7
 TEEN_WORK_MIN = 30
 TEEN_WORK_MAX = 60
 TEEN_WORK_COOLDOWN = 86400  # 24 hours in seconds
+TEEN_AUTO_WORK_MIN = 20
+TEEN_AUTO_WORK_MAX = 50
+TEEN_AUTO_WORK_INTERVAL = 14400  # 4 hours in seconds
 
 
 class ChildrenService:
@@ -150,12 +154,24 @@ class ChildrenService:
         return True, "", child
 
     @staticmethod
-    def adopt_child(db: Session, marriage_id: int, user_id: int) -> Tuple[bool, str, Optional[Child]]:
-        """Adopt a child (500 diamonds)."""
-        can_have, error = ChildrenService.can_have_child(db, marriage_id)
+    def adopt_child(
+        db: Session, marriage_id: int, user_id: int, child_name: Optional[str] = None
+    ) -> Tuple[bool, str, Optional[Child]]:
+        """Adopt a child (5000 diamonds, directly 'child' age stage).
 
-        if not can_have:
-            return False, error, None
+        Args:
+            db: Database session
+            marriage_id: Marriage ID
+            user_id: User ID who is paying
+            child_name: Optional custom name for the child
+
+        Returns:
+            (success, error_message, child_object)
+        """
+        # Check marriage exists
+        marriage = db.query(Marriage).filter(Marriage.id == marriage_id, Marriage.is_active.is_(True)).first()
+        if not marriage:
+            return False, "Брак не найден", None
 
         # Get user
         user = db.query(User).filter(User.telegram_id == user_id).first()
@@ -166,11 +182,33 @@ class ChildrenService:
         # Charge
         user.balance -= ADOPTION_COST
 
-        # Create child
-        child = ChildrenService.create_child(db, marriage_id)
-        db.commit()
+        # Create child directly as "child" age stage (not infant)
+        gender = random.choice(["male", "female"])
 
-        logger.info("Adoption successful", child_id=child.id, marriage_id=marriage_id, user_id=user_id)
+        # Use provided name or generate random
+        if not child_name:
+            if gender == "male":
+                names = ["Максим", "Артём", "Иван", "Дмитрий", "Никита", "Александр", "Михаил"]
+            else:
+                names = ["Анастасия", "Мария", "Дарья", "Полина", "Елизавета", "Виктория", "Софья"]
+            child_name = random.choice(names)
+
+        child = Child(
+            marriage_id=marriage_id,
+            parent1_id=marriage.partner1_id,
+            parent2_id=marriage.partner2_id,
+            name=child_name,
+            gender=gender,
+            age_stage="child",  # Directly "child", not "infant"
+            last_fed_at=datetime.utcnow(),
+            is_alive=True,
+        )
+
+        db.add(child)
+        db.commit()
+        db.refresh(child)
+
+        logger.info("Adoption successful", child_id=child.id, marriage_id=marriage_id, user_id=user_id, name=child_name)
 
         return True, "", child
 
@@ -342,14 +380,28 @@ class ChildrenService:
         # Get user
         user = db.query(User).filter(User.telegram_id == user_id).first()
 
-        if user.balance < BABYSITTER_COST:
-            return False, f"Недостаточно алмазов (нужно {format_diamonds(BABYSITTER_COST)})"
+        # Calculate total cost upfront: babysitter + feeding costs
+        children = db.query(Child).filter(Child.marriage_id == marriage_id, Child.is_alive.is_(True)).all()
+        hungry_count = 0
+        for child in children:
+            time_since_feed = datetime.utcnow() - child.last_fed_at
+            if time_since_feed.total_seconds() >= FEEDING_COOLDOWN_DAYS * 86400:
+                hungry_count += 1
+
+        total_cost = BABYSITTER_COST + (hungry_count * FEEDING_COST)
+
+        if user.balance < total_cost:
+            return (
+                False,
+                f"Недостаточно алмазов (нужно {format_diamonds(total_cost)}: няня {format_diamonds(BABYSITTER_COST)} + кормление {format_diamonds(hungry_count * FEEDING_COST)})",
+            )
+
+        # Charge babysitter first
+        user.balance -= BABYSITTER_COST
 
         # Feed all children who need it
         fed, already_fed, insufficient = ChildrenService.feed_all_children(db, marriage_id, user_id)
 
-        # Charge babysitter
-        user.balance -= BABYSITTER_COST
         db.commit()
 
         logger.info("Babysitter hired", marriage_id=marriage_id, user_id=user_id, children_fed=fed)
@@ -400,6 +452,115 @@ class ChildrenService:
         return db.query(Child).filter(Child.marriage_id == marriage_id).order_by(Child.created_at).all()
 
     @staticmethod
+    def toggle_child_work(db: Session, child_id: int) -> Tuple[bool, str, bool]:
+        """Toggle child working status (only for teens).
+
+        Returns:
+            (success, error_message, new_is_working_status)
+        """
+        child = db.query(Child).filter(Child.id == child_id, Child.is_alive.is_(True)).first()
+
+        if not child:
+            return False, "Ребёнок не найден", False
+
+        if child.age_stage != "teen":
+            return False, "Только подростки могут работать", False
+
+        # Toggle work status
+        child.is_working = not child.is_working
+
+        # If enabling work, set last_work_time to allow immediate first payout
+        if child.is_working and not child.last_work_time:
+            child.last_work_time = datetime.utcnow() - timedelta(seconds=TEEN_AUTO_WORK_INTERVAL)
+
+        db.commit()
+
+        logger.info("Child work toggled", child_id=child_id, is_working=child.is_working)
+
+        return True, "", child.is_working
+
+    @staticmethod
+    def process_auto_work_for_child(db: Session, child_id: int) -> Tuple[bool, str, int]:
+        """Process automatic work payout for a teen (called by scheduler).
+
+        Returns:
+            (success, error_message, earnings)
+        """
+        child = db.query(Child).filter(Child.id == child_id, Child.is_alive.is_(True)).first()
+
+        if not child:
+            return False, "Ребёнок не найден", 0
+
+        if child.age_stage != "teen":
+            return False, "Только подростки могут работать", 0
+
+        if not child.is_working:
+            return False, "Ребёнок не работает", 0
+
+        # Check if enough time has passed (4 hours)
+        if child.last_work_time:
+            time_since_work = datetime.utcnow() - child.last_work_time
+            if time_since_work.total_seconds() < TEEN_AUTO_WORK_INTERVAL:
+                return False, "Слишком рано", 0
+
+        # Calculate earnings (20-50 diamonds)
+        earnings = random.randint(TEEN_AUTO_WORK_MIN, TEEN_AUTO_WORK_MAX)
+
+        # Pay parent1 (primary parent)
+        parent = db.query(User).filter(User.telegram_id == child.parent1_id).first()
+        if parent:
+            parent.balance += earnings
+
+        # Update child work time
+        child.last_work_time = datetime.utcnow()
+        db.commit()
+
+        logger.info("Child auto work processed", child_id=child_id, earnings=earnings, parent_id=child.parent1_id)
+
+        return True, "", earnings
+
+    @staticmethod
+    def process_all_working_children(db: Session):
+        """Process all working children (called by scheduler every 4 hours).
+
+        Returns:
+            List of tuples: [(child_id, parent_id, earnings), ...]
+        """
+        # Find all working teens
+        working_children = (
+            db.query(Child)
+            .filter(Child.is_alive.is_(True), Child.age_stage == "teen", Child.is_working.is_(True))
+            .all()
+        )
+
+        results = []
+        for child in working_children:
+            # Check if enough time has passed
+            if child.last_work_time:
+                time_since_work = datetime.utcnow() - child.last_work_time
+                if time_since_work.total_seconds() < TEEN_AUTO_WORK_INTERVAL:
+                    continue
+
+            # Calculate earnings
+            earnings = random.randint(TEEN_AUTO_WORK_MIN, TEEN_AUTO_WORK_MAX)
+
+            # Pay parent
+            parent = db.query(User).filter(User.telegram_id == child.parent1_id).first()
+            if parent:
+                parent.balance += earnings
+
+            # Update work time
+            child.last_work_time = datetime.utcnow()
+
+            results.append((child.id, child.parent1_id, earnings))
+
+            logger.info("Child auto work processed", child_id=child.id, earnings=earnings, parent_id=child.parent1_id)
+
+        db.commit()
+
+        return results
+
+    @staticmethod
     def get_child_info(child: Child) -> dict:
         """Format child info for display."""
         # Age emoji
@@ -430,14 +591,21 @@ class ChildrenService:
             days_left = (child.school_expires_at - datetime.utcnow()).days
             school_status = f"🎓 Учится ({days_left}д)"
 
+        # Work status
+        work_status = ""
+        if child.age_stage == "teen" and child.is_working:
+            work_status = "💼 Работает"
+
         return {
             "id": child.id,
-            "name": child.name,
+            "name": html.escape(child.name),
             "age_emoji": age_emoji,
             "gender_emoji": gender_emoji,
             "age_stage": child.age_stage,
             "status": status,
             "school_status": school_status,
+            "work_status": work_status,
             "is_alive": child.is_alive,
+            "is_working": child.is_working,
             "last_fed_at": child.last_fed_at,
         }

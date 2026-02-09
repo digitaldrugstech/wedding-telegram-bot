@@ -18,6 +18,7 @@ from app.services.children_service import (
 from app.services.marriage_service import MarriageService
 from app.utils.decorators import require_registered
 from app.utils.formatters import format_diamonds
+from app.utils.telegram_helpers import safe_edit_message
 
 logger = structlog.get_logger()
 
@@ -62,7 +63,7 @@ async def family_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     message += f" | {info['school_status']}"
                 message += "\n\n"
         else:
-            message = "👨‍👩‍👧‍👦 <b>Семья</b>\n\nУ вас пока нет детей"
+            message = "👨‍👩‍👧‍👦 <b>Семья</b>\n\nУ тебя пока нет детей"
 
         # Build keyboard
         keyboard = [
@@ -89,9 +90,9 @@ async def family_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     parts = query.data.split(":")
     action = parts[1]
 
-    # Check button owner
+    # Check button owner (user_id is always the last part)
     if len(parts) >= 3:
-        owner_id = int(parts[2])
+        owner_id = int(parts[-1])
         if user_id != owner_id:
             await query.answer("Эта кнопка не для тебя", show_alert=True)
             return
@@ -100,7 +101,7 @@ async def family_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         marriage = MarriageService.get_active_marriage(db, user_id)
 
         if not marriage:
-            await query.edit_message_text("👨‍👩‍👧‍👦 <b>Семья</b>\n\nНужен брак чтобы завести детей", parse_mode="HTML")
+            await safe_edit_message(query, "👨‍👩‍👧‍👦 <b>Семья</b>\n\nНужен брак чтобы завести детей")
             return
 
         # Handle list children
@@ -108,7 +109,7 @@ async def family_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             children = ChildrenService.get_marriage_children(db, marriage.id)
 
             if not children:
-                await query.edit_message_text("👨‍👩‍👧‍👦 <b>Список детей</b>\n\nУ вас пока нет детей", parse_mode="HTML")
+                await safe_edit_message(query, "👨‍👩‍👧‍👦 <b>Список детей</b>\n\nУ тебя пока нет детей")
                 return
 
             alive_children = [c for c in children if c.is_alive]
@@ -124,7 +125,7 @@ async def family_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             keyboard.append([InlineKeyboardButton("« Назад", callback_data=f"menu:family:{user_id}")])
             reply_markup = InlineKeyboardMarkup(keyboard)
 
-            await query.edit_message_text(message, reply_markup=reply_markup, parse_mode="HTML")
+            await safe_edit_message(query, message, reply_markup=reply_markup)
 
         # Handle birth menu
         elif action == "birth_menu":
@@ -146,14 +147,14 @@ async def family_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
 
-            await query.edit_message_text(message, reply_markup=reply_markup, parse_mode="HTML")
+            await safe_edit_message(query, message, reply_markup=reply_markup)
 
         # Handle IVF
         elif action == "ivf":
             success, error, child = ChildrenService.ivf_birth(db, marriage.id, user_id)
 
             if not success:
-                await query.edit_message_text(f"❌ {error}", parse_mode="HTML")
+                await safe_edit_message(query, f"❌ {error}")
                 return
 
             info = ChildrenService.get_child_info(child)
@@ -164,14 +165,14 @@ async def family_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"💰 Потрачено: {format_diamonds(IVF_COST)}"
             )
 
-            await query.edit_message_text(message, parse_mode="HTML")
+            await safe_edit_message(query, message)
 
         # Handle adoption
         elif action == "adopt":
             success, error, child = ChildrenService.adopt_child(db, marriage.id, user_id)
 
             if not success:
-                await query.edit_message_text(f"❌ {error}", parse_mode="HTML")
+                await safe_edit_message(query, f"❌ {error}")
                 return
 
             info = ChildrenService.get_child_info(child)
@@ -182,7 +183,7 @@ async def family_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"💰 Потрачено: {format_diamonds(ADOPTION_COST)}"
             )
 
-            await query.edit_message_text(message, parse_mode="HTML")
+            await safe_edit_message(query, message)
 
         # Handle feed all
         elif action == "feed_all":
@@ -203,27 +204,25 @@ async def family_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if fed == 0 and already_fed == 0 and insufficient == 0:
                 message += "Нет детей для кормления"
 
-            await query.edit_message_text(message, parse_mode="HTML")
+            await safe_edit_message(query, message)
 
         # Handle age all
         elif action == "age_all":
-            await query.edit_message_text(
-                "📈 <b>Вырастить всех</b>\n\nВыбери конкретного ребёнка из списка", parse_mode="HTML"
-            )
+            await safe_edit_message(query, "📈 <b>Вырастить всех</b>\n\nВыбери конкретного ребёнка из списка")
 
         # Handle babysitter
         elif action == "babysitter":
             success, message_text = ChildrenService.hire_babysitter(db, marriage.id, user_id)
 
             if not success:
-                await query.edit_message_text(f"❌ {message_text}", parse_mode="HTML")
+                await safe_edit_message(query, f"❌ {message_text}")
                 return
 
             message = (
                 f"✅ <b>Няня нанята</b>\n\n" f"{message_text}\n\n" f"💰 Потрачено: {format_diamonds(BABYSITTER_COST)}"
             )
 
-            await query.edit_message_text(message, parse_mode="HTML")
+            await safe_edit_message(query, message)
 
         # Handle child menu
         elif action == "child":
@@ -234,7 +233,7 @@ async def family_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             child = db.query(Child).filter(Child.id == child_id, Child.is_alive.is_(True)).first()
 
             if not child:
-                await query.edit_message_text("❌ Ребёнок не найден", parse_mode="HTML")
+                await safe_edit_message(query, "❌ Ребёнок не найден")
                 return
 
             info = ChildrenService.get_child_info(child)
@@ -296,7 +295,7 @@ async def family_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             reply_markup = InlineKeyboardMarkup(keyboard)
 
-            await query.edit_message_text(message, reply_markup=reply_markup, parse_mode="HTML")
+            await safe_edit_message(query, message, reply_markup=reply_markup)
 
         # Handle feed child
         elif action == "feed":
@@ -305,12 +304,12 @@ async def family_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             success, error = ChildrenService.feed_child(db, child_id, user_id)
 
             if not success:
-                await query.edit_message_text(f"❌ {error}", parse_mode="HTML")
+                await safe_edit_message(query, f"❌ {error}")
                 return
 
             message = f"✅ <b>Ребёнок накормлен</b>\n\n💰 Потрачено: {format_diamonds(FEEDING_COST)}"
 
-            await query.edit_message_text(message, parse_mode="HTML")
+            await safe_edit_message(query, message)
 
         # Handle age up
         elif action == "age":
@@ -319,7 +318,7 @@ async def family_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             success, result = ChildrenService.age_up_child(db, child_id, user_id)
 
             if not success:
-                await query.edit_message_text(f"❌ {result}", parse_mode="HTML")
+                await safe_edit_message(query, f"❌ {result}")
                 return
 
             stage_names = {"child": "ребёнок", "teen": "подросток"}
@@ -331,7 +330,7 @@ async def family_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"✅ <b>Ребёнок вырос!</b>\n\n" f"Теперь: {stage_name}\n\n" f"💰 Потрачено: {format_diamonds(cost)}"
             )
 
-            await query.edit_message_text(message, parse_mode="HTML")
+            await safe_edit_message(query, message)
 
         # Handle school enrollment
         elif action == "school":
@@ -340,7 +339,7 @@ async def family_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             success, error = ChildrenService.enroll_in_school(db, child_id, user_id)
 
             if not success:
-                await query.edit_message_text(f"❌ {error}", parse_mode="HTML")
+                await safe_edit_message(query, f"❌ {error}")
                 return
 
             message = (
@@ -350,7 +349,7 @@ async def family_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"💰 Потрачено: {format_diamonds(SCHOOL_COST)}"
             )
 
-            await query.edit_message_text(message, parse_mode="HTML")
+            await safe_edit_message(query, message)
 
         # Handle teen work
         elif action == "work":
@@ -359,12 +358,12 @@ async def family_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             success, error, earnings = ChildrenService.work_teen(db, child_id)
 
             if not success:
-                await query.edit_message_text(f"❌ {error}", parse_mode="HTML")
+                await safe_edit_message(query, f"❌ {error}")
                 return
 
             message = f"✅ <b>Подросток поработал</b>\n\n💰 Заработано: {format_diamonds(earnings)}"
 
-            await query.edit_message_text(message, parse_mode="HTML")
+            await safe_edit_message(query, message)
 
 
 def register_children_handlers(application):

@@ -18,9 +18,10 @@ def format_diamonds(count: int) -> str:
     Returns:
         Formatted string with proper Russian ending
     """
-    if count % 10 == 1 and count % 100 != 11:
+    n = abs(count)
+    if n % 10 == 1 and n % 100 != 11:
         return f"{count} алмаз"
-    elif count % 10 in (2, 3, 4) and count % 100 not in (12, 13, 14):
+    elif n % 10 in (2, 3, 4) and n % 100 not in (12, 13, 14):
         return f"{count} алмаза"
     else:
         return f"{count} алмазов"

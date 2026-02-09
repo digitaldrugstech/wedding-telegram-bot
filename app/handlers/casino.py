@@ -5,6 +5,7 @@ from telegram.constants import ChatAction
 from telegram.ext import CommandHandler, ContextTypes
 
 from app.database.connection import get_db
+from app.handlers.quest import update_quest_progress
 from app.services.casino_service import (
     BASKETBALL,
     BOWLING,
@@ -30,16 +31,18 @@ async def casino_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "<b>🎰 Казино</b>\n\n"
         f"Ставка: {format_diamonds(MIN_BET)} - {format_diamonds(MAX_BET)}\n\n"
         "<b>Игры:</b>\n"
-        "🎰 /slots [ставка] — Слот-машина (до x50)\n"
-        "🎲 /dice [ставка] — Кости (до x5)\n"
-        "🎯 /darts [ставка] — Дартс (до x10)\n"
-        "🏀 /basketball [ставка] — Баскетбол (до x4)\n"
-        "🎳 /bowling [ставка] — Боулинг (до x6)\n"
-        "⚽ /football [ставка] — Футбол (до x5)\n\n"
+        "🎰 /slots [ставка] — Слот-машина (до x30)\n"
+        "🎲 /dice [ставка] — Кости (до x3)\n"
+        "🎯 /darts [ставка] — Дартс (до x5)\n"
+        "🏀 /basketball [ставка] — Баскетбол (до x3)\n"
+        "🎳 /bowling [ставка] — Боулинг (до x4)\n"
+        "⚽ /football [ставка] — Футбол (до x3)\n"
+        "🃏 /blackjack [ставка] — Блэкджек (до x2.5)\n"
+        "🎫 /scratch [ставка] — Скретч-карта (до x5)\n\n"
         "💡 Выигрыш зависит от результата"
     )
 
-    await update.message.reply_text(casino_text)
+    await update.message.reply_text(casino_text, parse_mode="HTML")
 
 
 async def _play_casino_game(update: Update, context: ContextTypes.DEFAULT_TYPE, game_type: str, emoji: str):
@@ -101,13 +104,26 @@ async def _process_casino_result(context: ContextTypes.DEFAULT_TYPE):
     dice_value = job_data["dice_value"]
     bet_amount = job_data["bet_amount"]
 
-    with get_db() as db:
-        success, message, winnings, balance = CasinoService.play_game(db, user_id, game_type, bet_amount, dice_value)
-
-        if success:
-            await context.bot.send_message(
-                chat_id=chat_id, text=message, parse_mode="HTML", reply_to_message_id=message_id
+    try:
+        with get_db() as db:
+            success, message, winnings, balance = CasinoService.play_game(
+                db, user_id, game_type, bet_amount, dice_value
             )
+
+            if success:
+                await context.bot.send_message(
+                    chat_id=chat_id, text=message, parse_mode="HTML", reply_to_message_id=message_id
+                )
+                # Track quest progress
+                try:
+                    update_quest_progress(user_id, "casino")
+                except Exception:
+                    pass
+    except Exception as e:
+        import structlog
+
+        logger = structlog.get_logger()
+        logger.error("Failed to process casino result", user_id=user_id, game_type=game_type, error=str(e))
 
 
 @require_registered
@@ -146,9 +162,45 @@ async def football_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await _play_casino_game(update, context, FOOTBALL, "⚽")
 
 
+@require_registered
+async def casinostats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /casinostats command - show casino statistics."""
+    if not update.effective_user or not update.message:
+        return
+
+    user_id = update.effective_user.id
+
+    with get_db() as db:
+        stats = CasinoService.get_user_stats(db, user_id)
+
+        if stats["total_games"] == 0:
+            await update.message.reply_text(
+                "📊 <b>Статистика казино</b>\n\n" "Ты ещё не играл в казино\n\n" "💡 /casino — список игр",
+                parse_mode="HTML",
+            )
+            return
+
+        # Format profit with sign
+        profit = stats["total_profit"]
+        profit_text = f"+{format_diamonds(profit)}" if profit >= 0 else f"-{format_diamonds(abs(profit))}"
+        profit_emoji = "📈" if profit >= 0 else "📉"
+
+        message = (
+            "📊 <b>Статистика казино</b>\n\n"
+            f"🎮 Игр сыграно: {stats['total_games']}\n"
+            f"💰 Поставлено: {format_diamonds(stats['total_bet'])}\n"
+            f"🏆 Выиграно: {format_diamonds(stats['total_winnings'])}\n"
+            f"{profit_emoji} Профит: {profit_text}\n"
+            f"📊 Винрейт: {stats['win_rate']:.1f}%"
+        )
+
+        await update.message.reply_text(message, parse_mode="HTML")
+
+
 def register_casino_handlers(application):
     """Register casino handlers."""
     application.add_handler(CommandHandler("casino", casino_command))
+    application.add_handler(CommandHandler("casinostats", casinostats_command))
     application.add_handler(CommandHandler("slots", slots_command))
     application.add_handler(CommandHandler("dice", dice_command))
     application.add_handler(CommandHandler("darts", darts_command))

@@ -1,7 +1,11 @@
 """Menu navigation handlers."""
 
+from datetime import datetime
+
 from telegram import Update
 from telegram.ext import CallbackQueryHandler, ContextTypes
+
+from app.utils.telegram_helpers import safe_edit_message
 
 
 async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -70,7 +74,8 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 else:
                     next_level_text = "🏆 Максимум"
 
-                await query.edit_message_text(
+                await safe_edit_message(
+                    query,
                     f"💼 {track_name}\n"
                     f"{emoji} {job_name} ({job.job_level}/{max_level})\n"
                     f"📊 {job.times_worked}\n"
@@ -78,7 +83,8 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     reply_markup=work_menu_keyboard(has_job=True, user_id=user_id),
                 )
             else:
-                await query.edit_message_text(
+                await safe_edit_message(
+                    query,
                     "💼 Нет работы\n\nВыбери профессию:",
                     reply_markup=work_menu_keyboard(has_job=False, user_id=user_id),
                 )
@@ -118,7 +124,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup = InlineKeyboardMarkup(keyboard)
 
                 # Build message
-                days_married = (marriage.created_at - marriage.created_at).days  # Will be calculated properly
+                days_married = (datetime.utcnow() - marriage.created_at).days
                 partner_name = partner.username or f"User{partner.telegram_id}"
 
                 message = (
@@ -130,9 +136,9 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"💰 Партнёр: {format_diamonds(partner.balance)}"
                 )
 
-                await query.edit_message_text(message, reply_markup=reply_markup, parse_mode="HTML")
+                await safe_edit_message(query, message, reply_markup=reply_markup)
             else:
-                await query.edit_message_text("💔 Не в браке\n\n/propose — сделать предложение", parse_mode="HTML")
+                await safe_edit_message(query, "💔 Не в браке\n\n/propose — сделать предложение")
         return
 
     # Handle house menu
@@ -156,7 +162,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
             if not marriage:
-                await query.edit_message_text("🏠 <b>Дом</b>\n\nНужен брак чтобы купить дом", parse_mode="HTML")
+                await safe_edit_message(query, "🏠 <b>Дом</b>\n\nНужен брак чтобы купить дом")
                 return
 
             # Check if has house
@@ -173,14 +179,14 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"🛡️ Защита: {house_info['protection']}%"
                 )
 
-                await query.edit_message_text(
-                    message, reply_markup=house_menu_keyboard(has_house=True, user_id=user_id), parse_mode="HTML"
+                await safe_edit_message(
+                    query, message, reply_markup=house_menu_keyboard(has_house=True, user_id=user_id)
                 )
             else:
-                await query.edit_message_text(
+                await safe_edit_message(
+                    query,
                     "🏠 <b>Дом</b>\n\nУ семьи нет дома\n\n💡 Дом защищает детей от похищения",
                     reply_markup=house_menu_keyboard(has_house=False, user_id=user_id),
-                    parse_mode="HTML",
                 )
         return
 
@@ -208,9 +214,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
                 message = "💼 <b>Бизнесы</b>\n\nУ тебя нет бизнесов\n\n💡 Пассивный доход раз в неделю"
 
-            await query.edit_message_text(
-                message, reply_markup=business_menu_keyboard(user_id=user_id), parse_mode="HTML"
-            )
+            await safe_edit_message(query, message, reply_markup=business_menu_keyboard(user_id=user_id))
         return
 
     # Handle casino menu
@@ -233,7 +237,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "💡 Выигрыш зависит от результата"
         )
 
-        await query.edit_message_text(message, parse_mode="HTML")
+        await safe_edit_message(query, message)
         return
 
     # Handle family menu
@@ -249,9 +253,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             marriage = MarriageService.get_active_marriage(db, user_id)
 
             if not marriage:
-                await query.edit_message_text(
-                    "👨‍👩‍👧‍👦 <b>Семья</b>\n\nНужен брак чтобы завести детей", parse_mode="HTML"
-                )
+                await safe_edit_message(query, "👨‍👩‍👧‍👦 <b>Семья</b>\n\nНужен брак чтобы завести детей")
                 return
 
             # Get children
@@ -282,9 +284,9 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
                 message += "/family — полное меню"
             else:
-                message = "👨‍👩‍👧‍👦 <b>Семья</b>\n\nУ вас пока нет детей\n\n/family — завести детей"
+                message = "👨‍👩‍👧‍👦 <b>Семья</b>\n\nУ тебя пока нет детей\n\n/family — завести детей"
 
-            await query.edit_message_text(message, parse_mode="HTML")
+            await safe_edit_message(query, message)
         return
 
     # Handle profile menu (go back)

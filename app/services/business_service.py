@@ -10,12 +10,24 @@ from app.utils.formatters import format_diamonds
 
 logger = structlog.get_logger()
 
-# Business types and prices
+# Business types and prices (balanced ROI: 12-17% per week, 6-8 weeks to break even)
+# 12 businesses total (3x original 4)
 BUSINESS_TYPES = {
-    1: {"name": "🏪 Палатка на рынке", "price": 1000, "weekly_payout": 1000},  # 1 week ROI
-    2: {"name": "🏬 Магазин на спавне", "price": 5000, "weekly_payout": 5000},  # 1 week ROI
-    3: {"name": "🏦 Филиал банка", "price": 25000, "weekly_payout": 25000},  # 1 week ROI
-    4: {"name": "🏙️ Свой город", "price": 150000, "weekly_payout": 150000},  # 1 week ROI
+    # Tier 1: Starter (1,000 - 5,000 💎)
+    1: {"name": "🏪 Палатка на рынке", "price": 1000, "weekly_payout": 170},  # 17% ROI, 5.9 weeks
+    2: {"name": "🌭 Киоск с хот-догами", "price": 2000, "weekly_payout": 320},  # 16% ROI, 6.3 weeks
+    3: {"name": "☕ Кофейня", "price": 3500, "weekly_payout": 540},  # 15% ROI, 6.5 weeks
+    4: {"name": "🏬 Магазин на спавне", "price": 5000, "weekly_payout": 750},  # 15% ROI, 6.7 weeks
+    # Tier 2: Medium (10,000 - 50,000 💎)
+    5: {"name": "🍕 Пиццерия", "price": 10000, "weekly_payout": 1450},  # 14.5% ROI, 6.9 weeks
+    6: {"name": "🎮 Игровой клуб", "price": 20000, "weekly_payout": 2800},  # 14% ROI, 7.1 weeks
+    7: {"name": "🏦 Филиал банка", "price": 25000, "weekly_payout": 3400},  # 13.6% ROI, 7.4 weeks
+    8: {"name": "🏨 Отель", "price": 50000, "weekly_payout": 6500},  # 13% ROI, 7.7 weeks
+    # Tier 3: Premium (100,000 - 500,000 💎)
+    9: {"name": "🏙️ Свой город", "price": 150000, "weekly_payout": 19000},  # 12.7% ROI, 7.9 weeks
+    10: {"name": "🏭 Завод", "price": 250000, "weekly_payout": 31000},  # 12.4% ROI, 8.1 weeks
+    11: {"name": "✈️ Авиакомпания", "price": 400000, "weekly_payout": 48000},  # 12% ROI, 8.3 weeks
+    12: {"name": "🌐 IT-корпорация", "price": 500000, "weekly_payout": 60000},  # 12% ROI, 8.3 weeks
 }
 
 MAX_BUSINESSES_PER_TYPE = 3  # Maximum 3 businesses of each type

@@ -9,6 +9,7 @@ from app.services.business_service import BusinessService
 from app.utils.decorators import require_registered
 from app.utils.formatters import format_diamonds
 from app.utils.keyboards import business_buy_keyboard, business_menu_keyboard
+from app.utils.telegram_helpers import safe_edit_message
 
 logger = structlog.get_logger()
 
@@ -69,11 +70,20 @@ async def business_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
     if action == "buy":
-        # Show buy menu
-        await query.edit_message_text(
+        # Show buy menu (page 1)
+        await safe_edit_message(
+            query,
             "💼 <b>Покупка бизнеса</b>\n\n" "Выбери тип бизнеса:\n\n" "💡 Максимум 3 каждого типа",
-            reply_markup=business_buy_keyboard(user_id=user_id),
-            parse_mode="HTML",
+            reply_markup=business_buy_keyboard(user_id=user_id, page=1),
+        )
+
+    elif action == "buy_page":
+        # Navigate business pages
+        page = int(parts[2])
+        await safe_edit_message(
+            query,
+            "💼 <b>Покупка бизнеса</b>\n\n" "Выбери тип бизнеса:\n\n" "💡 Максимум 3 каждого типа",
+            reply_markup=business_buy_keyboard(user_id=user_id, page=page),
         )
 
     elif action == "buy_confirm":
@@ -84,15 +94,15 @@ async def business_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             can_buy, error = BusinessService.can_buy_business(db, user_id, business_type)
 
             if not can_buy:
-                await query.edit_message_text(f"❌ {error}", parse_mode="HTML")
+                await safe_edit_message(query, f"❌ {error}")
                 return
 
             success, message = BusinessService.buy_business(db, user_id, business_type)
 
             if success:
-                await query.edit_message_text(message, parse_mode="HTML")
+                await safe_edit_message(query, message)
             else:
-                await query.edit_message_text("❌ Ошибка покупки", parse_mode="HTML")
+                await safe_edit_message(query, "❌ Ошибка покупки")
 
     elif action == "list":
         # Show businesses list
@@ -100,7 +110,7 @@ async def business_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             businesses = BusinessService.get_user_businesses(db, user_id)
 
             if not businesses:
-                await query.edit_message_text("💼 <b>Бизнесы</b>\n\nУ тебя нет бизнесов", parse_mode="HTML")
+                await safe_edit_message(query, "💼 <b>Бизнесы</b>\n\nУ тебя нет бизнесов")
                 return
 
             message = "<b>💼 Твои бизнесы</b>\n\n"
@@ -112,17 +122,65 @@ async def business_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             message += f"💰 <b>Итого:</b> {format_diamonds(total_income)}/неделя"
 
-            await query.edit_message_text(
-                message, reply_markup=business_menu_keyboard(user_id=user_id), parse_mode="HTML"
-            )
+            await safe_edit_message(query, message, reply_markup=business_menu_keyboard(user_id=user_id))
 
     elif action == "sell":
-        # For simplicity, just show message
-        # In full implementation, would show list of businesses to sell
-        await query.edit_message_text(
-            "💼 <b>Продажа бизнеса</b>\n\n" "Функция в разработке\n\n" "💡 Возврат 70% от цены покупки",
-            parse_mode="HTML",
-        )
+        # Show sell menu with user's businesses
+        with get_db() as db:
+            businesses = BusinessService.get_user_businesses(db, user_id)
+
+            if not businesses:
+                await safe_edit_message(query, "💼 <b>Продажа</b>\n\nУ тебя нет бизнесов для продажи")
+                return
+
+            from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+            message = "💼 <b>Продажа бизнеса</b>\n\n💡 Возврат 70% от цены покупки\n\nВыбери бизнес:"
+            keyboard = []
+            for business in businesses:
+                refund = int(business["purchase_price"] * 0.7)
+                keyboard.append(
+                    [
+                        InlineKeyboardButton(
+                            f"{business['name']} → {format_diamonds(refund)}",
+                            callback_data=f"business:sell_confirm:{business['id']}:{user_id}",
+                        )
+                    ]
+                )
+            keyboard.append([InlineKeyboardButton("« Назад", callback_data=f"business:back:{user_id}")])
+
+            await safe_edit_message(query, message, reply_markup=InlineKeyboardMarkup(keyboard))
+
+    elif action == "sell_confirm":
+        # Sell specific business
+        business_id = int(parts[2])
+
+        with get_db() as db:
+            success, message = BusinessService.sell_business(db, business_id, user_id)
+
+            if success:
+                await safe_edit_message(query, message)
+            else:
+                await safe_edit_message(query, f"❌ {message}")
+
+    elif action == "back":
+        # Go back to main business menu
+        with get_db() as db:
+            businesses = BusinessService.get_user_businesses(db, user_id)
+
+            if businesses:
+                message = "<b>💼 Твои бизнесы</b>\n\n"
+                total_income = 0
+
+                for business in businesses:
+                    message += f"{business['name']}\n" f"📈 {format_diamonds(business['weekly_payout'])}/неделя\n\n"
+                    total_income += business["weekly_payout"]
+
+                message += f"💰 <b>Итого:</b> {format_diamonds(total_income)}/неделя"
+            else:
+                message = "💼 <b>Бизнесы</b>\n\nУ тебя нет бизнесов\n\n💡 Бизнесы приносят пассивный доход раз в неделю"
+
+            await safe_edit_message(query, message, reply_markup=business_menu_keyboard(user_id=user_id))
 
 
 def register_business_handlers(application):

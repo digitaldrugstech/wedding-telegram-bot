@@ -32,45 +32,46 @@ FOOTBALL = "football"
 PAYOUT_MULTIPLIERS = {
     SLOT_MACHINE: {
         # Slot machine (1-64, jackpot at 64,43,22,1)
-        64: 50,  # Jackpot (777) x50
-        43: 10,  # Three same x10
-        22: 5,  # Two same x5
-        1: 2,  # Bar x2
+        # EV: 30/64 + 5/64 + 3/64 + 1.5/64 = 0.617 (38% house edge, high variance)
+        64: 30,  # Jackpot (777) x30
+        43: 5,  # Three same x5
+        22: 3,  # Two same x3
+        1: 1.5,  # Bar x1.5
         # All others: 0x (loss)
     },
     DICE: {
-        # Dice (1-6)
-        6: 5,  # Six x5
-        5: 3,  # Five x3
-        4: 1.5,  # Four x1.5
-        # 1-3: 0x (loss)
+        # Dice (1-6, each 1/6)
+        # EV: 3/6 + 2/6 = 0.833 (17% house edge)
+        6: 3,  # Six x3
+        5: 2,  # Five x2
+        # 1-4: 0x (loss)
     },
     DARTS: {
-        # Darts (1-6, bullseye at 6)
-        6: 10,  # Bullseye x10
-        5: 5,  # Near bullseye x5
-        4: 2,  # Good shot x2
-        # 1-3: 0x (loss)
+        # Darts (1-6, each 1/6)
+        # EV: 5/6 = 0.833 (17% house edge)
+        6: 5,  # Bullseye x5
+        # 1-5: 0x (loss)
     },
     BASKETBALL: {
-        # Basketball (1-5, score at 4-5)
-        5: 4,  # Perfect shot x4
-        4: 2,  # Good shot x2
+        # Basketball (1-5, each 1/5)
+        # EV: 3/5 + 1.5/5 = 0.900 (10% house edge)
+        5: 3,  # Perfect shot x3
+        4: 1.5,  # Good shot x1.5
         # 1-3: 0x (loss)
     },
     BOWLING: {
-        # Bowling (1-6, strike at 6)
-        6: 6,  # Strike x6
-        5: 3,  # Spare x3
-        4: 1.5,  # Half x1.5
-        # 1-3: 0x (loss)
+        # Bowling (1-6, each 1/6)
+        # EV: 4/6 + 1.5/6 = 0.917 (8% house edge)
+        6: 4,  # Strike x4
+        5: 1.5,  # Spare x1.5
+        # 1-4: 0x (loss)
     },
     FOOTBALL: {
-        # Football (1-5, goal at 3-5)
-        5: 5,  # Perfect goal x5
-        4: 3,  # Good goal x3
-        3: 1.5,  # Goal x1.5
-        # 1-2: 0x (loss)
+        # Football (1-5, each 1/5)
+        # EV: 3/5 + 1.5/5 = 0.900 (10% house edge)
+        5: 3,  # Perfect goal x3
+        4: 1.5,  # Good goal x1.5
+        # 1-3: 0x (loss)
     },
 }
 
@@ -114,6 +115,10 @@ class CasinoService:
     ) -> Tuple[bool, str, int, int]:
         """Process casino game result."""
         user = db.query(User).filter(User.telegram_id == user_id).first()
+
+        # Re-check balance (TOCTOU protection: balance may have changed since can_bet)
+        if user.balance < bet_amount:
+            return False, f"❌ Недостаточно алмазов (баланс: {format_diamonds(user.balance)})", 0, user.balance
 
         # Calculate payout
         multipliers = PAYOUT_MULTIPLIERS.get(game_type, {})

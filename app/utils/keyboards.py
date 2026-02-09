@@ -41,17 +41,54 @@ def work_menu_keyboard(has_job: bool = False, user_id: int = 0) -> InlineKeyboar
     return InlineKeyboardMarkup(keyboard)
 
 
-def profession_selection_keyboard(user_id: int = 0) -> InlineKeyboardMarkup:
-    """Keyboard for profession selection."""
-    keyboard = [
-        [InlineKeyboardButton("🚔 Интерпол", callback_data=f"profession:interpol:{user_id}")],
-        [InlineKeyboardButton("💳 Банкир", callback_data=f"profession:banker:{user_id}")],
-        [InlineKeyboardButton("🏗️ Инфраструктура", callback_data=f"profession:infrastructure:{user_id}")],
-        [InlineKeyboardButton("⚖️ Суд", callback_data=f"profession:court:{user_id}")],
-        [InlineKeyboardButton("🎭 Культура", callback_data=f"profession:culture:{user_id}")],
-        [InlineKeyboardButton("🐦 Селфмейд", callback_data=f"profession:selfmade:{user_id}")],
-        [InlineKeyboardButton("« Назад", callback_data=f"menu:work:{user_id}")],
+def profession_selection_keyboard(user_id: int = 0, page: int = 1) -> InlineKeyboardMarkup:
+    """Keyboard for profession selection (paginated, 18 professions)."""
+    # All professions organized by category
+    professions = [
+        # Page 1: Government & Services (6)
+        ("🚔 Интерпол", "interpol"),
+        ("💳 Банкир", "banker"),
+        ("🏗️ Инфраструктура", "infrastructure"),
+        ("⚖️ Суд", "court"),
+        ("🎭 Культура", "culture"),
+        ("🏥 Медицина", "medic"),
+        # Page 2: Professional (6)
+        ("📚 Образование", "teacher"),
+        ("📰 Журналистика", "journalist"),
+        ("🚂 Транспорт", "transport"),
+        ("🛡️ Охрана", "security"),
+        ("👨‍🍳 Кулинария", "chef"),
+        ("🎨 Искусство", "artist"),
+        # Page 3: Modern & Fun (6)
+        ("🔬 Наука", "scientist"),
+        ("💻 IT", "programmer"),
+        ("⚖️ Юрист", "lawyer"),
+        ("🏆 Спорт", "athlete"),
+        ("🎮 Стриминг", "streamer"),
+        ("🐦 Селфмейд", "selfmade"),
     ]
+
+    per_page = 6
+    total_pages = 3
+    start = (page - 1) * per_page
+    end = start + per_page
+    current_professions = professions[start:end]
+
+    keyboard = []
+    for name, code in current_professions:
+        keyboard.append([InlineKeyboardButton(name, callback_data=f"profession:{code}:{user_id}")])
+
+    # Navigation row
+    nav_row = []
+    if page > 1:
+        nav_row.append(InlineKeyboardButton("◀️", callback_data=f"profession_page:{page - 1}:{user_id}"))
+    nav_row.append(InlineKeyboardButton(f"{page}/{total_pages}", callback_data="noop"))
+    if page < total_pages:
+        nav_row.append(InlineKeyboardButton("▶️", callback_data=f"profession_page:{page + 1}:{user_id}"))
+    keyboard.append(nav_row)
+
+    keyboard.append([InlineKeyboardButton("« Назад", callback_data=f"menu:work:{user_id}")])
+
     return InlineKeyboardMarkup(keyboard)
 
 
@@ -125,15 +162,50 @@ def business_menu_keyboard(user_id: int = 0) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(keyboard)
 
 
-def business_buy_keyboard(user_id: int = 0) -> InlineKeyboardMarkup:
-    """Keyboard for buying businesses."""
-    keyboard = [
-        [InlineKeyboardButton("🏪 Палатка на рынке (1,000 💎)", callback_data=f"business:buy_confirm:1:{user_id}")],
-        [InlineKeyboardButton("🏬 Магазин на спавне (5,000 💎)", callback_data=f"business:buy_confirm:2:{user_id}")],
-        [InlineKeyboardButton("🏦 Филиал банка (25,000 💎)", callback_data=f"business:buy_confirm:3:{user_id}")],
-        [InlineKeyboardButton("🏙️ Свой город (150,000 💎)", callback_data=f"business:buy_confirm:4:{user_id}")],
-        [InlineKeyboardButton("« Назад", callback_data=f"menu:business:{user_id}")],
+def business_buy_keyboard(user_id: int = 0, page: int = 1) -> InlineKeyboardMarkup:
+    """Keyboard for buying businesses (paginated, 12 businesses)."""
+    # All businesses organized by tier
+    businesses = [
+        # Tier 1: Starter
+        (1, "🏪 Палатка на рынке", "1,000"),
+        (2, "🌭 Киоск с хот-догами", "2,000"),
+        (3, "☕ Кофейня", "3,500"),
+        (4, "🏬 Магазин на спавне", "5,000"),
+        # Tier 2: Medium
+        (5, "🍕 Пиццерия", "10,000"),
+        (6, "🎮 Игровой клуб", "20,000"),
+        (7, "🏦 Филиал банка", "25,000"),
+        (8, "🏨 Отель", "50,000"),
+        # Tier 3: Premium
+        (9, "🏙️ Свой город", "150,000"),
+        (10, "🏭 Завод", "250,000"),
+        (11, "✈️ Авиакомпания", "400,000"),
+        (12, "🌐 IT-корпорация", "500,000"),
     ]
+
+    per_page = 4
+    total_pages = 3
+    start = (page - 1) * per_page
+    end = start + per_page
+    current_businesses = businesses[start:end]
+
+    keyboard = []
+    for biz_id, name, price in current_businesses:
+        keyboard.append(
+            [InlineKeyboardButton(f"{name} ({price} 💎)", callback_data=f"business:buy_confirm:{biz_id}:{user_id}")]
+        )
+
+    # Navigation row
+    nav_row = []
+    if page > 1:
+        nav_row.append(InlineKeyboardButton("◀️", callback_data=f"business:buy_page:{page - 1}:{user_id}"))
+    nav_row.append(InlineKeyboardButton(f"{page}/{total_pages}", callback_data="noop"))
+    if page < total_pages:
+        nav_row.append(InlineKeyboardButton("▶️", callback_data=f"business:buy_page:{page + 1}:{user_id}"))
+    keyboard.append(nav_row)
+
+    keyboard.append([InlineKeyboardButton("« Назад", callback_data=f"menu:business:{user_id}")])
+
     return InlineKeyboardMarkup(keyboard)
 
 
