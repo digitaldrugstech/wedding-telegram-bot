@@ -86,7 +86,10 @@ async def business_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif action == "buy_page":
         # Navigate business pages
-        page = int(parts[2])
+        try:
+            page = int(parts[2])
+        except (ValueError, IndexError):
+            return
         await safe_edit_message(
             query,
             "💼 <b>Покупка бизнеса</b>\n\n" "Выбери тип бизнеса:\n\n" "💡 Максимум 3 каждого типа",
@@ -95,7 +98,10 @@ async def business_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif action == "buy_confirm":
         # Buy business
-        business_type = int(parts[2])
+        try:
+            business_type = int(parts[2])
+        except (ValueError, IndexError):
+            return
 
         with get_db() as db:
             can_buy, error = BusinessService.can_buy_business(db, user_id, business_type)

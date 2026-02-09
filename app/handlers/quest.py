@@ -73,13 +73,16 @@ def initialize_quests():
             logger.info("Added new quest templates", count=added)
 
 
-def assign_daily_quests(user_id: int):
-    """Assign 3 random quests to user for the day."""
-    with get_db() as db:
-        # Check if user already has quests assigned today
+def assign_daily_quests(user_id: int, db=None):
+    """Assign 3 random quests to user for the day.
+
+    Pass an existing db session to avoid opening a nested one.
+    """
+
+    def _assign(session):
         today = datetime.utcnow().date()
         existing_quests = (
-            db.query(UserQuest)
+            session.query(UserQuest)
             .filter(
                 UserQuest.user_id == user_id,
                 UserQuest.assigned_at >= datetime.combine(today, datetime.min.time()),
@@ -90,20 +93,24 @@ def assign_daily_quests(user_id: int):
         if existing_quests > 0:
             return  # Already assigned today
 
-        # Get 3 random quests
-        all_quests = db.query(Quest).all()
+        all_quests = session.query(Quest).all()
         if len(all_quests) < 3:
             logger.error("Not enough quests in database", count=len(all_quests))
             return
 
         selected_quests = random.sample(all_quests, 3)
 
-        # Assign to user
         for quest in selected_quests:
             user_quest = UserQuest(user_id=user_id, quest_id=quest.id, progress=0, is_completed=False)
-            db.add(user_quest)
+            session.add(user_quest)
 
         logger.info("Assigned daily quests", user_id=user_id, count=3)
+
+    if db is not None:
+        _assign(db)
+    else:
+        with get_db() as session:
+            _assign(session)
 
 
 def update_quest_progress(user_id: int, quest_type: str, increment: int = 1, db=None):
@@ -168,10 +175,9 @@ async def quest_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show daily quests (/quest)."""
     user_id = update.effective_user.id
 
-    # Assign daily quests if needed
-    assign_daily_quests(user_id)
-
     with get_db() as db:
+        # Assign daily quests if needed (same session)
+        assign_daily_quests(user_id, db=db)
         # Get user's active quests for today
         today = datetime.utcnow().date()
         user_quests = (

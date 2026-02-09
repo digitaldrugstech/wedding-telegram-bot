@@ -158,6 +158,11 @@ async def shop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     title_data = SHOP_TITLES[title_id]
 
+    # Block streak-exclusive titles (price=0) from being bought via crafted callback
+    if title_data["price"] == 0:
+        await query.answer("❌ Этот титул можно получить только из сундуков", show_alert=True)
+        return
+
     with get_db() as db:
         user = db.query(User).filter(User.telegram_id == user_id).first()
         owned = get_user_titles(user)

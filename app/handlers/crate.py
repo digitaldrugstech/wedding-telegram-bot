@@ -90,16 +90,6 @@ CRATE_INFO = {
     },
 }
 
-# Exclusive streak titles (not in regular shop)
-STREAK_TITLES = {
-    "survivor": {"name": "Выживший", "emoji": "🔥", "display": "🔥 Выживший"},
-    "dedicated": {"name": "Преданный", "emoji": "💪", "display": "💪 Преданный"},
-    "veteran": {"name": "Ветеран", "emoji": "⚔️", "display": "⚔️ Ветеран"},
-    "immortal": {"name": "Бессмертный", "emoji": "🌟", "display": "🌟 Бессмертный"},
-    "mythic": {"name": "Мифический", "emoji": "🐲", "display": "🐲 Мифический"},
-}
-
-
 def roll_crate(crate_type: str) -> dict:
     """Roll for loot from a crate."""
     info = CRATE_INFO[crate_type]

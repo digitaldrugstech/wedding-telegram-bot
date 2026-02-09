@@ -53,7 +53,7 @@ async def family_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             message += f"👶 {format_word(len(alive_children), 'Ребёнок', 'Ребёнка', 'Детей')}\n"
 
             if dead_children:
-                message += f"💀 {format_word(len(dead_children), 'Умер', 'Умерло', 'Умерло')}\n"
+                message += f"💀 {format_word(len(dead_children), 'Умер', 'Умерли', 'Умерло')}\n"
 
             message += "\n<b>Дети:</b>\n"
 
@@ -93,7 +93,10 @@ async def family_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Check button owner (user_id is always the last part)
     if len(parts) >= 3:
-        owner_id = int(parts[-1])
+        try:
+            owner_id = int(parts[-1])
+        except ValueError:
+            return
         if user_id != owner_id:
             await query.answer("Эта кнопка не для тебя", show_alert=True)
             return

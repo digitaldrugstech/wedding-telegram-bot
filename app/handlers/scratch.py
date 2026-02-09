@@ -26,14 +26,14 @@ SCRATCH_MAX_BET = 1000
 # EV = 0.02*5 + 0.13*2.5 + 0.25*1.5 + 0.60*0 = 0.10 + 0.325 + 0.375 = 0.80
 # House edge = 20%
 SCRATCH_PRIZES = [
-    {"symbol": "\U0001f48e", "name": "Алмаз", "multiplier": 5.0, "weight": 2},
-    {"symbol": "\u2b50", "name": "Звезда", "multiplier": 2.5, "weight": 13},
-    {"symbol": "\U0001f381", "name": "Подарок", "multiplier": 1.5, "weight": 25},
-    {"symbol": "\u274c", "name": "Пусто", "multiplier": 0, "weight": 60},
+    {"symbol": "💎", "name": "Алмаз", "multiplier": 5.0, "weight": 2},
+    {"symbol": "⭐", "name": "Звезда", "multiplier": 2.5, "weight": 13},
+    {"symbol": "🎁", "name": "Подарок", "multiplier": 1.5, "weight": 25},
+    {"symbol": "❌", "name": "Пусто", "multiplier": 0, "weight": 60},
 ]
 
 # Symbols for grid decoration
-GRID_SYMBOLS = ["\U0001f48e", "\u2b50", "\U0001f381", "\U0001f340", "\U0001f525", "\U0001f4b0"]
+GRID_SYMBOLS = ["💎", "⭐", "🎁", "🍀", "🔥", "💰"]
 
 
 def generate_scratch_result():
@@ -67,7 +67,7 @@ def format_grid(grid, revealed=None):
             if revealed is None or idx in revealed:
                 cells.append(grid[idx])
             else:
-                cells.append("\u2b1c")
+                cells.append("⬜")
         rows.append(" ".join(cells))
     return "\n".join(rows)
 
@@ -80,11 +80,11 @@ async def scratch_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Parse bet
     if not context.args:
         await update.message.reply_text(
-            "\U0001f3ab <b>Скретч-карта</b>\n\n"
+            "🎫 <b>Скретч-карта</b>\n\n"
             f"Используй: /scratch [ставка]\n"
             f"Лимиты: {format_diamonds(SCRATCH_MIN_BET)} - {format_diamonds(SCRATCH_MAX_BET)}\n\n"
             "Царапай и ищи 3 одинаковых символа!\n\n"
-            "\U0001f48e x5 | \u2b50 x2.5 | \U0001f381 x1.5",
+            "💎 x5 | ⭐ x2.5 | 🎁 x1.5",
             parse_mode="HTML",
         )
         return
@@ -92,12 +92,12 @@ async def scratch_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         bet = int(context.args[0])
     except ValueError:
-        await update.message.reply_text("\u274c Ставка должна быть числом")
+        await update.message.reply_text("❌ Ставка должна быть числом")
         return
 
     if bet < SCRATCH_MIN_BET or bet > SCRATCH_MAX_BET:
         await update.message.reply_text(
-            f"\u274c Ставка: {format_diamonds(SCRATCH_MIN_BET)} - {format_diamonds(SCRATCH_MAX_BET)}"
+            f"❌ Ставка: {format_diamonds(SCRATCH_MIN_BET)} - {format_diamonds(SCRATCH_MAX_BET)}"
         )
         return
 
@@ -107,7 +107,7 @@ async def scratch_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if user.balance < bet:
             await update.message.reply_text(
-                f"\u274c Недостаточно алмазов\n\n"
+                f"❌ Недостаточно алмазов\n\n"
                 f"Нужно: {format_diamonds(bet)}\n"
                 f"У тебя: {format_diamonds(user.balance)}"
             )
@@ -118,7 +118,7 @@ async def scratch_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if cooldown and cooldown.expires_at > datetime.utcnow():
             remaining = cooldown.expires_at - datetime.utcnow()
             seconds_left = int(remaining.total_seconds())
-            await update.message.reply_text(f"\u23f0 Следующая скретч-карта через {seconds_left}с")
+            await update.message.reply_text(f"⏰ Следующая скретч-карта через {seconds_left}с")
             return
 
         # Deduct bet and set cooldown
@@ -139,7 +139,7 @@ async def scratch_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     hidden_grid = format_grid(grid, revealed=set())
     msg = await update.message.reply_text(
-        f"\U0001f3ab <b>Скретч-карта</b>\n\n{hidden_grid}\n\nЦарапаю...",
+        f"🎫 <b>Скретч-карта</b>\n\n{hidden_grid}\n\nЦарапаю...",
         parse_mode="HTML",
     )
 
@@ -154,7 +154,7 @@ async def scratch_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         partial_grid = format_grid(grid, revealed)
         try:
             await msg.edit_text(
-                f"\U0001f3ab <b>Скретч-карта</b>\n\n{partial_grid}\n\nЦарапаю...",
+                f"🎫 <b>Скретч-карта</b>\n\n{partial_grid}\n\nЦарапаю...",
                 parse_mode="HTML",
             )
         except Exception:
@@ -185,17 +185,17 @@ async def scratch_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if prize["multiplier"] == 5.0:
         result_text = (
-            f"\U0001f3ab <b>ДЖЕКПОТ!</b> \U0001f389\U0001f389\U0001f389\n\n"
+            f"🎫 <b>ДЖЕКПОТ!</b> 🎉🎉🎉\n\n"
             f"{full_grid}\n\n"
-            f"3x {prize['symbol']} \u2014 Множитель x5!\n"
+            f"3x {prize['symbol']} — Множитель x5!\n"
             f"Выигрыш: {format_diamonds(payout)}"
         )
     elif payout > 0:
         net = payout - bet
         result_text = (
-            f"\U0001f3ab <b>Победа!</b>\n\n"
+            f"🎫 <b>Победа!</b>\n\n"
             f"{full_grid}\n\n"
-            f"3x {prize['symbol']} \u2014 Множитель x{prize['multiplier']}\n"
+            f"3x {prize['symbol']} — Множитель x{prize['multiplier']}\n"
             f"Выигрыш: {format_diamonds(payout)}\n"
             f"Чистая прибыль: {format_diamonds(net)}"
         )
@@ -207,7 +207,7 @@ async def scratch_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not _sc_has_boost(user_id, "lucky_charm"):
             nudge = build_premium_nudge("casino_loss", user_id)
         result_text = (
-            f"\U0001f3ab <b>Скретч-карта</b>\n\n"
+            f"🎫 <b>Скретч-карта</b>\n\n"
             f"{full_grid}\n\n"
             f"Нет совпадений...\n"
             f"Потрачено: {format_diamonds(bet)}{nudge}"
