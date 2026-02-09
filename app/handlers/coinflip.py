@@ -18,7 +18,7 @@ logger = structlog.get_logger()
 
 COINFLIP_COOLDOWN_SECONDS = 15
 COINFLIP_MIN_BET = 10
-COINFLIP_MAX_BET = 5000
+COINFLIP_MAX_BET = 2000
 WIN_MULTIPLIER = 1.9  # 50% chance * 1.9 = 0.95 EV → 5% house edge
 
 

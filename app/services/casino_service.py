@@ -31,12 +31,15 @@ FOOTBALL = "football"
 # Payout multipliers based on dice value
 PAYOUT_MULTIPLIERS = {
     SLOT_MACHINE: {
-        # Slot machine (1-64, jackpot at 64,43,22,1)
-        # EV: 30/64 + 5/64 + 3/64 + 1.5/64 = 0.617 (38% house edge, high variance)
+        # Slot machine (1-64, jackpot at 64,43,22,1 + bonus 16,32,48)
+        # EV: 30/64 + 5/64 + 3/64 + 2/64 + 2/64 + 1.5/64 + 1.5/64 = 0.703 (30% house edge)
         64: 30,  # Jackpot (777) x30
         43: 5,  # Three same x5
         22: 3,  # Two same x3
-        1: 1.5,  # Bar x1.5
+        1: 2,  # Bar x2
+        16: 2,  # Small win x2
+        32: 1.5,  # Small win x1.5
+        48: 1.5,  # Small win x1.5
         # All others: 0x (loss)
     },
     DICE: {
