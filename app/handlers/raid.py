@@ -282,18 +282,20 @@ async def raid_go_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             gang_share = stolen // 2  # 50% to gang bank
             raider_share = stolen - gang_share  # 50% split among raiders
             per_raider = max(1, raider_share // count)
+            remainder = raider_share - per_raider * count
 
             attacker_gang.bank += gang_share
 
-            # Pay each raider
-            for raider_id in raiders:
+            # Pay each raider (distribute remainder to first N raiders)
+            for i, raider_id in enumerate(raiders):
                 raider_user = db.query(User).filter(User.telegram_id == raider_id).first()
                 if raider_user:
-                    raider_user.balance += per_raider
+                    bonus = 1 if i < remainder else 0
+                    raider_user.balance += per_raider + bonus
 
             result_text = (
                 f"💥 <b>РЕЙД УСПЕШЕН!</b>\n\n"
-                f"⚔️ «{attacker_name}» ограбила «{target_name}»!\n\n"
+                f"⚔️ «{attacker_name}» ограбили «{target_name}»!\n\n"
                 f"💰 Украдено: {format_diamonds(stolen)}\n"
                 f"🏦 В банк банды: {format_diamonds(gang_share)}\n"
                 f"👤 Каждому рейдеру: {format_diamonds(per_raider)}\n"

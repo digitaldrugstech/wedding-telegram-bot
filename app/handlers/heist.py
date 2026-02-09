@@ -346,7 +346,7 @@ async def heist_go_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         result_text = (
             f"🏦💰 <b>ОГРАБЛЕНИЕ ВЕКА!</b>\n\n"
-            f"✅ Вы ворвались в банк и ушли с добычей!\n\n"
+            f"✅ Команда ворвалась в банк и ушла с добычей!\n\n"
             f"👥 Участников: {count} (шанс был {chance}%)\n\n"
             + "\n".join(player_lines)
             + f"\n\n💎 Всего украдено: {format_diamonds(total_stolen)}"
@@ -367,10 +367,10 @@ async def heist_go_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         result_text = (
             f"🚨 <b>ПРОВАЛ!</b>\n\n"
-            f"Сработала сигнализация — охрана вас поймала!\n\n"
+            f"Сработала сигнализация — охрана поймала команду!\n\n"
             f"👥 Участников: {count} (шанс был {chance}%)\n"
             f"💸 Потеряно: {format_diamonds(total_lost)} (по {format_diamonds(entry_fee)} с каждого)\n\n"
-            f"<i>Попробуйте снова через {HEIST_COOLDOWN_HOURS}ч</i>"
+            f"<i>Попробуй снова через {HEIST_COOLDOWN_HOURS}ч</i>"
         )
 
     try:

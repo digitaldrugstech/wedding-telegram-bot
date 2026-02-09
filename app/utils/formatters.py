@@ -27,6 +27,28 @@ def format_diamonds(count: int) -> str:
         return f"{count} алмазов"
 
 
+def format_word(count: int, one: str, few: str, many: str) -> str:
+    """
+    Format a number with proper Russian word ending.
+
+    Args:
+        count: The number
+        one: Form for 1, 21, 31... (e.g. "день", "очко", "реферал")
+        few: Form for 2-4, 22-24... (e.g. "дня", "очка", "реферала")
+        many: Form for 5-20, 25-30... (e.g. "дней", "очков", "рефералов")
+
+    Returns:
+        Formatted string like "5 дней"
+    """
+    n = abs(count)
+    if n % 10 == 1 and n % 100 != 11:
+        return f"{count} {one}"
+    elif n % 10 in (2, 3, 4) and n % 100 not in (12, 13, 14):
+        return f"{count} {few}"
+    else:
+        return f"{count} {many}"
+
+
 def format_time_remaining(seconds: float) -> str:
     """
     Format remaining time in Russian.

@@ -131,7 +131,7 @@ async def receive_feedback_text(update: Update, context: ContextTypes.DEFAULT_TY
         safe_text = html.escape(text[:500]) + ("..." if len(text) > 500 else "")
         admin_message = (
             f"{type_emoji} <b>Новый {type_name.lower()}</b>\n\n"
-            f"👤 @{username} ({user_id})\n"
+            f"👤 @{html.escape(username)} ({user_id})\n"
             f"📝 #{entry['id']}\n\n"
             f"{safe_text}"
         )

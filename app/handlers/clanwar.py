@@ -11,7 +11,7 @@ from telegram.ext import CommandHandler, ContextTypes
 from app.database.connection import get_db
 from app.database.models import CasinoGame, Duel, Gang, GangMember, InterpolFine, Job, User
 from app.utils.decorators import require_registered
-from app.utils.formatters import format_diamonds
+from app.utils.formatters import format_diamonds, format_word
 
 logger = structlog.get_logger()
 
@@ -177,7 +177,7 @@ async def clanwar_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         marker = " 👈" if gs["id"] == user_gang_id else ""
 
         text += (
-            f"{medal} <b>{gs['name']}</b> (ур.{gs['level']}) — {gs['total']} очков{marker}\n"
+            f"{medal} <b>{gs['name']}</b> (ур.{gs['level']}) — {format_word(gs['total'], 'очко', 'очка', 'очков')}{marker}\n"
             f"   💼{gs['workers']} 🎰{gs['casino']} ⚔️{gs['duels']} 🚔{gs['fines']} | 👥{gs['members']}\n\n"
         )
 

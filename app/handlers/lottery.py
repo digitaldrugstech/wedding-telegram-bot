@@ -1,5 +1,6 @@
 """Lottery command handlers."""
 
+import html
 import random
 from datetime import datetime
 
@@ -171,6 +172,10 @@ async def lottery_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     with get_db() as db:
         user = db.query(User).filter(User.telegram_id == user_id).first()
 
+        if not user or user.is_banned:
+            await query.answer("Доступ запрещён", show_alert=True)
+            return
+
         if user.balance < total_cost:
             await query.answer(f"Недостаточно алмазов (нужно {total_cost})", show_alert=True)
             return
@@ -256,7 +261,7 @@ async def draw_lottery(context: ContextTypes.DEFAULT_TYPE):
         lottery.winner_id = winner_id
 
         total_tickets = len(lottery.tickets)
-        winner_username = winner.username or f"User{winner.telegram_id}"
+        winner_username = html.escape(winner.username or f"User{winner.telegram_id}")
         jackpot = lottery.jackpot
 
     # Announce in chat

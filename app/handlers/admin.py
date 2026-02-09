@@ -1,6 +1,7 @@
 """Admin commands for bot management."""
 
 import asyncio
+import html
 
 import structlog
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -120,7 +121,7 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     for i, (username, balance) in enumerate(top_users, 1):
-        message += f"{i}. @{username} — {format_diamonds(balance)}\n"
+        message += f"{i}. @{html.escape(username)} — {format_diamonds(balance)}\n"
 
     await update.message.reply_text(message, parse_mode="HTML")
 
@@ -581,7 +582,7 @@ async def chats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         text = "💬 <b>Чаты бота</b>\n\n"
         for i, c in enumerate(chats, 1):
-            title = c.title or f"ID {c.chat_id}"
+            title = html.escape(c.title or f"ID {c.chat_id}")
             text += (
                 f"{i}. <b>{title}</b>\n"
                 f"   ID: <code>{c.chat_id}</code>\n"
@@ -606,7 +607,7 @@ async def topchats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         rows = []
         for i, c in enumerate(chats, 1):
-            title = c.title or "???"
+            title = html.escape(c.title or "???")
             medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
             rows.append(f"{medal} {title} — {c.command_count} команд")
 

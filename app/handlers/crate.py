@@ -11,7 +11,7 @@ from telegram.ext import CommandHandler, ContextTypes
 from app.database.connection import get_db
 from app.database.models import Pet, User
 from app.utils.decorators import require_registered
-from app.utils.formatters import format_diamonds
+from app.utils.formatters import format_diamonds, format_word
 
 logger = structlog.get_logger()
 
@@ -204,15 +204,15 @@ async def crate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         streak = user.daily_streak or 0
 
     text = "🎁 <b>Сундуки за серию</b>\n\n"
-    text += f"📅 Текущая серия: {streak} дней\n\n"
+    text += f"📅 Текущая серия: {format_word(streak, 'день', 'дня', 'дней')}\n\n"
 
     for day, crate_type in sorted(CRATE_MILESTONES.items()):
         info = CRATE_INFO[crate_type]
         if streak >= day:
-            text += f"✅ {info['emoji']} <b>{info['name']}</b> ({day} дней) — получен!\n"
+            text += f"✅ {info['emoji']} <b>{info['name']}</b> ({format_word(day, 'день', 'дня', 'дней')}) — получен!\n"
         else:
             days_left = day - streak
-            text += f"🔒 {info['emoji']} <b>{info['name']}</b> ({day} дней) — через {days_left} дней\n"
+            text += f"🔒 {info['emoji']} <b>{info['name']}</b> ({format_word(day, 'день', 'дня', 'дней')}) — через {format_word(days_left, 'день', 'дня', 'дней')}\n"
 
     text += (
         "\n<b>Как получить:</b>\n"
@@ -242,7 +242,7 @@ async def open_crate_and_announce(update: Update, context: ContextTypes.DEFAULT_
     crate_text = (
         f"\n\n{'=' * 20}\n"
         f"{info['emoji']} <b>СУНДУК!</b> {info['emoji']}\n\n"
-        f"🎊 {info['name']} за {streak} дней!\n\n"
+        f"🎊 {info['name']} за {format_word(streak, 'день', 'дня', 'дней')}!\n\n"
         f"Лут: <b>{reward_text}</b>\n"
         f"{'=' * 20}"
     )
@@ -254,7 +254,7 @@ async def open_crate_and_announce(update: Update, context: ContextTypes.DEFAULT_
         try:
             announce_text = (
                 f"{info['emoji']} <b>@{username} открыл {info['name']}!</b>\n\n"
-                f"📅 Серия: {streak} дней\n"
+                f"📅 Серия: {format_word(streak, 'день', 'дня', 'дней')}\n"
                 f"Лут: <b>{reward_text}</b>"
             )
             await context.bot.send_message(

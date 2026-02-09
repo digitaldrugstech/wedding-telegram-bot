@@ -1,5 +1,7 @@
 """Social feature handlers (friends, achievements, rating)."""
 
+import html
+
 import structlog
 from sqlalchemy import desc, func
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -469,14 +471,14 @@ async def show_rating(message, user_id: int, category: str):
             text += "<b>💰 По балансу</b>\n\n"
             top_users = db.query(User).order_by(desc(User.balance)).limit(10).all()
             for idx, user in enumerate(top_users, 1):
-                username = f"@{user.username}" if user.username else f"ID {user.telegram_id}"
+                username = f"@{html.escape(user.username)}" if user.username else f"ID {user.telegram_id}"
                 text += f"{idx}. {username} — {format_diamonds(user.balance)}\n"
 
         elif category == "reputation":
             text += "<b>⭐ По репутации</b>\n\n"
             top_users = db.query(User).order_by(desc(User.reputation)).limit(10).all()
             for idx, user in enumerate(top_users, 1):
-                username = f"@{user.username}" if user.username else f"ID {user.telegram_id}"
+                username = f"@{html.escape(user.username)}" if user.username else f"ID {user.telegram_id}"
                 text += f"{idx}. {username} — {user.reputation:+d}\n"
 
         elif category == "works":
@@ -485,7 +487,7 @@ async def show_rating(message, user_id: int, category: str):
             for idx, job in enumerate(top_jobs, 1):
                 user = db.query(User).filter(User.telegram_id == job.user_id).first()
                 if user:
-                    username = f"@{user.username}" if user.username else f"ID {user.telegram_id}"
+                    username = f"@{html.escape(user.username)}" if user.username else f"ID {user.telegram_id}"
                     text += f"{idx}. {username} — {job.times_worked} работ\n"
 
         elif category == "casino":
@@ -502,7 +504,7 @@ async def show_rating(message, user_id: int, category: str):
             for idx, (user_id_stat, total_payout) in enumerate(casino_stats, 1):
                 user = db.query(User).filter(User.telegram_id == user_id_stat).first()
                 if user:
-                    username = f"@{user.username}" if user.username else f"ID {user.telegram_id}"
+                    username = f"@{html.escape(user.username)}" if user.username else f"ID {user.telegram_id}"
                     text += f"{idx}. {username} — {format_diamonds(total_payout)}\n"
 
     keyboard = rating_keyboard(user_id, category)
@@ -524,7 +526,7 @@ async def rating_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text += "<b>💰 По балансу</b>\n\n"
             top_users = db.query(User).order_by(desc(User.balance)).limit(10).all()
             for idx, user in enumerate(top_users, 1):
-                username = f"@{user.username}" if user.username else f"ID {user.telegram_id}"
+                username = f"@{html.escape(user.username)}" if user.username else f"ID {user.telegram_id}"
                 text += f"{idx}. {username} — {format_diamonds(user.balance)}\n"
 
         elif category == "works":
@@ -533,7 +535,7 @@ async def rating_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             for idx, job in enumerate(top_jobs, 1):
                 user = db.query(User).filter(User.telegram_id == job.user_id).first()
                 if user:
-                    username = f"@{user.username}" if user.username else f"ID {user.telegram_id}"
+                    username = f"@{html.escape(user.username)}" if user.username else f"ID {user.telegram_id}"
                     text += f"{idx}. {username} — {job.times_worked} работ\n"
 
         elif category == "casino":
@@ -549,7 +551,7 @@ async def rating_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             for idx, (user_id_stat, total_payout) in enumerate(casino_stats, 1):
                 user = db.query(User).filter(User.telegram_id == user_id_stat).first()
                 if user:
-                    username = f"@{user.username}" if user.username else f"ID {user.telegram_id}"
+                    username = f"@{html.escape(user.username)}" if user.username else f"ID {user.telegram_id}"
                     text += f"{idx}. {username} — {format_diamonds(total_payout)}\n"
 
     user_id = int(query.data.split(":")[2])

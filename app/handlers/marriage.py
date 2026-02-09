@@ -106,7 +106,7 @@ async def propose_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     proposal_text = (
         f"💍 <b>Предложение руки и сердца</b>\n\n"
-        f"<b>{proposer_name}</b> → <b>{target_name}</b>\n\n"
+        f"<b>{html.escape(proposer_name)}</b> → <b>{html.escape(target_name)}</b>\n\n"
         f"💰 Стоимость: {format_diamonds(PROPOSE_COST)}"
     )
 
@@ -132,6 +132,13 @@ async def propose_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if clicker_id != target_id:
         await query.answer("Эта кнопка не для тебя", show_alert=True)
         return
+
+    # Check clicker is registered and not banned
+    with get_db() as db:
+        clicker = db.query(User).filter(User.telegram_id == clicker_id).first()
+        if not clicker or clicker.is_banned:
+            await query.answer("Доступ запрещён", show_alert=True)
+            return
 
     if action == "propose_accept":
         try:
