@@ -1,0 +1,140 @@
+"""Daily bonus command handler."""
+
+from datetime import datetime, timedelta
+
+import structlog
+from telegram import Update
+from telegram.ext import CommandHandler, ContextTypes
+
+from app.database.connection import get_db
+from app.database.models import User
+from app.handlers.quest import update_quest_progress
+from app.utils.decorators import require_registered
+from app.utils.formatters import format_diamonds
+
+logger = structlog.get_logger()
+
+# Streak rewards (day: diamonds)
+STREAK_REWARDS = {
+    1: 10,
+    2: 15,
+    3: 25,
+    4: 35,
+    5: 50,
+    6: 75,
+    7: 100,
+}
+# Days 8+ get the day 7 reward
+MAX_STREAK_REWARD = 100
+
+# Bonus milestones
+MILESTONE_BONUSES = {
+    7: 50,
+    14: 150,
+    30: 500,
+}
+
+
+def get_daily_reward(streak: int) -> int:
+    """Calculate daily reward based on streak."""
+    return STREAK_REWARDS.get(streak, MAX_STREAK_REWARD)
+
+
+def get_milestone_bonus(streak: int) -> int:
+    """Check if streak hits a milestone bonus."""
+    return MILESTONE_BONUSES.get(streak, 0)
+
+
+@require_registered
+async def daily_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /daily command — collect daily bonus."""
+    if not update.effective_user or not update.message:
+        return
+
+    user_id = update.effective_user.id
+
+    with get_db() as db:
+        user = db.query(User).filter(User.telegram_id == user_id).first()
+
+        now = datetime.utcnow()
+
+        # Check if already claimed today
+        if user.last_daily_at:
+            last_claim = user.last_daily_at
+            # Same calendar day (UTC)
+            if last_claim.date() == now.date():
+                # Calculate time until next day
+                tomorrow = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+                remaining = tomorrow - now
+                hours = int(remaining.total_seconds() // 3600)
+                minutes = int((remaining.total_seconds() % 3600) // 60)
+
+                time_str = []
+                if hours > 0:
+                    time_str.append(f"{hours}ч")
+                if minutes > 0:
+                    time_str.append(f"{minutes}м")
+
+                await update.message.reply_text(
+                    f"⏰ Ты уже забрал бонус сегодня\n\n" f"Следующий через: {' '.join(time_str)}"
+                )
+                return
+
+            # Check if streak continues (claimed yesterday)
+            yesterday = (now - timedelta(days=1)).date()
+            if last_claim.date() == yesterday:
+                new_streak = user.daily_streak + 1
+            else:
+                # Streak broken
+                new_streak = 1
+        else:
+            new_streak = 1
+
+        # Calculate reward
+        reward = get_daily_reward(new_streak)
+        milestone = get_milestone_bonus(new_streak)
+        total = reward + milestone
+
+        # Update user
+        user.balance += total
+        user.daily_streak = new_streak
+        user.last_daily_at = now
+
+        balance = user.balance
+
+    # Build message
+    streak_bar = "🔥" * min(new_streak, 7) + "⬜" * max(0, 7 - new_streak)
+
+    text = (
+        f"🎁 <b>Ежедневный бонус</b>\n\n"
+        f"💎 +{format_diamonds(reward)}\n"
+        f"📅 Серия: {new_streak} дней\n"
+        f"{streak_bar}\n"
+    )
+
+    if milestone > 0:
+        text += f"\n🏆 <b>Бонус за {new_streak} дней!</b> +{format_diamonds(milestone)}\n"
+
+    text += f"\n💰 Баланс: {format_diamonds(balance)}"
+
+    # Show next milestone
+    next_milestones = [d for d in sorted(MILESTONE_BONUSES.keys()) if d > new_streak]
+    if next_milestones:
+        next_m = next_milestones[0]
+        days_left = next_m - new_streak
+        text += f"\n\n📌 До бонуса x{MILESTONE_BONUSES[next_m]}: {days_left} дней"
+
+    await update.message.reply_text(text, parse_mode="HTML")
+
+    try:
+        update_quest_progress(user_id, "daily")
+    except Exception:
+        pass
+
+    logger.info("Daily claimed", user_id=user_id, streak=new_streak, reward=total)
+
+
+def register_daily_handlers(application):
+    """Register daily handlers."""
+    application.add_handler(CommandHandler("daily", daily_command))
+    logger.info("Daily handlers registered")

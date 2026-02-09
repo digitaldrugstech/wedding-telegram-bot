@@ -458,6 +458,18 @@ def start_scheduler(application: Application):
         replace_existing=True,
     )
 
+    # Weekly lottery draw (Saturday at 21:00 Moscow / 18:00 UTC)
+    from app.handlers.lottery import draw_lottery
+
+    scheduler.add_job(
+        draw_lottery,
+        trigger=CronTrigger(day_of_week=5, hour=18, minute=0),
+        args=[application],
+        id="lottery_draw",
+        name="Weekly lottery draw",
+        replace_existing=True,
+    )
+
     # Clean up expired cooldowns every 6 hours
     scheduler.add_job(
         cleanup_expired_cooldowns_task,

@@ -3,6 +3,9 @@
 # Debug
 DEBUG_CHAT_ID = -1003172144355
 
+# Production chat for announcements
+PRODUCTION_CHAT_ID = -1003086018945
+
 # Interpol Fines
 INTERPOL_MIN_VICTIM_BALANCE = 50  # Minimum victim balance to fine
 INTERPOL_VICTIM_COOLDOWN_HOURS = 1  # Hours before can fine same victim again

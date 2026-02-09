@@ -13,11 +13,13 @@ from app.handlers.admin import register_admin_handlers
 from app.handlers.blackjack import register_blackjack_handlers
 from app.handlers.business import register_business_handlers
 from app.handlers.casino import register_casino_handlers
+from app.handlers.daily import register_daily_handlers
 from app.handlers.children import register_children_handlers
 from app.handlers.duel import register_duel_handlers
 from app.handlers.economy import register_economy_handlers
 from app.handlers.feedback import register_feedback_handlers
 from app.handlers.house import register_house_handlers
+from app.handlers.lottery import register_lottery_handlers
 from app.handlers.marriage import register_marriage_handlers
 from app.handlers.menu import register_menu_handlers
 from app.handlers.mine import register_mine_handlers
@@ -84,6 +86,8 @@ def create_bot() -> Application:
     register_house_handlers(application)
     register_business_handlers(application)
     register_casino_handlers(application)
+    register_daily_handlers(application)
+    register_lottery_handlers(application)
     register_economy_handlers(application)
     register_social_handlers(application)
     register_quest_handlers(application)
