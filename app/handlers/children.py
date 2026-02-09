@@ -5,6 +5,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
 from app.database.connection import get_db
+from app.database.models import User
 from app.services.children_service import (
     ADOPTION_COST,
     AGE_CHILD_TO_TEEN_COST,
@@ -98,6 +99,11 @@ async def family_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
     with get_db() as db:
+        user = db.query(User).filter(User.telegram_id == user_id).first()
+        if not user or user.is_banned:
+            await query.answer("Доступ запрещён", show_alert=True)
+            return
+
         marriage = MarriageService.get_active_marriage(db, user_id)
 
         if not marriage:

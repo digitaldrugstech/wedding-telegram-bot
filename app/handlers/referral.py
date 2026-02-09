@@ -65,16 +65,23 @@ def process_referral_registration(referrer_id: int, referred_id: int) -> bool:
     return True
 
 
-def track_referral_activity(user_id: int):
+def track_referral_activity(user_id: int, db=None):
     """
     Track daily activity for a referred user.
     Called from @require_registered on each command.
     When active_days reaches REFERRAL_ACTIVE_DAYS_REQUIRED, grant rewards.
+    Pass an existing db session to avoid opening a nested one.
     """
     today_str = datetime.utcnow().strftime("%Y-%m-%d")
 
-    with get_db() as db:
-        referral = db.query(Referral).filter(Referral.referred_id == user_id).first()
+    reward_reached = False
+    referrer_id = None
+    total_refs = 0
+
+    def _track(session):
+        nonlocal reward_reached, referrer_id, total_refs
+
+        referral = session.query(Referral).filter(Referral.referred_id == user_id).first()
 
         if not referral or referral.reward_given:
             return
@@ -95,22 +102,20 @@ def track_referral_activity(user_id: int):
         )
 
         # Check if threshold reached
-        reward_reached = False
         referrer_id = referral.referrer_id
-        referred_id = referral.referred_id
 
         if referral.active_days >= REFERRAL_ACTIVE_DAYS_REQUIRED:
             referral.reward_given = True
             referral.reward_given_at = datetime.utcnow()
 
             # Grant reward to inviter
-            referrer = db.query(User).filter(User.telegram_id == referral.referrer_id).first()
+            referrer = session.query(User).filter(User.telegram_id == referral.referrer_id).first()
             if referrer:
                 referrer.balance += REFERRAL_INVITER_REWARD
 
-            # Count completed referrals in the same session (no nested get_db)
+            # Count completed referrals in the same session
             total_refs = (
-                db.query(Referral)
+                session.query(Referral)
                 .filter(Referral.referrer_id == referrer_id, Referral.reward_given.is_(True))
                 .count()
             )
@@ -120,9 +125,15 @@ def track_referral_activity(user_id: int):
             logger.info(
                 "Referral reward granted",
                 referrer_id=referrer_id,
-                referred_id=referred_id,
+                referred_id=user_id,
                 inviter_reward=REFERRAL_INVITER_REWARD,
             )
+
+    if db is not None:
+        _track(db)
+    else:
+        with get_db() as session:
+            _track(session)
 
     # Award achievement outside DB session to avoid nested get_db()
     if reward_reached:

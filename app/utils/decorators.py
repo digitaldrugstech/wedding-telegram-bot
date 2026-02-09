@@ -88,7 +88,7 @@ def require_registered(func: Callable) -> Callable:
             try:
                 from app.handlers.referral import track_referral_activity
 
-                track_referral_activity(user_id)
+                track_referral_activity(user_id, db=db)
             except Exception:
                 pass  # Never crash on referral tracking
 

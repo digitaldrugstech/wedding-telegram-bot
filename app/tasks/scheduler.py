@@ -214,6 +214,16 @@ def start_scheduler(application: Application):
         replace_existing=True,
     )
 
+    # Clean up stale heists and roulette rounds every 5 minutes
+    scheduler.add_job(
+        cleanup_stale_games_task,
+        trigger=IntervalTrigger(minutes=5),
+        args=[application],
+        id="cleanup_stale_games",
+        name="Cleanup stale heists/roulette",
+        replace_existing=True,
+    )
+
     # Clean up expired cooldowns every 6 hours
     scheduler.add_job(
         cleanup_expired_cooldowns_task,
@@ -277,6 +287,45 @@ async def collect_taxes_task(application: Application):
             logger.info("Tax collection complete", taxed=taxed_count, total=total_collected)
     except Exception as e:
         logger.error("Error in tax collection task", error=str(e), exc_info=True)
+
+
+async def cleanup_stale_games_task(application: Application):
+    """Clean up expired heists and roulette rounds, refunding players."""
+    try:
+        from app.handlers.heist import HEIST_JOIN_TIMEOUT_SECONDS, _refund_all as heist_refund, active_heists
+        from app.handlers.roulette import RR_JOIN_TIMEOUT_SECONDS, _refund_all as rr_refund, active_rounds
+
+        now = datetime.utcnow()
+        stale_heist_chats = []
+        stale_rr_chats = []
+
+        for chat_id, heist in list(active_heists.items()):
+            elapsed = (now - heist["created_at"]).total_seconds()
+            if elapsed > HEIST_JOIN_TIMEOUT_SECONDS + 60:  # +60s grace period
+                stale_heist_chats.append(chat_id)
+
+        for chat_id in stale_heist_chats:
+            heist = active_heists.pop(chat_id, None)
+            if heist:
+                heist_refund(heist)
+                logger.info("Stale heist cleaned up", chat_id=chat_id, players=len(heist["players"]))
+
+        for chat_id, rnd in list(active_rounds.items()):
+            elapsed = (now - rnd["created_at"]).total_seconds()
+            if elapsed > RR_JOIN_TIMEOUT_SECONDS + 60:
+                stale_rr_chats.append(chat_id)
+
+        for chat_id in stale_rr_chats:
+            rnd = active_rounds.pop(chat_id, None)
+            if rnd:
+                rr_refund(rnd)
+                logger.info("Stale roulette round cleaned up", chat_id=chat_id, players=len(rnd["players"]))
+
+        total = len(stale_heist_chats) + len(stale_rr_chats)
+        if total > 0:
+            logger.info("Stale games cleanup done", heists=len(stale_heist_chats), roulette=len(stale_rr_chats))
+    except Exception as e:
+        logger.error("Error in stale games cleanup", error=str(e), exc_info=True)
 
 
 async def cleanup_expired_cooldowns_task(application: Application):

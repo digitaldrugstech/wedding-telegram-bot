@@ -41,7 +41,6 @@ class User(Base):
     businesses = relationship("Business", back_populates="user", cascade="all, delete-orphan")
     casino_games = relationship("CasinoGame", back_populates="user", cascade="all, delete-orphan")
     cooldowns = relationship("Cooldown", back_populates="user", cascade="all, delete-orphan")
-    loans = relationship("Loan", back_populates="user", cascade="all, delete-orphan")
     lottery_tickets = relationship("LotteryTicket", back_populates="user", cascade="all, delete-orphan")
 
     def __repr__(self):
@@ -288,27 +287,6 @@ class InterpolFine(Base):
         )
 
 
-class Loan(Base):
-    """Loan model."""
-
-    __tablename__ = "loans"
-
-    id = Column(Integer, primary_key=True)
-    user_id = Column(BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=False)
-    amount = Column(BigInteger, nullable=False)
-    interest_rate = Column(Integer, default=20, nullable=False)  # Percentage
-    created_at = Column(DateTime, default=func.now(), nullable=False)
-    due_at = Column(DateTime, nullable=False)
-    penalty_charged = Column(Boolean, default=False, nullable=False)
-    is_active = Column(Boolean, default=True, nullable=False)
-
-    # Relationships
-    user = relationship("User", back_populates="loans")
-
-    def __repr__(self):
-        return f"<Loan(id={self.id}, user_id={self.user_id}, amount={self.amount}, is_active={self.is_active})>"
-
-
 class Lottery(Base):
     """Lottery model."""
 
@@ -515,111 +493,6 @@ class Duel(Base):
         return (
             f"<Duel(id={self.id}, challenger={self.challenger_id}, opponent={self.opponent_id}, bet={self.bet_amount})>"
         )
-
-
-class Investment(Base):
-    """Investment model."""
-
-    __tablename__ = "investments"
-
-    id = Column(Integer, primary_key=True)
-    user_id = Column(BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=False)
-    amount = Column(BigInteger, nullable=False)
-    return_percentage = Column(Integer, nullable=False)
-    is_completed = Column(Boolean, default=False, nullable=False)
-    created_at = Column(DateTime, default=func.now(), nullable=False)
-    completes_at = Column(DateTime, nullable=False)
-
-    # Relationships
-    user = relationship("User")
-
-    def __repr__(self):
-        return (
-            f"<Investment(id={self.id}, user_id={self.user_id}, "
-            f"amount={self.amount}, return={self.return_percentage}%)>"
-        )
-
-
-class Stock(Base):
-    """Stock price model."""
-
-    __tablename__ = "stocks"
-
-    id = Column(Integer, primary_key=True)
-    company = Column(String(50), unique=True, nullable=False)
-    price = Column(Integer, nullable=False)
-    last_updated = Column(DateTime, default=func.now(), nullable=False)
-
-    def __repr__(self):
-        return f"<Stock(company={self.company}, price={self.price})>"
-
-
-class UserStock(Base):
-    """User stock holdings model."""
-
-    __tablename__ = "user_stocks"
-
-    id = Column(Integer, primary_key=True)
-    user_id = Column(BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=False)
-    company = Column(String(50), nullable=False)
-    quantity = Column(Integer, nullable=False)
-
-    __table_args__ = (UniqueConstraint("user_id", "company", name="uq_user_company"),)
-
-    # Relationships
-    user = relationship("User")
-
-    def __repr__(self):
-        return f"<UserStock(user_id={self.user_id}, company={self.company}, quantity={self.quantity})>"
-
-
-class Auction(Base):
-    """Auction model."""
-
-    __tablename__ = "auctions"
-
-    id = Column(Integer, primary_key=True)
-    creator_id = Column(BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=False)
-    item = Column(
-        String(50),
-        CheckConstraint("item IN ('vip_status', 'double_salary', 'lucky_charm')"),
-        nullable=False,
-    )
-    start_price = Column(BigInteger, nullable=False)
-    current_price = Column(BigInteger, nullable=False)
-    current_winner_id = Column(BigInteger, ForeignKey("users.telegram_id"), nullable=True)
-    is_active = Column(Boolean, default=True, nullable=False)
-    created_at = Column(DateTime, default=func.now(), nullable=False)
-    ends_at = Column(DateTime, nullable=False)
-
-    # Relationships
-    creator = relationship("User", foreign_keys=[creator_id])
-    current_winner = relationship("User", foreign_keys=[current_winner_id])
-    bids = relationship("AuctionBid", back_populates="auction", cascade="all, delete-orphan")
-
-    def __repr__(self):
-        return (
-            f"<Auction(id={self.id}, item={self.item}, current_price={self.current_price}, is_active={self.is_active})>"
-        )
-
-
-class AuctionBid(Base):
-    """Auction bid model."""
-
-    __tablename__ = "auction_bids"
-
-    id = Column(Integer, primary_key=True)
-    auction_id = Column(Integer, ForeignKey("auctions.id", ondelete="CASCADE"), nullable=False)
-    user_id = Column(BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=False)
-    amount = Column(BigInteger, nullable=False)
-    created_at = Column(DateTime, default=func.now(), nullable=False)
-
-    # Relationships
-    auction = relationship("Auction", back_populates="bids")
-    user = relationship("User")
-
-    def __repr__(self):
-        return f"<AuctionBid(id={self.id}, auction_id={self.auction_id}, user_id={self.user_id}, amount={self.amount})>"
 
 
 class TaxPayment(Base):

@@ -108,6 +108,12 @@ async def prestige_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("⚠️ Эта кнопка не для тебя", show_alert=True)
         return
 
+    with get_db() as db:
+        user = db.query(User).filter(User.telegram_id == user_id).first()
+        if not user or user.is_banned:
+            await query.answer("Доступ запрещён", show_alert=True)
+            return
+
     await query.answer()
 
     if action == "cancel":

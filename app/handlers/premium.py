@@ -778,19 +778,29 @@ def get_loyalty_points(user_id: int) -> int:
         return result or 0
 
 
-def add_loyalty_points(user_id: int, points: int = 1):
-    """Award loyalty points for gameplay activity. Lightweight, fire-and-forget."""
-    try:
-        with get_db() as db:
-            for _ in range(points):
-                db.add(
-                    StarPurchase(
-                        user_id=user_id,
-                        product="loyalty_point",
-                        stars_amount=0,
-                        diamonds_granted=0,
-                    )
+def add_loyalty_points(user_id: int, points: int = 1, db=None):
+    """Award loyalty points for gameplay activity. Lightweight, fire-and-forget.
+
+    Pass an existing db session to avoid opening a nested one.
+    """
+
+    def _add(session):
+        for _ in range(points):
+            session.add(
+                StarPurchase(
+                    user_id=user_id,
+                    product="loyalty_point",
+                    stars_amount=0,
+                    diamonds_granted=0,
                 )
+            )
+
+    try:
+        if db is not None:
+            _add(db)
+        else:
+            with get_db() as session:
+                _add(session)
     except Exception:
         pass  # Loyalty tracking is non-critical
 

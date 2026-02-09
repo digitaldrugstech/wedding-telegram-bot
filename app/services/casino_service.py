@@ -149,7 +149,6 @@ class CasinoService:
         game = CasinoGame(user_id=user_id, bet_amount=bet_amount, result=result, payout=payout)
 
         db.add(game)
-        db.commit()
 
         logger.info(
             "Casino game played",
@@ -187,7 +186,7 @@ class CasinoService:
         else:
             # Add lucky charm nudge on loss (throttled: max once per 30 min)
             nudge = ""
-            if not has_active_boost(user_id, "lucky_charm"):
+            if not has_active_boost(user_id, "lucky_charm", db=db):
                 from app.handlers.premium import build_premium_nudge
 
                 nudge = build_premium_nudge("casino_loss", user_id)
@@ -208,7 +207,7 @@ class CasinoService:
         try:
             from app.handlers.premium import add_loyalty_points
 
-            add_loyalty_points(user_id, 1)
+            add_loyalty_points(user_id, 1, db=db)
         except Exception:
             pass
 

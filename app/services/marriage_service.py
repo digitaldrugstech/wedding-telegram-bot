@@ -160,10 +160,11 @@ class MarriageService:
         partner_id = MarriageService.get_partner_id(marriage, user_id)
         partner = db.query(User).filter(User.telegram_id == partner_id).first()
 
-        # Divorce settlement: split family bank 50/50
+        # Divorce settlement: split family bank 50/50 (remainder to initiator)
         if marriage.family_bank_balance > 0:
             split_amount = marriage.family_bank_balance // 2
-            user.balance += split_amount
+            remainder = marriage.family_bank_balance % 2
+            user.balance += split_amount + remainder
             partner.balance += split_amount
             logger.info(
                 "Divorce settlement",

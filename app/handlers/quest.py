@@ -148,7 +148,7 @@ def update_quest_progress(user_id: int, quest_type: str, increment: int = 1):
                     try:
                         from app.handlers.premium import add_loyalty_points
 
-                        add_loyalty_points(user_id, 2)
+                        add_loyalty_points(user_id, 2, db=db)
                     except Exception:
                         pass
 
