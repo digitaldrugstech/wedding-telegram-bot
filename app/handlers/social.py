@@ -255,7 +255,7 @@ async def removefriend_command(update: Update, context: ContextTypes.DEFAULT_TYP
 
         db.delete(friendship)
 
-        await update.message.reply_text(f"✅ <b>Удалено из друзей</b>\n\n" f"👤 @{username}", parse_mode="HTML")
+        await update.message.reply_text(f"✅ <b>Удалено из друзей</b>\n\n" f"👤 @{html.escape(username)}", parse_mode="HTML")
 
 
 @button_owner_only
@@ -276,7 +276,7 @@ async def friend_accept_callback(update: Update, context: ContextTypes.DEFAULT_T
         friendship.status = "accepted"
 
         sender = db.query(User).filter(User.telegram_id == friendship.user1_id).first()
-        username = f"@{sender.username}" if sender and sender.username else f"ID {friendship.user1_id}"
+        username = f"@{html.escape(sender.username)}" if sender and sender.username else f"ID {friendship.user1_id}"
 
         await safe_edit_message(query, f"✅ <b>Заявка принята</b>\n\n👤 {username}\n\nТеперь друзья!")
 
@@ -297,7 +297,7 @@ async def friend_decline_callback(update: Update, context: ContextTypes.DEFAULT_
             return
 
         sender = db.query(User).filter(User.telegram_id == friendship.user1_id).first()
-        username = f"@{sender.username}" if sender and sender.username else f"ID {friendship.user1_id}"
+        username = f"@{html.escape(sender.username)}" if sender and sender.username else f"ID {friendship.user1_id}"
 
         db.delete(friendship)
 
@@ -387,7 +387,7 @@ async def gift_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(
         f"🎁 <b>Подарок отправлен</b>\n\n"
-        f"💰 {format_diamonds(amount)} → @{username}\n\n"
+        f"💰 {format_diamonds(amount)} → @{html.escape(username)}\n\n"
         f"💰 Твой баланс: {format_diamonds(balance)}",
         parse_mode="HTML",
     )

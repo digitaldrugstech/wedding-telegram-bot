@@ -255,6 +255,13 @@ async def premium_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("Эта кнопка не для тебя", show_alert=True)
         return
 
+    # Ban check
+    with get_db() as db:
+        user_check = db.query(User).filter(User.telegram_id == user_id).first()
+        if not user_check or user_check.is_banned:
+            await query.answer("Доступ запрещён", show_alert=True)
+            return
+
     await query.answer()
 
     if action == "cat":
@@ -433,7 +440,7 @@ async def successful_payment_handler(update: Update, context: ContextTypes.DEFAU
         diamonds_granted = product.get("diamonds", 0)
         loyalty_bonus_diamonds = 0
         if diamonds_granted > 0:
-            bonus_pct = get_loyalty_bonus_percent(user_id)
+            bonus_pct = get_loyalty_bonus_percent(user_id, db=db)
             if bonus_pct > 0:
                 loyalty_bonus_diamonds = int(diamonds_granted * bonus_pct / 100)
                 diamonds_granted += loyalty_bonus_diamonds
@@ -634,7 +641,6 @@ def consume_boost(user_id: int, boost_type: str, db=None) -> bool:
         return _consume(db)
     with get_db() as session:
         return _consume(session)
-        return False
 
 
 def has_ever_purchased(user_id: int, db=None) -> bool:
@@ -762,20 +768,26 @@ LOYALTY_BONUS_PER_TIER = 10  # +10% bonus diamonds per tier (max 3 tiers = +30%)
 LOYALTY_MAX_TIERS = 3
 
 
-def get_loyalty_points(user_id: int) -> int:
+def get_loyalty_points(user_id: int, db=None) -> int:
     """Get accumulated loyalty points for user.
 
     Uses StarPurchase table with product='loyalty_point' (no schema change needed).
+    Pass an existing db session to avoid opening a nested one.
     """
-    with get_db() as db:
-        from sqlalchemy import func as sqlfunc
+    from sqlalchemy import func as sqlfunc
 
+    def _query(session):
         result = (
-            db.query(sqlfunc.count(StarPurchase.id))
+            session.query(sqlfunc.count(StarPurchase.id))
             .filter(StarPurchase.user_id == user_id, StarPurchase.product == "loyalty_point")
             .scalar()
         )
         return result or 0
+
+    if db is not None:
+        return _query(db)
+    with get_db() as session:
+        return _query(session)
 
 
 def add_loyalty_points(user_id: int, points: int = 1, db=None):
@@ -805,15 +817,21 @@ def add_loyalty_points(user_id: int, points: int = 1, db=None):
         pass  # Loyalty tracking is non-critical
 
 
-def get_loyalty_tier(user_id: int) -> int:
-    """Get current loyalty tier (0-3). Determines bonus % on diamond purchases."""
-    points = get_loyalty_points(user_id)
+def get_loyalty_tier(user_id: int, db=None) -> int:
+    """Get current loyalty tier (0-3). Determines bonus % on diamond purchases.
+
+    Pass an existing db session to avoid opening a nested one.
+    """
+    points = get_loyalty_points(user_id, db=db)
     return min(points // LOYALTY_POINTS_PER_TIER, LOYALTY_MAX_TIERS)
 
 
-def get_loyalty_bonus_percent(user_id: int) -> int:
-    """Get bonus diamond percentage for next purchase (0, 10, 20, or 30)."""
-    return get_loyalty_tier(user_id) * LOYALTY_BONUS_PER_TIER
+def get_loyalty_bonus_percent(user_id: int, db=None) -> int:
+    """Get bonus diamond percentage for next purchase (0, 10, 20, or 30).
+
+    Pass an existing db session to avoid opening a nested one.
+    """
+    return get_loyalty_tier(user_id, db=db) * LOYALTY_BONUS_PER_TIER
 
 
 def _build_loyalty_page(user_id: int):

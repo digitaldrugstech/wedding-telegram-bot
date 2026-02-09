@@ -134,6 +134,13 @@ async def shop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("⚠️ Эта кнопка не для тебя", show_alert=True)
         return
 
+    # Ban check
+    with get_db() as db:
+        user_check = db.query(User).filter(User.telegram_id == user_id).first()
+        if not user_check or user_check.is_banned:
+            await query.answer("Доступ запрещён", show_alert=True)
+            return
+
     await query.answer()
 
     # Handle remove title

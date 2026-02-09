@@ -199,7 +199,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 partner = db.query(User).filter(User.telegram_id == partner_id).first()
 
                 days_married = (datetime.utcnow() - marriage.created_at).days
-                partner_name = partner.username or f"User{partner_id}" if partner else f"User{partner_id}"
+                partner_name = html.escape(partner.username) if partner and partner.username else f"User{partner_id}"
 
                 keyboard = [
                     [

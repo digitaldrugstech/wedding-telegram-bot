@@ -1,5 +1,7 @@
 """Utility command handlers (balance, help, transfer)."""
 
+import html
+
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
@@ -98,7 +100,7 @@ async def transfer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await update.message.reply_text(
             f"✅ <b>Перевод выполнен</b>\n\n"
-            f"💰 {format_diamonds(received)} → @{username}{fee_text}\n\n"
+            f"💰 {format_diamonds(received)} → @{html.escape(username)}{fee_text}\n\n"
             f"💰 Твой баланс: {format_diamonds(sender.balance)}",
             parse_mode="HTML",
         )
