@@ -60,10 +60,10 @@ HEIST_TIERS = {
 active_heists = {}
 
 HEIST_ANIMATIONS = [
-    "🏦 Подъезжаете к банку...",
-    "🏦 Отключаете камеры...\n🔧 ████░░░░░░",
-    "🏦 Вскрываете хранилище...\n🔧 ████████░░",
-    "🏦 Грузите алмазы...\n💎💎💎💎💎",
+    "🏦 Подъезд к банку...",
+    "🏦 Отключение камер...\n🔧 ████░░░░░░",
+    "🏦 Вскрытие хранилища...\n🔧 ████████░░",
+    "🏦 Погрузка алмазов...\n💎💎💎💎💎",
     "🚨 СИГНАЛИЗАЦИЯ!\n🚨🚨🚨🚨🚨",
 ]
 
@@ -91,7 +91,7 @@ async def heist_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             f"🏦 <b>Ограбление банка</b>\n\n"
             f"/heist [easy|medium|hard] — начать\n\n"
-            f"• Кооперативная игра на 2-{HEIST_MAX_PLAYERS} человек\n"
+            f"• Кооперативная игра на {HEIST_MIN_PLAYERS}-{HEIST_MAX_PLAYERS} человек\n"
             f"• Чем больше участников, тем выше шанс\n"
             f"• Провал = все теряют вход\n"
             f"• Кулдаун: {HEIST_COOLDOWN_HOURS}ч\n\n"
@@ -102,7 +102,7 @@ async def heist_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     tier_key = context.args[0].lower()
     if tier_key not in HEIST_TIERS:
-        await update.message.reply_text(f"❌ Неизвестный уровень\n\nДоступные: easy, medium, hard")
+        await update.message.reply_text("❌ Неизвестный уровень\n\nДоступные: easy (лёгкое), medium (среднее), hard (сложное)")
         return
 
     tier = HEIST_TIERS[tier_key]

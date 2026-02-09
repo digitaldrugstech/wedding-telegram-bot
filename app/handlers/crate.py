@@ -131,7 +131,7 @@ def apply_crate_reward(user_id: int, reward: dict) -> str:
         if reward_type == "diamonds":
             amount = reward["rolled_amount"]
             user.balance += amount
-            return reward["display"].format(amount=amount)
+            return f"💎 {format_diamonds(amount)}"
 
         elif reward_type == "title":
             title_id = reward["title_id"]
@@ -158,12 +158,12 @@ def apply_crate_reward(user_id: int, reward: dict) -> str:
                     # Already has it — give diamonds instead
                     fallback = random.randint(200, 500)
                     user.balance += fallback
-                    return f"💎 {fallback} алмазов (аксессуар уже есть)"
+                    return f"💎 {format_diamonds(fallback)} (аксессуар уже есть)"
             else:
                 # No pet — give diamonds
                 fallback = random.randint(200, 500)
                 user.balance += fallback
-                return f"💎 {fallback} алмазов (нет питомца)"
+                return f"💎 {format_diamonds(fallback)} (нет питомца)"
 
         elif reward_type == "rep_boost":
             amount = reward["amount"]
@@ -181,7 +181,7 @@ def apply_crate_reward(user_id: int, reward: dict) -> str:
                 # Max prestige — give big diamonds
                 fallback = random.randint(5000, 10000)
                 user.balance += fallback
-                return f"💎 {fallback} алмазов (макс. престиж)"
+                return f"💎 {format_diamonds(fallback)} (макс. престиж)"
 
     return "❌ Ошибка"
 

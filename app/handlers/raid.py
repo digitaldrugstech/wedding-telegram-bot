@@ -46,10 +46,10 @@ async def raid_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             "💥 <b>Рейд на банду</b>\n\n"
             "/raid [название банды] — напасть на чужую банду\n\n"
-            "• Укради до 30% из их банка\n"
-            "• Нужно 2+ участника (2 мин на сбор)\n"
+            f"• Укради до {RAID_MAX_STEAL_PERCENT}% из их банка\n"
+            f"• Нужно {RAID_MIN_MEMBERS}+ участника ({RAID_JOIN_TIMEOUT_SECONDS // 60} мин на сбор)\n"
             "• Чем больше рейдеров, тем выше шанс\n"
-            "• Провал = потеря 15% из своего банка\n"
+            f"• Провал = потеря {RAID_FAIL_PENALTY_PERCENT}% из своего банка\n"
             f"• Кулдаун: {RAID_COOLDOWN_HOURS}ч\n\n"
             "/gangs — список банд",
             parse_mode="HTML",
@@ -319,7 +319,7 @@ async def raid_go_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
                 result_text = (
                     f"🚨 <b>РЕЙД ПРОВАЛЕН!</b>\n\n"
-                    f"⚔️ «{attacker_name}» не смогла ограбить «{target_name}»!\n\n"
+                    f"⚔️ «{attacker_name}» не смогли ограбить «{target_name}»!\n\n"
                     f"💸 Штраф из банка банды: {format_diamonds(penalty)}\n"
                     f"👥 Рейдеров: {count} (шанс был {chance}%)\n\n"
                     f"🏦 Банк «{attacker_name}»: {format_diamonds(attacker_gang.bank)}"
@@ -345,7 +345,7 @@ async def raid_go_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             try:
                 notify_text = (
                     f"🚨 <b>Твою банду ограбили!</b>\n\n"
-                    f"⚔️ «{attacker_name}» совершила рейд!\n"
+                    f"⚔️ «{attacker_name}» совершили рейд!\n"
                     f"💸 Украдено из банка: {format_diamonds(stolen)}\n\n"
                     f"/gang — посмотреть банду"
                 )

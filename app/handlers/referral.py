@@ -185,7 +185,7 @@ async def invite_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     share_text = (
         f"Заходи в Wedding Bot — семейная жизнь на сервере! "
         f"Женись, работай, играй в казино. "
-        f"Тебе дадут {REFERRAL_INVITEE_REWARD} алмазов при старте!\n{link}"
+        f"Тебе дадут {format_diamonds(REFERRAL_INVITEE_REWARD)} при старте!\n{link}"
     )
     keyboard = [
         [

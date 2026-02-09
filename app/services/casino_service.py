@@ -201,7 +201,7 @@ class CasinoService:
 
         # Add DEBUG mode note
         if IS_DEBUG:
-            message += "\n\n🔧 <i>Кулдаун убран (DEV)</i>"
+            message += "\n\n🔧 <i>Кулдаун убран (тест)</i>"
 
         # Award loyalty point for playing casino
         try:
