@@ -99,7 +99,7 @@ async def kidnap_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Check premium shield
         from app.handlers.premium import has_active_boost
 
-        if has_active_boost(target_id, "shield"):
+        if has_active_boost(target_id, "shield", db=db):
             await update.message.reply_text("🛡 У жертвы есть премиум-щит\n\nПохищение невозможно")
             return
 

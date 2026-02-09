@@ -170,7 +170,7 @@ async def scratch_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Lucky charm bonus (+15%)
             from app.handlers.premium import has_active_boost
 
-            if has_active_boost(user_id, "lucky_charm"):
+            if has_active_boost(user_id, "lucky_charm", db=db):
                 payout += int(payout * 0.15)
 
             user = db.query(User).filter(User.telegram_id == user_id).first()

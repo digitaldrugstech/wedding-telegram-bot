@@ -129,7 +129,7 @@ class CasinoService:
         if winnings > 0:
             from app.handlers.premium import has_active_boost
 
-            if has_active_boost(user_id, "lucky_charm"):
+            if has_active_boost(user_id, "lucky_charm", db=db):
                 lucky_bonus = int(winnings * 0.15)
                 winnings += lucky_bonus
 

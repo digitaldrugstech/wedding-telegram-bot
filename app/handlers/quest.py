@@ -134,7 +134,7 @@ def update_quest_progress(user_id: int, quest_type: str, increment: int = 1):
                     reward_amount = quest.reward
                     from app.handlers.premium import has_active_boost
 
-                    if has_active_boost(user_id, "double_income"):
+                    if has_active_boost(user_id, "double_income", db=db):
                         reward_amount *= 2
                     user.balance += reward_amount
                     logger.info(

@@ -759,7 +759,7 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Apply double income boost
         from app.handlers.premium import has_active_boost
 
-        double_income = has_active_boost(user_id, "double_income")
+        double_income = has_active_boost(user_id, "double_income", db=db)
         if double_income:
             earned *= 2
 
@@ -783,7 +783,7 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Check premium promotion boost (50% chance, consumed on use)
         from app.handlers.premium import consume_boost
 
-        if consume_boost(user_id, "promotion_chance"):
+        if consume_boost(user_id, "promotion_chance", db=db):
             promotion_chance = 0.50  # 50% instead of normal 2-5%
 
         # Selfmade trap: при попытке апа с максимального уровня (отдельная проверка)
@@ -956,7 +956,7 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Apply double income boost
             from app.handlers.premium import has_active_boost
 
-            if has_active_boost(user_id, "double_income"):
+            if has_active_boost(user_id, "double_income", db=db):
                 earned *= 2
 
             # Update user balance
@@ -977,7 +977,7 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Check premium promotion boost (50% chance, consumed on use)
             from app.handlers.premium import consume_boost
 
-            if consume_boost(user_id, "promotion_chance"):
+            if consume_boost(user_id, "promotion_chance", db=db):
                 promotion_chance = 0.50  # 50% instead of normal 2-5%
 
             # Selfmade trap: при попытке апа с максимального уровня

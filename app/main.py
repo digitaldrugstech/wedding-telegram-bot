@@ -79,17 +79,12 @@ async def main():
 
         # Send startup notification to debug chat
         try:
-            # Also send to debug chat
-            try:
-                await application.bot.send_message(
-                    chat_id=DEBUG_CHAT_ID,
-                    text=f"\U0001f916 Bot started v{__version__}",
-                    parse_mode="HTML",
-                )
-            except Exception:
-                pass
+            await application.bot.send_message(
+                chat_id=DEBUG_CHAT_ID,
+                text=f"Bot started v{__version__}",
+            )
         except Exception as e:
-            logger.debug("Announcement routine failed", error=str(e))
+            logger.debug("Debug notification failed", error=str(e))
 
         # Keep running
         while True:

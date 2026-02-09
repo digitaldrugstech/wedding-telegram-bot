@@ -216,15 +216,15 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Active boosts display
         from app.handlers.premium import _format_active_boosts, get_vip_badge, has_ever_purchased
 
-        boosts_text = _format_active_boosts(user_id)
+        boosts_text = _format_active_boosts(user_id, db=db)
         boosts_display = f"\n\n<b>Бусты:</b>\n{boosts_text}" if boosts_text else ""
 
         # VIP badge (shows crown next to name if any boost is active)
-        vip_badge = get_vip_badge(user_id)
+        vip_badge = get_vip_badge(user_id, db=db)
 
         # Starter pack nudge for non-payers (profile is always shown so not throttled — it's opt-in)
         starter_nudge = ""
-        if not has_ever_purchased(user_id) and not boosts_text:
+        if not has_ever_purchased(user_id, db=db) and not boosts_text:
             starter_nudge = "\n\n🎁 <i>Стартовый набор: 5000 алмазов + бусты за 50 ⭐ — /premium</i>"
 
         profile_text = (
@@ -277,7 +277,7 @@ def build_top_message(category: str, user_id: int):
             for i, u in enumerate(users, 1):
                 medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
                 name = html.escape(u.username or f"User{u.telegram_id}")
-                badge = get_vip_badge(u.telegram_id)
+                badge = get_vip_badge(u.telegram_id, db=db)
                 rows.append(f"{medal} @{name}{badge} — {format_diamonds(u.balance)}")
 
         elif category == "rep":
@@ -293,7 +293,7 @@ def build_top_message(category: str, user_id: int):
             for i, u in enumerate(users, 1):
                 medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
                 name = html.escape(u.username or f"User{u.telegram_id}")
-                badge = get_vip_badge(u.telegram_id)
+                badge = get_vip_badge(u.telegram_id, db=db)
                 rows.append(f"{medal} @{name}{badge} — {u.reputation:+d}")
 
         elif category == "prestige":
@@ -309,7 +309,7 @@ def build_top_message(category: str, user_id: int):
             for i, u in enumerate(users, 1):
                 medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
                 name = html.escape(u.username or f"User{u.telegram_id}")
-                badge = get_vip_badge(u.telegram_id)
+                badge = get_vip_badge(u.telegram_id, db=db)
                 rows.append(f"{medal} @{name}{badge} — уровень {u.prestige_level} (+{u.prestige_level * 5}%)")
 
         elif category == "achievements":
@@ -329,7 +329,7 @@ def build_top_message(category: str, user_id: int):
             for i, (username, tid, cnt) in enumerate(results, 1):
                 medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
                 name = html.escape(username or f"User{tid}")
-                badge = get_vip_badge(tid)
+                badge = get_vip_badge(tid, db=db)
                 rows.append(f"{medal} @{name}{badge} — {cnt} достижений")
 
         else:

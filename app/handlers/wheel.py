@@ -115,7 +115,7 @@ async def wheel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if prize > 0:
             from app.handlers.premium import has_active_boost
 
-            if has_active_boost(user_id, "lucky_charm"):
+            if has_active_boost(user_id, "lucky_charm", db=db):
                 lucky_bonus = int(prize * 0.15)
                 prize += lucky_bonus
 

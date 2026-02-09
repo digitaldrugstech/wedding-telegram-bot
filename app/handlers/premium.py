@@ -199,18 +199,22 @@ def _build_shop_main(user_id: int):
     return text, InlineKeyboardMarkup(keyboard)
 
 
-def _format_active_boosts(user_id: int) -> str:
-    """Format active boosts for display. Returns empty string if no boosts."""
+def _format_active_boosts(user_id: int, db=None) -> str:
+    """Format active boosts for display. Returns empty string if no boosts.
+
+    Pass an existing db session to avoid opening a nested one.
+    """
     boost_names = {
         "double_income": ("💰", "Двойной доход"),
         "lucky_charm": ("🍀", "Талисман удачи"),
         "shield": ("🛡", "Щит"),
         "promotion_chance": ("📈", "Шанс повышения"),
     }
-    lines = []
-    with get_db() as db:
+
+    def _query(session):
+        lines = []
         boosts = (
-            db.query(ActiveBoost)
+            session.query(ActiveBoost)
             .filter(ActiveBoost.user_id == user_id, ActiveBoost.expires_at > datetime.utcnow())
             .all()
         )
@@ -224,7 +228,12 @@ def _format_active_boosts(user_id: int) -> str:
                 time_str = f"{minutes}м"
             emoji, name = boost_names.get(boost.boost_type, ("🚀", boost.boost_type))
             lines.append(f"{emoji} {name} — {time_str}")
-    return "\n".join(lines)
+        return "\n".join(lines)
+
+    if db is not None:
+        return _query(db)
+    with get_db() as session:
+        return _query(session)
 
 
 async def premium_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -282,10 +291,11 @@ async def premium_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     await query.answer("У тебя нет умершего питомца", show_alert=True)
                     return
 
-        # Send invoice via new message (invoices can't be edited into existing messages)
+        # Send invoice to the chat where the button was pressed (not DM — user may not have started DM)
+        chat_id = query.message.chat_id if query.message else user_id
         try:
             await context.bot.send_invoice(
-                chat_id=user_id,
+                chat_id=chat_id,
                 title=product["name"],
                 description=product["description"],
                 payload=product_id,
@@ -295,7 +305,7 @@ async def premium_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         except Exception as e:
             logger.error("Failed to send invoice", user_id=user_id, product=product_id, error=str(e))
-            await query.answer("Не удалось создать платёж", show_alert=True)
+            await query.answer("Не удалось создать платёж. Попробуй написать боту в ЛС: /premium", show_alert=True)
 
     elif action == "main":
         text, keyboard = _build_shop_main(user_id)
@@ -575,11 +585,15 @@ def _apply_boost(db, user_id: int, boost_type: str, hours: int):
 # ==================== BOOST CHECK HELPERS ====================
 
 
-def has_active_boost(user_id: int, boost_type: str) -> bool:
-    """Check if user has an active boost of given type."""
-    with get_db() as db:
+def has_active_boost(user_id: int, boost_type: str, db=None) -> bool:
+    """Check if user has an active boost of given type.
+
+    Pass an existing db session to avoid opening a nested one.
+    """
+
+    def _check(session):
         boost = (
-            db.query(ActiveBoost)
+            session.query(ActiveBoost)
             .filter(
                 ActiveBoost.user_id == user_id,
                 ActiveBoost.boost_type == boost_type,
@@ -589,12 +603,21 @@ def has_active_boost(user_id: int, boost_type: str) -> bool:
         )
         return boost is not None
 
+    if db is not None:
+        return _check(db)
+    with get_db() as session:
+        return _check(session)
 
-def consume_boost(user_id: int, boost_type: str) -> bool:
-    """Consume a one-time boost (e.g. promotion_chance). Returns True if consumed."""
-    with get_db() as db:
+
+def consume_boost(user_id: int, boost_type: str, db=None) -> bool:
+    """Consume a one-time boost (e.g. promotion_chance). Returns True if consumed.
+
+    Pass an existing db session to avoid opening a nested one.
+    """
+
+    def _consume(session):
         boost = (
-            db.query(ActiveBoost)
+            session.query(ActiveBoost)
             .filter(
                 ActiveBoost.user_id == user_id,
                 ActiveBoost.boost_type == boost_type,
@@ -603,19 +626,34 @@ def consume_boost(user_id: int, boost_type: str) -> bool:
             .first()
         )
         if boost:
-            db.delete(boost)
+            session.delete(boost)
             return True
         return False
 
+    if db is not None:
+        return _consume(db)
+    with get_db() as session:
+        return _consume(session)
+        return False
 
-def has_ever_purchased(user_id: int) -> bool:
-    """Check if user has ever made a real premium purchase (excluding loyalty points)."""
-    with get_db() as db:
+
+def has_ever_purchased(user_id: int, db=None) -> bool:
+    """Check if user has ever made a real premium purchase (excluding loyalty points).
+
+    Pass an existing db session to avoid opening a nested one.
+    """
+
+    def _check(session):
         return (
-            db.query(StarPurchase)
+            session.query(StarPurchase)
             .filter(StarPurchase.user_id == user_id, StarPurchase.product != "loyalty_point")
             .first()
         ) is not None
+
+    if db is not None:
+        return _check(db)
+    with get_db() as session:
+        return _check(session)
 
 
 # ==================== PREMIUM NUDGE HELPERS ====================
@@ -673,30 +711,44 @@ def build_premium_nudge(nudge_type: str, user_id: int) -> str:
 # ==================== VIP BADGE ====================
 
 
-def get_vip_badge(user_id: int) -> str:
+def get_vip_badge(user_id: int, db=None) -> str:
     """Return a VIP badge string if user has any active premium boost, empty string otherwise.
 
     Used in profile, /top, /job responses so VIP players feel recognised.
+    Pass an existing db session to avoid opening a nested one.
     """
-    with get_db() as db:
+
+    def _check(session):
         has_any = (
-            db.query(ActiveBoost)
+            session.query(ActiveBoost)
             .filter(ActiveBoost.user_id == user_id, ActiveBoost.expires_at > datetime.utcnow())
             .first()
         )
-    if has_any:
-        return " 👑"
-    return ""
+        return " 👑" if has_any else ""
+
+    if db is not None:
+        return _check(db)
+    with get_db() as session:
+        return _check(session)
 
 
-def is_vip(user_id: int) -> bool:
-    """Quick check: does user have any active boost (i.e. they're a premium user right now)?"""
-    with get_db() as db:
+def is_vip(user_id: int, db=None) -> bool:
+    """Quick check: does user have any active boost (i.e. they're a premium user right now)?
+
+    Pass an existing db session to avoid opening a nested one.
+    """
+
+    def _check(session):
         return (
-            db.query(ActiveBoost)
+            session.query(ActiveBoost)
             .filter(ActiveBoost.user_id == user_id, ActiveBoost.expires_at > datetime.utcnow())
             .first()
         ) is not None
+
+    if db is not None:
+        return _check(db)
+    with get_db() as session:
+        return _check(session)
 
 
 # ==================== LOYALTY POINTS SYSTEM ====================

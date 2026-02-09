@@ -64,7 +64,7 @@ async def mine_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if reward > 0:
             from app.handlers.premium import has_active_boost
 
-            if has_active_boost(user_id, "double_income"):
+            if has_active_boost(user_id, "double_income", db=db):
                 reward *= 2
                 boosted = True
 
