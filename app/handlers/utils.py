@@ -296,7 +296,12 @@ async def help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/pet shop — аксессуары для питомца\n"
             "/pet rename — переименовать питомца\n"
             "/fish — рыбалка\n"
-            "/fishlist — виды рыб"
+            "/fishlist — виды рыб\n\n"
+            "<b>Похищения:</b>\n"
+            "/kidnap (реплай) — похитить ребёнка\n"
+            "/ransom — заплатить выкуп\n"
+            "/release — отпустить\n"
+            "/kidnaps — статус похищений"
         )
 
     elif category == "social":

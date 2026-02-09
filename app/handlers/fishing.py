@@ -1,10 +1,12 @@
 """Fishing minigame handler — catch fish, sell or collect."""
 
+import asyncio
 import random
 from datetime import datetime, timedelta
 
 import structlog
 from telegram import Update
+from telegram.error import BadRequest
 from telegram.ext import CommandHandler, ContextTypes
 
 from app.database.connection import get_db
@@ -36,6 +38,15 @@ FISH = [
 ]
 # Total: 25+20+15+10+8+7+5+4+3+2+1 = 100%
 
+# Animation frames
+CAST_ANIMATIONS = [
+    "🎣 Забрасываешь удочку...",
+    "🎣 Удочка в воде...\n🌊 ~~ ~~ ~~",
+    "🎣 Ждёшь...\n🌊 ~~ 🐟? ~~ ~~",
+    "🎣 Что-то клюёт!\n🌊 ~~ ‼️ ~~ ~~",
+    "🎣 Тянешь!\n💪 ~~ ~~ ~~",
+]
+
 
 def catch_fish():
     """Roll for a fish catch based on probability weights."""
@@ -47,6 +58,16 @@ def catch_fish():
             return name, emoji, price
     # Fallback (shouldn't reach)
     return FISH[0][0], FISH[0][1], FISH[0][2]
+
+
+async def animate_fishing(msg):
+    """Play fishing animation by editing message."""
+    for frame in CAST_ANIMATIONS:
+        await asyncio.sleep(0.8)
+        try:
+            await msg.edit_text(frame)
+        except BadRequest:
+            pass
 
 
 @require_registered
@@ -101,13 +122,15 @@ async def fishing_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         balance = user.balance
 
-    # Build message
+    # Send initial message and animate
+    msg = await update.message.reply_text("🎣 Готовишь наживку...")
+    await animate_fishing(msg)
+
+    # Build result message
     if sell_price == 0:
-        # Caught junk
         text = (
             f"🎣 <b>Рыбалка</b>\n\n"
-            f"Ты закинул удочку...\n\n"
-            f"{fish_emoji} Поймал: {fish_name}\n\n"
+            f"{fish_emoji} Поймал: <b>{fish_name}</b>\n\n"
             f"Наживка потрачена зря!\n"
             f"💸 -{format_diamonds(BAIT_COST)}\n"
             f"💰 Баланс: {format_diamonds(balance)}"
@@ -116,7 +139,6 @@ async def fishing_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         profit = sell_price - BAIT_COST
         text = (
             f"🎣 <b>Рыбалка</b>\n\n"
-            f"Ты закинул удочку...\n\n"
             f"{fish_emoji} Поймал: <b>{fish_name}</b>\n"
             f"💰 Продано за {format_diamonds(sell_price)}\n\n"
             f"📉 Итого: {profit} (наживка {format_diamonds(BAIT_COST)})\n"
@@ -124,16 +146,23 @@ async def fishing_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     else:
         profit = sell_price - BAIT_COST
+        rarity = ""
+        if sell_price >= 100:
+            rarity = " 🌟 ЛЕГЕНДА!"
+        elif sell_price >= 50:
+            rarity = " ✨ Редкий улов!"
         text = (
             f"🎣 <b>Рыбалка</b>\n\n"
-            f"Ты закинул удочку...\n\n"
-            f"{fish_emoji} Поймал: <b>{fish_name}</b>!\n"
+            f"{fish_emoji} Поймал: <b>{fish_name}</b>!{rarity}\n"
             f"💰 Продано за {format_diamonds(sell_price)}\n\n"
             f"📈 Профит: +{format_diamonds(profit)} (наживка {format_diamonds(BAIT_COST)})\n"
             f"💰 Баланс: {format_diamonds(balance)}"
         )
 
-    await update.message.reply_text(text, parse_mode="HTML")
+    try:
+        await msg.edit_text(text, parse_mode="HTML")
+    except BadRequest:
+        await update.message.reply_text(text, parse_mode="HTML")
 
     try:
         update_quest_progress(user_id, "casino")
