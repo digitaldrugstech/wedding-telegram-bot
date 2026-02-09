@@ -176,7 +176,7 @@ async def user_info_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         message = (
             f"👤 <b>Пользователь {user.telegram_id}</b>\n\n"
-            f"Username: @{user.username or 'нет'}\n"
+            f"Username: @{html.escape(user.username or 'нет')}\n"
             f"Пол: {user.gender or 'не выбран'}\n"
             f"💰 Баланс: {format_diamonds(user.balance)}\n"
             f"🚫 Забанен: {'Да' if user.is_banned else 'Нет'}\n"

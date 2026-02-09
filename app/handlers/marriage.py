@@ -659,7 +659,7 @@ async def cheat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"💔 Брак расторгнут автоматически\n\n"
                 f"💸 Штраф: {format_diamonds(fine)} (50% баланса)\n"
                 f"💰 Супруг получил компенсацию: {format_diamonds(fine)}\n\n"
-                f"📝 Развод подал: @{partner.username or 'Partner'}",
+                f"📝 Развод подал: @{html.escape(partner.username or 'Partner')}",
                 parse_mode="HTML",
             )
 

@@ -105,7 +105,7 @@ async def friends_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 friend_id = friendship.user2_id if friendship.user1_id == user_id else friendship.user1_id
                 friend = db.query(User).filter(User.telegram_id == friend_id).first()
                 if friend:
-                    username = f"@{friend.username}" if friend.username else f"ID {friend.telegram_id}"
+                    username = f"@{html.escape(friend.username)}" if friend.username else f"ID {friend.telegram_id}"
                     text += f"• {username}\n"
             text += "\n"
 
@@ -114,7 +114,7 @@ async def friends_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             for friendship in pending_received:
                 sender = db.query(User).filter(User.telegram_id == friendship.user1_id).first()
                 if sender:
-                    username = f"@{sender.username}" if sender.username else f"ID {sender.telegram_id}"
+                    username = f"@{html.escape(sender.username)}" if sender.username else f"ID {sender.telegram_id}"
                     text += f"• {username}\n"
             text += "\n"
 
@@ -123,7 +123,7 @@ async def friends_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             for friendship in pending_sent:
                 receiver = db.query(User).filter(User.telegram_id == friendship.user2_id).first()
                 if receiver:
-                    username = f"@{receiver.username}" if receiver.username else f"ID {receiver.telegram_id}"
+                    username = f"@{html.escape(receiver.username)}" if receiver.username else f"ID {receiver.telegram_id}"
                     text += f"• {username}\n"
             text += "\n"
 
@@ -140,7 +140,7 @@ async def friends_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             for friendship in pending_received:
                 sender = db.query(User).filter(User.telegram_id == friendship.user1_id).first()
                 if sender:
-                    username = f"@{sender.username}" if sender.username else f"ID {sender.telegram_id}"
+                    username = f"@{html.escape(sender.username)}" if sender.username else f"ID {sender.telegram_id}"
                     keyboard.append(
                         [
                             InlineKeyboardButton(
@@ -209,7 +209,7 @@ async def addfriend_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db.add(friendship)
 
         await update.message.reply_text(
-            f"✅ <b>Заявка в друзья отправлена</b>\n\n" f"👤 @{username}", parse_mode="HTML"
+            f"✅ <b>Заявка в друзья отправлена</b>\n\n" f"👤 @{html.escape(username)}", parse_mode="HTML"
         )
 
 
