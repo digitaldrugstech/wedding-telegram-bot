@@ -677,3 +677,42 @@ class Bounty(Base):
 
     def __repr__(self):
         return f"<Bounty(id={self.id}, target={self.target_id}, amount={self.amount}, active={self.is_active})>"
+
+
+class Gang(Base):
+    """Gang/clan model."""
+
+    __tablename__ = "gangs"
+
+    id = Column(Integer, primary_key=True)
+    name = Column(String(30), unique=True, nullable=False)
+    leader_id = Column(BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=False)
+    bank = Column(BigInteger, default=0, nullable=False)
+    level = Column(Integer, default=1, nullable=False)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+
+    # Relationships
+    leader = relationship("User", foreign_keys=[leader_id])
+    members = relationship("GangMember", back_populates="gang", cascade="all, delete-orphan")
+
+    def __repr__(self):
+        return f"<Gang(id={self.id}, name={self.name}, leader={self.leader_id}, level={self.level})>"
+
+
+class GangMember(Base):
+    """Gang member model."""
+
+    __tablename__ = "gang_members"
+
+    id = Column(Integer, primary_key=True)
+    gang_id = Column(Integer, ForeignKey("gangs.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=False, unique=True)
+    role = Column(String(20), default="member", nullable=False)
+    joined_at = Column(DateTime, default=func.now(), nullable=False)
+
+    # Relationships
+    gang = relationship("Gang", back_populates="members")
+    user = relationship("User")
+
+    def __repr__(self):
+        return f"<GangMember(gang_id={self.gang_id}, user_id={self.user_id}, role={self.role})>"
