@@ -321,10 +321,10 @@ async def gift_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             "🎁 <b>Подарить алмазы другу</b>\n\n"
             "Использование:\n"
-            "/gift @username [сумма]\n\n"
+            "/friendgift @username [сумма]\n\n"
             "Минимум: 10 алмазов\n"
             "Без комиссии (только друзьям)\n\n"
-            "Пример: /gift @user 100",
+            "Пример: /friendgift @user 100",
             parse_mode="HTML",
         )
         return
@@ -663,7 +663,7 @@ def register_social_handlers(application):
     application.add_handler(CallbackQueryHandler(friend_decline_callback, pattern=r"^friend:decline:"))
 
     # Gift
-    application.add_handler(CommandHandler("gift", gift_command))
+    application.add_handler(CommandHandler("friendgift", gift_command))
 
     # Reputation
     application.add_handler(CommandHandler("reputation", reputation_command))

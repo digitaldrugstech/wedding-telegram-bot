@@ -162,11 +162,16 @@ async def feed_pet(update: Update, user_id: int):
 
         logger.info("Pet fed", user_id=user_id, cost=FEED_COST)
 
-    emoji = PET_EMOJIS[pet.pet_type]
+        # Extract values before session closes
+        pet_type = pet.pet_type
+        hunger_val = pet.hunger
+        happiness_val = pet.happiness
+
+    emoji = PET_EMOJIS[pet_type]
     await update.message.reply_text(
         f"{emoji} <b>Покормил питомца</b>\n\n"
-        f"Голод: {pet.hunger}%\n"
-        f"Счастье: {pet.happiness}%\n\n"
+        f"Голод: {hunger_val}%\n"
+        f"Счастье: {happiness_val}%\n\n"
         f"Потрачено: {format_diamonds(FEED_COST)}",
         parse_mode="HTML",
     )
@@ -223,11 +228,15 @@ async def play_with_pet(update: Update, user_id: int):
 
         logger.info("Played with pet", user_id=user_id, reward=reward)
 
-    emoji = PET_EMOJIS[pet.pet_type]
+        # Extract values before session closes
+        pet_type = pet.pet_type
+        happiness_val = pet.happiness
+
+    emoji = PET_EMOJIS[pet_type]
     await update.message.reply_text(
         f"{emoji} <b>Поиграл с питомцем</b>\n\n"
         f"Питомец нашёл для тебя {format_diamonds(reward)}\n"
-        f"Счастье: {pet.happiness}%",
+        f"Счастье: {happiness_val}%",
         parse_mode="HTML",
     )
 

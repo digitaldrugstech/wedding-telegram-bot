@@ -28,7 +28,7 @@ async def duel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     opponent_id = None
     opponent_username = None
 
-    if update.message.reply_to_message:
+    if update.message.reply_to_message and update.message.reply_to_message.from_user:
         opponent_id = update.message.reply_to_message.from_user.id
         opponent_username = (
             update.message.reply_to_message.from_user.username or update.message.reply_to_message.from_user.first_name

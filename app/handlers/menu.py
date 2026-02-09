@@ -35,7 +35,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if menu_type == "work":
         from app.database.connection import get_db
         from app.database.models import Job
-        from app.handlers.work import JOB_TITLES
+        from app.handlers.work import JOB_TITLES, PROFESSION_EMOJI, PROFESSION_NAMES
         from app.utils.keyboards import work_menu_keyboard
 
         user_id = update.effective_user.id
@@ -45,26 +45,8 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             if job:
                 job_name = JOB_TITLES[job.job_type][job.job_level - 1]
-                profession_emoji = {
-                    "interpol": "🚔",
-                    "banker": "💳",
-                    "infrastructure": "🏗️",
-                    "court": "⚖️",
-                    "culture": "🎭",
-                    "selfmade": "🐦",
-                }
-                emoji = profession_emoji.get(job.job_type, "💼")
-
-                # Название трека
-                profession_names = {
-                    "interpol": "Интерпол",
-                    "banker": "Банкир",
-                    "infrastructure": "Инфраструктура",
-                    "court": "Суд",
-                    "culture": "Культура",
-                    "selfmade": "Селфмейд",
-                }
-                track_name = profession_names.get(job.job_type, "")
+                emoji = PROFESSION_EMOJI.get(job.job_type, "💼")
+                track_name = PROFESSION_NAMES.get(job.job_type, "")
 
                 # Следующая должность
                 max_level = 6 if job.job_type == "selfmade" else 10
@@ -228,12 +210,14 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "<b>🎰 Казино</b>\n\n"
             f"Ставка: {format_diamonds(MIN_BET)} - {format_diamonds(MAX_BET)}\n\n"
             "<b>Игры:</b>\n"
-            "🎰 /slots [ставка] — Слот-машина (до x50)\n"
-            "🎲 /dice [ставка] — Кости (до x5)\n"
-            "🎯 /darts [ставка] — Дартс (до x10)\n"
-            "🏀 /basketball [ставка] — Баскетбол (до x4)\n"
-            "🎳 /bowling [ставка] — Боулинг (до x6)\n"
-            "⚽ /football [ставка] — Футбол (до x5)\n\n"
+            "🎰 /slots [ставка] — Слот-машина (до x30)\n"
+            "🎲 /dice [ставка] — Кости (до x3)\n"
+            "🎯 /darts [ставка] — Дартс (до x5)\n"
+            "🏀 /basketball [ставка] — Баскетбол (до x3)\n"
+            "🎳 /bowling [ставка] — Боулинг (до x4)\n"
+            "⚽ /football [ставка] — Футбол (до x3)\n"
+            "🃏 /blackjack [ставка] — Блэкджек (до x2.5)\n"
+            "🎫 /scratch [ставка] — Скретч-карта (до x5)\n\n"
             "💡 Выигрыш зависит от результата"
         )
 
