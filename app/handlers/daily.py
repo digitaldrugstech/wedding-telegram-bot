@@ -122,7 +122,7 @@ async def daily_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Apply double income boost
         from app.handlers.premium import has_active_boost as _daily_has_boost
 
-        daily_boosted = _daily_has_boost(user_id, "double_income")
+        daily_boosted = _daily_has_boost(user_id, "double_income", db=db)
         if daily_boosted:
             reward = base_reward * 2
 

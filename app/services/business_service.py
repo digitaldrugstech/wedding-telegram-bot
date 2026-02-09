@@ -182,7 +182,7 @@ class BusinessService:
                 payout_count += 1
                 total_paid += payout
 
-        db.commit()
+
 
         logger.info("Business payouts completed", businesses=payout_count, total_paid=total_paid)
 

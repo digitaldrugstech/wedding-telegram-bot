@@ -51,6 +51,16 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = update.effective_user.id
 
+    # Ban check
+    from app.database.connection import get_db
+    from app.database.models import User
+
+    with get_db() as db:
+        user = db.query(User).filter(User.telegram_id == user_id).first()
+        if not user or user.is_banned:
+            await query.answer("Доступ запрещён", show_alert=True)
+            return
+
     # Main menu
     if menu_type == "main":
         from app.utils.keyboards import main_menu_keyboard
@@ -397,6 +407,16 @@ async def econ_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     user_id = update.effective_user.id
+
+    # Ban check
+    from app.database.connection import get_db
+    from app.database.models import User
+
+    with get_db() as db:
+        user = db.query(User).filter(User.telegram_id == user_id).first()
+        if not user or user.is_banned:
+            await query.answer("Доступ запрещён", show_alert=True)
+            return
 
     HINTS = {
         "daily": ("🎁 <b>Ежедневный бонус</b>\n\nНапиши /daily чтобы получить", f"menu:economy:{user_id}"),

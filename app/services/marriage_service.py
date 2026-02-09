@@ -120,7 +120,7 @@ class MarriageService:
 
         marriage = Marriage(partner1_id=p1, partner2_id=p2, is_active=True)
         db.add(marriage)
-        db.commit()
+        db.flush()
         db.refresh(marriage)
 
         logger.info("Marriage created", partner1_id=p1, partner2_id=p2, marriage_id=marriage.id)
@@ -208,7 +208,7 @@ class MarriageService:
         marriage.is_active = False
         marriage.ended_at = datetime.utcnow()
 
-        db.commit()
+
 
         logger.info("Divorce processed", user_id=user_id, marriage_id=marriage.id, partner_id=partner_id)
         return True, "Развод оформлен", partner_id
@@ -238,7 +238,7 @@ class MarriageService:
         giver.balance -= amount
         partner.balance += amount
 
-        db.commit()
+
 
         logger.info("Gift sent", giver_id=giver_id, partner_id=partner_id, amount=amount)
         return True, f"Подарил {format_diamonds(amount)} супругу/супруге"
@@ -309,7 +309,7 @@ class MarriageService:
                     conceived = False
                     logger.error("Failed to create child", marriage_id=marriage.id, error=str(e))
 
-        db.commit()
+
 
         logger.info(
             "Make love",
@@ -375,7 +375,7 @@ class MarriageService:
         ]
         location = random.choice(locations)
 
-        db.commit()
+
 
         logger.info("Date completed", user_id=user_id, earned=earned, location=location)
         return earned, location
@@ -407,7 +407,7 @@ class MarriageService:
             marriage.is_active = False
             marriage.ended_at = datetime.utcnow()
 
-            db.commit()
+    
 
             logger.info("Cheat caught", cheater_id=cheater_id, partner_id=partner_id, fine=fine)
             return True, True, fine
@@ -435,7 +435,7 @@ class MarriageService:
 
         member = FamilyMember(marriage_id=marriage_id, user_id=user_id)
         db.add(member)
-        db.commit()
+
 
         logger.info("Family member added", marriage_id=marriage_id, user_id=user_id)
         return True
@@ -495,7 +495,7 @@ class MarriageService:
         partner1.balance += reward_per_partner
         partner2.balance += reward_per_partner
 
-        db.commit()
+
 
         logger.info("Anniversary celebrated", user_id=user_id, weeks=weeks_married, reward=reward_per_partner)
         return reward_per_partner, weeks_married
@@ -522,7 +522,7 @@ class MarriageService:
         user.balance -= amount
         marriage.family_bank_balance += amount
 
-        db.commit()
+
 
         logger.info(
             "Deposited to family bank", user_id=user_id, amount=amount, new_balance=marriage.family_bank_balance
@@ -552,7 +552,7 @@ class MarriageService:
         marriage.family_bank_balance -= amount
         user.balance += amount
 
-        db.commit()
+
 
         logger.info(
             "Withdrawn from family bank", user_id=user_id, amount=amount, new_balance=marriage.family_bank_balance

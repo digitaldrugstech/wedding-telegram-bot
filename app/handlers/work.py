@@ -1,5 +1,6 @@
 """Work and job handlers."""
 
+import html
 import os
 import random
 from datetime import datetime, timedelta
@@ -680,8 +681,6 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         job.times_worked = 0
                         promoted = True
 
-                db.commit()
-
                 # Set cooldown (skip for debug chat)
 
                 cooldown_hours = COOLDOWN_BY_LEVEL.get(job.job_level, 4)
@@ -689,7 +688,7 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 set_cooldown(update, user_id, "job", cooldown_hours)
 
                 # Response
-                response = f"🚔 @{victim_username} оштрафован\n\n"
+                response = f"🚔 @{html.escape(victim_username)} оштрафован\n\n"
                 response += f"💰 {format_diamonds(fine_amount)}\n"
                 if bonus_amount > 0:
                     response += f"💎 <b>За говновызов:</b> +{format_diamonds(bonus_amount)}\n"
@@ -812,8 +811,6 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         set_cooldown(update, user_id, "job", cooldown_hours)
 
-        db.commit()
-
         # Generate work flavor text
         flavor = random.choice(FLAVOR_TEXTS.get(job.job_type, ["Отработал смену"]))
 
@@ -855,7 +852,7 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Track quest progress
         try:
-            update_quest_progress(user_id, "work")
+            update_quest_progress(user_id, "work", db=db)
         except Exception:
             pass  # Quest tracking is non-critical
 
@@ -885,6 +882,13 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         owner_id = int(parts[2])
         if user_id != owner_id:
             await query.answer("Эта кнопка не для тебя", show_alert=True)
+            return
+
+    # Ban check
+    with get_db() as db:
+        user = db.query(User).filter(User.telegram_id == user_id).first()
+        if not user or user.is_banned:
+            await query.answer("Доступ запрещён", show_alert=True)
             return
 
     if action == "choose_profession":
@@ -1006,8 +1010,6 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             set_cooldown(update, user_id, "job", cooldown_hours)
 
-            db.commit()
-
             # Generate work flavor text
             flavor = random.choice(FLAVOR_TEXTS.get(job.job_type, ["Отработал смену"]))
 
@@ -1058,7 +1060,6 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             job = db.query(Job).filter(Job.user_id == user_id).first()
             if job:
                 db.delete(job)
-                db.commit()
                 await safe_edit_message(
                     query, "❌ Уволен", reply_markup=work_menu_keyboard(has_job=False, user_id=user_id)
                 )
@@ -1120,6 +1121,12 @@ async def profession_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
             return
 
     with get_db() as db:
+        # Ban check
+        user = db.query(User).filter(User.telegram_id == user_id).first()
+        if not user or user.is_banned:
+            await query.answer("Доступ запрещён", show_alert=True)
+            return
+
         existing_job = db.query(Job).filter(Job.user_id == user_id).first()
 
         if existing_job:
@@ -1130,7 +1137,6 @@ async def profession_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
             existing_job.job_type = profession
             existing_job.job_level = new_level
             existing_job.times_worked = 0
-            db.commit()
 
             new_title = JOB_TITLES[profession][new_level - 1]
             await safe_edit_message(
@@ -1144,7 +1150,6 @@ async def profession_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
             # First job
             job = Job(user_id=user_id, job_type=profession, job_level=1)
             db.add(job)
-            db.commit()
 
             job_title = JOB_TITLES[profession][0]
 

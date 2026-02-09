@@ -233,12 +233,12 @@ async def marriage_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Build message
         days_married = (datetime.utcnow() - marriage.created_at).days
-        partner_name = partner.username or f"User{partner.telegram_id}"
+        partner_name = html.escape(partner.username or f"User{partner.telegram_id}")
 
         message = (
             f"💍 <b>Брак</b>\n\n"
             f"👫 @{partner_name}\n"
-            f"📅 Дней: {days_married}\n"
+            f"📅 {format_word(days_married, 'день', 'дня', 'дней')}\n"
             f"❤️ Любовь: {marriage.love_count} раз\n\n"
             f"💰 Ты: {format_diamonds(user.balance)}\n"
             f"💰 Супруг: {format_diamonds(partner.balance)}"
@@ -262,6 +262,13 @@ async def marriage_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if clicker_id != owner_id:
         await query.answer("Эта кнопка не для тебя", show_alert=True)
         return
+
+    # Ban check
+    with get_db() as db:
+        user = db.query(User).filter(User.telegram_id == clicker_id).first()
+        if not user or user.is_banned:
+            await query.answer("Доступ запрещён", show_alert=True)
+            return
 
     if action == "marriage_divorce":
         # Show confirmation
@@ -312,7 +319,7 @@ async def marriage_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if marriage:
                 partner_id = MarriageService.get_partner_id(marriage, owner_id)
                 partner = db.query(User).filter(User.telegram_id == partner_id).first()
-                partner_name = partner.username if partner else f"User{partner_id}"
+                partner_name = html.escape(partner.username if partner else f"User{partner_id}")
                 days_married = (datetime.utcnow() - marriage.created_at).days
 
                 keyboard = [
@@ -576,7 +583,7 @@ async def date_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Track quest progress
         try:
-            update_quest_progress(user_id, "marriage")
+            update_quest_progress(user_id, "marriage", db=db)
         except Exception:
             pass
 

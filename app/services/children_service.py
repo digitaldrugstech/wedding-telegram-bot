@@ -121,7 +121,7 @@ class ChildrenService:
                 return False, None
 
             child = ChildrenService.create_child(db, marriage_id)
-            db.commit()
+    
 
             logger.info("Natural birth successful", child_id=child.id, marriage_id=marriage_id)
             return True, child
@@ -147,7 +147,7 @@ class ChildrenService:
 
         # Create child
         child = ChildrenService.create_child(db, marriage_id)
-        db.commit()
+
 
         logger.info("IVF birth successful", child_id=child.id, marriage_id=marriage_id, user_id=user_id)
 
@@ -205,7 +205,7 @@ class ChildrenService:
         )
 
         db.add(child)
-        db.commit()
+        db.flush()
         db.refresh(child)
 
         logger.info("Adoption successful", child_id=child.id, marriage_id=marriage_id, user_id=user_id, name=child_name)
@@ -237,7 +237,7 @@ class ChildrenService:
 
         # Feed
         child.last_fed_at = datetime.utcnow()
-        db.commit()
+
 
         logger.info("Child fed", child_id=child_id, user_id=user_id)
 
@@ -271,7 +271,7 @@ class ChildrenService:
             child.last_fed_at = datetime.utcnow()
             fed_count += 1
 
-        db.commit()
+
 
         logger.info(
             "Fed all children",
@@ -301,7 +301,7 @@ class ChildrenService:
             dead_children_info.append((child, child.parent1_id, child.parent2_id))
             logger.warning("Child died from starvation", child_id=child.id, last_fed_at=child.last_fed_at)
 
-        db.commit()
+
 
         return dead_children_info
 
@@ -334,7 +334,7 @@ class ChildrenService:
 
         # Age up
         child.age_stage = next_stage
-        db.commit()
+
 
         logger.info("Child aged up", child_id=child_id, new_stage=next_stage, user_id=user_id)
 
@@ -368,7 +368,7 @@ class ChildrenService:
         # Enroll
         child.is_in_school = True
         child.school_expires_at = datetime.utcnow() + timedelta(days=SCHOOL_DURATION_DAYS)
-        db.commit()
+
 
         logger.info("Child enrolled in school", child_id=child_id, user_id=user_id)
 
@@ -402,7 +402,7 @@ class ChildrenService:
         # Feed all children who need it
         fed, already_fed, insufficient = ChildrenService.feed_all_children(db, marriage_id, user_id)
 
-        db.commit()
+
 
         logger.info("Babysitter hired", marriage_id=marriage_id, user_id=user_id, children_fed=fed)
 
@@ -440,7 +440,7 @@ class ChildrenService:
 
         # Update child
         child.last_work_time = datetime.utcnow()
-        db.commit()
+
 
         logger.info("Teen worked", child_id=child_id, earnings=earnings, school_bonus=child.is_in_school)
 
@@ -473,7 +473,7 @@ class ChildrenService:
         if child.is_working and not child.last_work_time:
             child.last_work_time = datetime.utcnow() - timedelta(seconds=TEEN_AUTO_WORK_INTERVAL)
 
-        db.commit()
+
 
         logger.info("Child work toggled", child_id=child_id, is_working=child.is_working)
 
@@ -513,7 +513,7 @@ class ChildrenService:
 
         # Update child work time
         child.last_work_time = datetime.utcnow()
-        db.commit()
+
 
         logger.info("Child auto work processed", child_id=child_id, earnings=earnings, parent_id=child.parent1_id)
 
@@ -556,7 +556,7 @@ class ChildrenService:
 
             logger.info("Child auto work processed", child_id=child.id, earnings=earnings, parent_id=child.parent1_id)
 
-        db.commit()
+
 
         return results
 

@@ -89,7 +89,7 @@ class HouseService:
         house = House(marriage_id=marriage.id, house_type=house_type, purchase_price=house_price)
 
         db.add(house)
-        db.commit()
+        db.flush()
         db.refresh(house)
 
         logger.info(
@@ -162,7 +162,7 @@ class HouseService:
 
         # Delete house
         db.delete(house)
-        db.commit()
+
 
         logger.info("House sold", user_id=user_id, marriage_id=marriage.id, refund=refund_amount)
 

@@ -113,7 +113,7 @@ async def _process_casino_result(context: ContextTypes.DEFAULT_TYPE):
                 )
                 # Track quest progress
                 try:
-                    update_quest_progress(user_id, "casino")
+                    update_quest_progress(user_id, "casino", db=db)
                 except Exception:
                     pass
     except Exception as e:

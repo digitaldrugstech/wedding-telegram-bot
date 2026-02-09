@@ -92,7 +92,7 @@ async def transfer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         sender.balance -= amount
         recipient.balance += received
 
-        db.commit()
+
 
         fee_text = f"\n💸 Комиссия: {format_diamonds(fee)} ({TRANSFER_FEE_RATE}%)" if fee > 0 else ""
 
@@ -105,7 +105,7 @@ async def transfer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Track quest progress
         try:
-            update_quest_progress(sender_id, "transfer", increment=amount)
+            update_quest_progress(sender_id, "transfer", increment=amount, db=db)
         except Exception:
             pass
 

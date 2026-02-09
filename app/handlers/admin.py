@@ -39,7 +39,7 @@ async def reset_cooldown_command(update: Update, context: ContextTypes.DEFAULT_T
     with get_db() as db:
         # Delete all cooldowns for the user
         deleted_count = db.query(Cooldown).filter(Cooldown.user_id == target_user_id).delete()
-        db.commit()
+
 
         if deleted_count > 0:
             await update.message.reply_text(
@@ -238,7 +238,7 @@ async def give_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         user.balance += amount
-        db.commit()
+
 
         await update.message.reply_text(
             f"✅ Выдано {format_diamonds(amount)}\n"
@@ -289,7 +289,7 @@ async def take_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         user.balance = max(0, user.balance - amount)
-        db.commit()
+
 
         await update.message.reply_text(
             f"✅ Забрано {format_diamonds(amount)}\n"
@@ -342,7 +342,7 @@ async def ban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         user.is_banned = True
-        db.commit()
+
 
         await update.message.reply_text(
             f"✅ Пользователь @{user.username or user.telegram_id} забанен\n\n" f"Причина: {reason}"
@@ -396,7 +396,7 @@ async def unban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         user.is_banned = False
-        db.commit()
+
 
         await update.message.reply_text(f"✅ Пользователь @{user.username or user.telegram_id} разбанен")
 

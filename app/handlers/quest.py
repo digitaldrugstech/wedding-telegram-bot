@@ -106,11 +106,15 @@ def assign_daily_quests(user_id: int):
         logger.info("Assigned daily quests", user_id=user_id, count=3)
 
 
-def update_quest_progress(user_id: int, quest_type: str, increment: int = 1):
-    """Update progress for user's active quests of given type."""
-    with get_db() as db:
+def update_quest_progress(user_id: int, quest_type: str, increment: int = 1, db=None):
+    """Update progress for user's active quests of given type.
+
+    Pass an existing db session to avoid opening a nested one.
+    """
+
+    def _update(session):
         user_quests = (
-            db.query(UserQuest, Quest)
+            session.query(UserQuest, Quest)
             .join(Quest)
             .filter(
                 UserQuest.user_id == user_id,
@@ -129,12 +133,12 @@ def update_quest_progress(user_id: int, quest_type: str, increment: int = 1):
                 user_quest.completed_at = datetime.utcnow()
 
                 # Award reward (with double income boost)
-                user = db.query(User).filter(User.telegram_id == user_id).first()
+                user = session.query(User).filter(User.telegram_id == user_id).first()
                 if user:
                     reward_amount = quest.reward
                     from app.handlers.premium import has_active_boost
 
-                    if has_active_boost(user_id, "double_income", db=db):
+                    if has_active_boost(user_id, "double_income", db=session):
                         reward_amount *= 2
                     user.balance += reward_amount
                     logger.info(
@@ -148,9 +152,15 @@ def update_quest_progress(user_id: int, quest_type: str, increment: int = 1):
                     try:
                         from app.handlers.premium import add_loyalty_points
 
-                        add_loyalty_points(user_id, 2, db=db)
+                        add_loyalty_points(user_id, 2, db=session)
                     except Exception:
                         pass
+
+    if db is not None:
+        _update(db)
+    else:
+        with get_db() as session:
+            _update(session)
 
 
 @require_registered
