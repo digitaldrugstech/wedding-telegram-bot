@@ -96,6 +96,13 @@ async def kidnap_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("❌ У жертвы нет доступных детей для похищения")
             return
 
+        # Check premium shield
+        from app.handlers.premium import has_active_boost
+
+        if has_active_boost(target_id, "shield"):
+            await update.message.reply_text("🛡 У жертвы есть премиум-щит\n\nПохищение невозможно")
+            return
+
         # Check if target has house (affects success chance)
         has_house = db.query(House).filter(House.marriage_id == target_marriage.id).first() is not None
         success_chance = KIDNAP_SUCCESS_CHANCE_WITH_HOUSE if has_house else KIDNAP_SUCCESS_CHANCE_NO_HOUSE
@@ -162,6 +169,21 @@ async def kidnap_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Или ты можешь отпустить: /release",
         parse_mode="HTML",
     )
+
+    # Notify victim with shield nudge
+    try:
+        from app.handlers.premium import build_premium_nudge
+
+        shield_nudge = build_premium_nudge("robbed", target_id)
+        victim_msg = (
+            f"🚨 <b>Твоего ребёнка похитили!</b>\n\n"
+            f"{emoji} {html.escape(child_name)}\n"
+            f"💰 Выкуп: {format_diamonds(ransom)}\n"
+            f"/ransom — заплатить выкуп{shield_nudge}"
+        )
+        await context.bot.send_message(chat_id=target_id, text=victim_msg, parse_mode="HTML")
+    except Exception:
+        pass
 
     logger.info("Kidnap success", user_id=user_id, target_id=target_id, child_id=child_id, ransom=ransom)
 

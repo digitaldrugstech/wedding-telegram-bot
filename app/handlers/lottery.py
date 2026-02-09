@@ -4,8 +4,8 @@ import random
 from datetime import datetime
 
 import structlog
-from telegram import Update
-from telegram.ext import CommandHandler, ContextTypes
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
 from app.database.connection import get_db
 from app.database.models import Lottery, LotteryTicket, User
@@ -51,15 +51,21 @@ async def lottery_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = (
         "🎟 <b>Лотерея</b>\n\n"
         f"💰 Джекпот: {format_diamonds(jackpot)}\n"
-        f"🎫 Билетов куплено: {total_tickets}\n"
-        f"🎫 Твоих билетов: {user_tickets}/{MAX_TICKETS_PER_USER}\n\n"
+        f"🎫 Билетов: {total_tickets} (твоих: {user_tickets}/{MAX_TICKETS_PER_USER})\n\n"
         f"Цена билета: {format_diamonds(TICKET_PRICE)}\n"
-        f"Приз: {int(WINNER_SHARE * 100)}% от джекпота\n\n"
-        f"/buyticket — купить билет\n"
-        f"/buyticket [кол-во] — купить несколько"
+        f"Приз: {int(WINNER_SHARE * 100)}% от джекпота"
     )
 
-    await update.message.reply_text(text, parse_mode="HTML")
+    remaining = MAX_TICKETS_PER_USER - user_tickets
+    keyboard = []
+    if remaining > 0:
+        row = [InlineKeyboardButton("🎫 Купить 1", callback_data=f"lottery:buy:1:{user_id}")]
+        if remaining >= 5:
+            row.append(InlineKeyboardButton("🎫 Купить 5", callback_data=f"lottery:buy:5:{user_id}"))
+        keyboard.append(row)
+    keyboard.append([InlineKeyboardButton("« Меню", callback_data=f"menu:economy:{user_id}")])
+
+    await update.message.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
 
 
 @require_registered
@@ -76,7 +82,7 @@ async def buyticket_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             count = int(context.args[0])
         except ValueError:
-            await update.message.reply_text("❌ Количество должно быть числом")
+            await update.message.reply_text("❌ Укажи число")
             return
 
     if count < 1:
@@ -140,6 +146,84 @@ async def buyticket_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(text, parse_mode="HTML")
     logger.info("Lottery tickets bought", user_id=user_id, count=count, total_cost=total_cost, jackpot=jackpot)
+
+
+async def lottery_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle lottery buy buttons."""
+    query = update.callback_query
+    if not query or not update.effective_user:
+        return
+
+    parts = query.data.split(":")
+    if len(parts) != 4:
+        return
+
+    count = int(parts[2])
+    owner_id = int(parts[3])
+    user_id = update.effective_user.id
+
+    if user_id != owner_id:
+        await query.answer("Эта кнопка не для тебя", show_alert=True)
+        return
+
+    total_cost = TICKET_PRICE * count
+
+    with get_db() as db:
+        user = db.query(User).filter(User.telegram_id == user_id).first()
+
+        if user.balance < total_cost:
+            await query.answer(f"Недостаточно алмазов (нужно {total_cost})", show_alert=True)
+            return
+
+        lottery = get_or_create_active_lottery(db)
+
+        user_tickets = (
+            db.query(LotteryTicket)
+            .filter(LotteryTicket.lottery_id == lottery.id, LotteryTicket.user_id == user_id)
+            .count()
+        )
+
+        if user_tickets + count > MAX_TICKETS_PER_USER:
+            remaining = MAX_TICKETS_PER_USER - user_tickets
+            await query.answer(f"Лимит! Можно купить ещё {remaining}", show_alert=True)
+            return
+
+        user.balance -= total_cost
+        lottery.jackpot += total_cost
+
+        for _ in range(count):
+            db.add(LotteryTicket(lottery_id=lottery.id, user_id=user_id))
+
+        jackpot = lottery.jackpot
+        total_user_tickets = user_tickets + count
+        total_tickets = len(lottery.tickets) + count
+        balance = user.balance
+
+    await query.answer(f"Куплено: {count} шт.")
+
+    text = (
+        "🎟 <b>Лотерея</b>\n\n"
+        f"💰 Джекпот: {format_diamonds(jackpot)}\n"
+        f"🎫 Билетов: {total_tickets} (твоих: {total_user_tickets}/{MAX_TICKETS_PER_USER})\n\n"
+        f"Цена билета: {format_diamonds(TICKET_PRICE)}\n"
+        f"Приз: {int(WINNER_SHARE * 100)}% от джекпота\n\n"
+        f"💰 Баланс: {format_diamonds(balance)}"
+    )
+
+    remaining = MAX_TICKETS_PER_USER - total_user_tickets
+    keyboard = []
+    if remaining > 0:
+        row = [InlineKeyboardButton("🎫 Купить 1", callback_data=f"lottery:buy:1:{user_id}")]
+        if remaining >= 5:
+            row.append(InlineKeyboardButton("🎫 Купить 5", callback_data=f"lottery:buy:5:{user_id}"))
+        keyboard.append(row)
+    keyboard.append([InlineKeyboardButton("« Меню", callback_data=f"menu:economy:{user_id}")])
+
+    from app.utils.telegram_helpers import safe_edit_message
+
+    await safe_edit_message(query, text, reply_markup=InlineKeyboardMarkup(keyboard))
+
+    logger.info("Lottery tickets bought via button", user_id=user_id, count=count, jackpot=jackpot)
 
 
 async def draw_lottery(context: ContextTypes.DEFAULT_TYPE):
@@ -209,4 +293,5 @@ def register_lottery_handlers(application):
     """Register lottery handlers."""
     application.add_handler(CommandHandler("lottery", lottery_command))
     application.add_handler(CommandHandler("buyticket", buyticket_command))
+    application.add_handler(CallbackQueryHandler(lottery_buy_callback, pattern=r"^lottery:buy:"))
     logger.info("Lottery handlers registered")

@@ -124,6 +124,15 @@ class CasinoService:
         multiplier = multipliers.get(dice_value, 0)
         winnings = int(bet_amount * multiplier) if multiplier > 0 else 0
 
+        # Lucky charm bonus (+15%)
+        lucky_bonus = 0
+        if winnings > 0:
+            from app.handlers.premium import has_active_boost
+
+            if has_active_boost(user_id, "lucky_charm"):
+                lucky_bonus = int(winnings * 0.15)
+                winnings += lucky_bonus
+
         # Add winnings (bet already deducted)
         if winnings > 0:
             user.balance += winnings
@@ -162,28 +171,43 @@ class CasinoService:
 
         if winnings > 0:
             profit = winnings - bet_amount
+            lucky_text = f"\n🍀 Талисман удачи: +{format_diamonds(lucky_bonus)}" if lucky_bonus > 0 else ""
             message = (
                 f"🎉 <b>Выигрыш!</b>\n\n"
                 f"🎮 {game_name}\n"
                 f"🎲 Результат: {dice_value}\n"
                 f"💰 Ставка: {format_diamonds(bet_amount)}\n"
                 f"🏆 Выплата: {format_diamonds(winnings)} (x{multiplier})\n"
-                f"💎 Профит: +{format_diamonds(profit)}\n\n"
+                f"💎 Профит: +{format_diamonds(profit)}{lucky_text}\n\n"
                 f"💰 Баланс: {format_diamonds(user.balance)}"
             )
         else:
+            # Add lucky charm nudge on loss (throttled: max once per 30 min)
+            nudge = ""
+            if not has_active_boost(user_id, "lucky_charm"):
+                from app.handlers.premium import build_premium_nudge
+
+                nudge = build_premium_nudge("casino_loss", user_id)
             message = (
                 f"😔 <b>Проигрыш</b>\n\n"
                 f"🎮 {game_name}\n"
                 f"🎲 Результат: {dice_value}\n"
                 f"💰 Ставка: {format_diamonds(bet_amount)}\n"
                 f"💎 Потеря: -{format_diamonds(bet_amount)}\n\n"
-                f"💰 Баланс: {format_diamonds(user.balance)}"
+                f"💰 Баланс: {format_diamonds(user.balance)}{nudge}"
             )
 
         # Add DEBUG mode note
         if IS_DEBUG:
             message += "\n\n🔧 <i>Кулдаун убран (DEV)</i>"
+
+        # Award loyalty point for playing casino
+        try:
+            from app.handlers.premium import add_loyalty_points
+
+            add_loyalty_points(user_id, 1)
+        except Exception:
+            pass
 
         return True, message, winnings, user.balance
 

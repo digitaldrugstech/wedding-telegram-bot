@@ -14,6 +14,7 @@ from app.database.models import CasinoGame, Cooldown, User
 from app.handlers.quest import update_quest_progress
 from app.utils.decorators import require_registered
 from app.utils.formatters import format_diamonds
+from app.utils.keyboards import casino_after_game_keyboard
 
 logger = structlog.get_logger()
 
@@ -166,6 +167,12 @@ async def scratch_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     with get_db() as db:
         if payout > 0:
+            # Lucky charm bonus (+15%)
+            from app.handlers.premium import has_active_boost
+
+            if has_active_boost(user_id, "lucky_charm"):
+                payout += int(payout * 0.15)
+
             user = db.query(User).filter(User.telegram_id == user_id).first()
             user.balance += payout
 
@@ -193,17 +200,24 @@ async def scratch_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Чистая прибыль: {format_diamonds(net)}"
         )
     else:
+        # Lucky charm nudge on loss (throttled)
+        from app.handlers.premium import build_premium_nudge, has_active_boost as _sc_has_boost
+
+        nudge = ""
+        if not _sc_has_boost(user_id, "lucky_charm"):
+            nudge = build_premium_nudge("casino_loss", user_id)
         result_text = (
             f"\U0001f3ab <b>Скретч-карта</b>\n\n"
             f"{full_grid}\n\n"
             f"Нет совпадений...\n"
-            f"Потрачено: {format_diamonds(bet)}"
+            f"Потрачено: {format_diamonds(bet)}{nudge}"
         )
 
+    after_kb = casino_after_game_keyboard("scratch", user_id)
     try:
-        await msg.edit_text(result_text, parse_mode="HTML")
+        await msg.edit_text(result_text, parse_mode="HTML", reply_markup=after_kb)
     except Exception:
-        await update.message.reply_text(result_text, parse_mode="HTML")
+        await update.message.reply_text(result_text, parse_mode="HTML", reply_markup=after_kb)
 
     # Track quest
     try:

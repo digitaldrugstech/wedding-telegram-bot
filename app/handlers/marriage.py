@@ -168,7 +168,7 @@ async def propose_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 query,
                 f"🎉 <b>Поздравляем</b>\n\n"
                 f"💍 {proposer_username} и {target_username} — муж и жена\n\n"
-                f"💰 Потрачено: {PROPOSE_COST} алмазов\n\n"
+                f"💰 Потрачено: {format_diamonds(PROPOSE_COST)}\n\n"
                 f"/marriage — управление браком",
             )
 
@@ -826,7 +826,7 @@ async def adopt_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"👶 <b>Усыновление</b>\n\n"
             f"✅ Ребёнок усыновлён\n"
             f"📝 Имя: {html.escape(child.name)}\n"
-            f"👤 Возраст: Ребёнок (child)\n\n"
+            f"👤 Возраст: Ребёнок\n\n"
             f"💰 Потрачено: {format_diamonds(ADOPTION_COST)}\n\n"
             f"💡 Управление семьёй: /family",
             parse_mode="HTML",

@@ -85,6 +85,13 @@ async def rob_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
 
+        # Check premium shield
+        from app.handlers.premium import has_active_boost
+
+        if has_active_boost(target_id, "shield"):
+            await update.message.reply_text("🛡 У этого игрока есть премиум-щит\n\nОграбление невозможно")
+            return
+
         # Check insurance
         if has_active_insurance(db, target_id):
             await update.message.reply_text("🛡 У этого игрока есть страховка\n\nОграбление невозможно")
@@ -144,6 +151,20 @@ async def rob_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     await update.message.reply_text(text, parse_mode="HTML")
+
+    # Notify victim with shield nudge
+    if success:
+        try:
+            from app.handlers.premium import build_premium_nudge
+
+            shield_nudge = build_premium_nudge("robbed", target_id)
+            victim_text = (
+                f"🚨 <b>Тебя ограбили!</b>\n\n"
+                f"💸 Украдено: {format_diamonds(steal_amount)}{shield_nudge}"
+            )
+            await context.bot.send_message(chat_id=target_id, text=victim_text, parse_mode="HTML")
+        except Exception:
+            pass
 
     if success:
         try:

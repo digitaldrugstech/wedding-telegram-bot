@@ -35,13 +35,13 @@ QUEST_TEMPLATES = {
         ("Порыбачь {count} раз", [3, 5], [80, 120]),
     ],
     "duel": [
-        ("Выиграй {count} дуэль", [1, 2], [150, 250]),
+        ("Выиграй дуэли ({count} шт)", [1, 2], [150, 250]),
     ],
     "rob": [
-        ("Ограбь {count} игрока", [1, 2], [100, 200]),
+        ("Ограбь игроков ({count} раз)", [1, 2], [100, 200]),
     ],
     "bounty": [
-        ("Назначь {count} награду", [1, 2], [100, 150]),
+        ("Назначь награды ({count} шт)", [1, 2], [100, 150]),
     ],
     "daily": [
         ("Получи ежедневный бонус {count} раз", [1, 1], [50, 50]),
@@ -128,16 +128,29 @@ def update_quest_progress(user_id: int, quest_type: str, increment: int = 1):
                 user_quest.is_completed = True
                 user_quest.completed_at = datetime.utcnow()
 
-                # Award reward
+                # Award reward (with double income boost)
                 user = db.query(User).filter(User.telegram_id == user_id).first()
                 if user:
-                    user.balance += quest.reward
+                    reward_amount = quest.reward
+                    from app.handlers.premium import has_active_boost
+
+                    if has_active_boost(user_id, "double_income"):
+                        reward_amount *= 2
+                    user.balance += reward_amount
                     logger.info(
                         "Quest completed",
                         user_id=user_id,
                         quest_id=quest.id,
                         reward=quest.reward,
                     )
+
+                    # Award 2 loyalty points for quest completion
+                    try:
+                        from app.handlers.premium import add_loyalty_points
+
+                        add_loyalty_points(user_id, 2)
+                    except Exception:
+                        pass
 
 
 @require_registered

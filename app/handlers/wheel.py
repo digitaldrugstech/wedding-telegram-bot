@@ -110,43 +110,62 @@ async def wheel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     with get_db() as db:
         user = db.query(User).filter(User.telegram_id == user_id).first()
 
+        # Apply lucky charm bonus to winnings
+        lucky_bonus = 0
+        if prize > 0:
+            from app.handlers.premium import has_active_boost
+
+            if has_active_boost(user_id, "lucky_charm"):
+                lucky_bonus = int(prize * 0.15)
+                prize += lucky_bonus
+
         if is_jackpot:
             actual_prize = WHEEL_COST * 10
+            if lucky_bonus > 0:
+                actual_prize += int(WHEEL_COST * 10 * 0.15)
             user.balance += actual_prize
 
+            lucky_text = f"\n🍀 Талисман удачи: +{format_diamonds(int(WHEEL_COST * 10 * 0.15))}" if lucky_bonus > 0 else ""
             result_text = (
                 f"🎰 <b>ДЖЕКПОТ!</b> 🎉🎉🎉\n\n"
                 f"Невероятная удача!\n"
-                f"Выигрыш: {format_diamonds(actual_prize)}\n\n"
+                f"Выигрыш: {format_diamonds(actual_prize)}{lucky_text}\n\n"
                 f"⭐ Множитель x10"
             )
 
         elif prize == 0:
+            # Lucky charm nudge on loss (throttled)
+            from app.handlers.premium import build_premium_nudge, has_active_boost as _wh_boost
+
+            nudge = ""
+            if not _wh_boost(user_id, "lucky_charm"):
+                nudge = build_premium_nudge("casino_loss", user_id)
             result_text = (
                 f"🎰 <b>Колесо Фортуны</b>\n\n"
                 f"Неудача...\n"
                 f"Ты ничего не выиграл\n\n"
-                f"Потрачено: {format_diamonds(WHEEL_COST)}"
+                f"Потрачено: {format_diamonds(WHEEL_COST)}{nudge}"
             )
 
         else:
             user.balance += prize
             net_win = prize - WHEEL_COST
+            lucky_text = f"\n🍀 Талисман удачи: +{format_diamonds(lucky_bonus)}" if lucky_bonus > 0 else ""
 
             if net_win > 0:
                 result_text = (
                     f"🎰 <b>Победа!</b>\n\n"
-                    f"Выигрыш: {format_diamonds(prize)}\n"
+                    f"Выигрыш: {format_diamonds(prize)}{lucky_text}\n"
                     f"Чистая прибыль: {format_diamonds(net_win)}"
                 )
             elif net_win == 0:
                 result_text = (
-                    f"🎰 <b>Колесо Фортуны</b>\n\n" f"Выигрыш: {format_diamonds(prize)}\n" f"Ты вернул свои алмазы"
+                    f"🎰 <b>Колесо Фортуны</b>\n\n" f"Выигрыш: {format_diamonds(prize)}{lucky_text}\n" f"Ты вернул свои алмазы"
                 )
             else:
                 result_text = (
                     f"🎰 <b>Колесо Фортуны</b>\n\n"
-                    f"Выигрыш: {format_diamonds(prize)}\n"
+                    f"Выигрыш: {format_diamonds(prize)}{lucky_text}\n"
                     f"Потеря: {format_diamonds(abs(net_win))}"
                 )
 

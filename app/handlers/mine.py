@@ -50,27 +50,38 @@ async def mine_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         is_collapse = roll <= COLLAPSE_CHANCE
         is_rare = not is_collapse and roll <= COLLAPSE_CHANCE + RARE_CHANCE
 
+        # Calculate reward first
         if is_collapse:
-            # Cave collapse - no reward
-            text = "💥 <b>Обвал!</b>\n\n" "Шахта обрушилась, ты еле выбрался\n" "Ничего не добыл"
             reward = 0
-
         elif is_rare:
-            # Rare gem found
             base_reward = random.randint(MINE_MIN_REWARD, MINE_MAX_REWARD)
             reward = base_reward * RARE_MULTIPLIER
+        else:
+            reward = random.randint(MINE_MIN_REWARD, MINE_MAX_REWARD)
 
+        # Apply double income boost BEFORE building text
+        boosted = False
+        if reward > 0:
+            from app.handlers.premium import has_active_boost
+
+            if has_active_boost(user_id, "double_income"):
+                reward *= 2
+                boosted = True
+
+        # Build text with correct (possibly boosted) reward
+        if is_collapse:
+            text = "💥 <b>Обвал!</b>\n\n" "Шахта обрушилась, ты еле выбрался\n" "Ничего не добыл"
+        elif is_rare:
+            boost_line = "\n💰 x2 бонус активен!" if boosted else ""
             text = (
                 f"💎 <b>Редкий камень!</b>\n\n"
                 f"Ты нашёл редкий кристалл\n"
                 f"Награда: {format_diamonds(reward)}\n\n"
-                f"⭐ Награда x{RARE_MULTIPLIER}"
+                f"⭐ Награда x{RARE_MULTIPLIER}{boost_line}"
             )
-
         else:
-            # Normal mining
-            reward = random.randint(MINE_MIN_REWARD, MINE_MAX_REWARD)
-            text = f"⛏️ <b>Майнинг</b>\n\nТы добыл {format_diamonds(reward)}"
+            boost_line = " (x2 бонус)" if boosted else ""
+            text = f"⛏️ <b>Майнинг</b>\n\nТы добыл {format_diamonds(reward)}{boost_line}"
 
         # Update balance
         user = db.query(User).filter(User.telegram_id == user_id).first()

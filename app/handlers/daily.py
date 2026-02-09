@@ -91,8 +91,17 @@ async def daily_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             new_streak = 1
 
         # Calculate reward
-        reward = get_daily_reward(new_streak)
+        base_reward = get_daily_reward(new_streak)
         milestone = get_milestone_bonus(new_streak)
+        reward = base_reward
+
+        # Apply double income boost
+        from app.handlers.premium import has_active_boost as _daily_has_boost
+
+        daily_boosted = _daily_has_boost(user_id, "double_income")
+        if daily_boosted:
+            reward = base_reward * 2
+
         total = reward + milestone
 
         # Update user
@@ -124,10 +133,48 @@ async def daily_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         days_left = next_m - new_streak
         text += f"\n\n📌 До бонуса x{MILESTONE_BONUSES[next_m]}: {days_left} дней"
 
+    # Show next crate milestone
+    from app.handlers.crate import CRATE_MILESTONES
+
+    next_crates = [d for d in sorted(CRATE_MILESTONES.keys()) if d > new_streak]
+    if next_crates:
+        next_c = next_crates[0]
+        crate_days = next_c - new_streak
+        text += f"\n🎁 До сундука: {crate_days} дней (/crate)"
+
+    # VIP nudge — show what double income would have given (throttled)
+    from app.handlers.premium import build_premium_nudge
+
+    if daily_boosted:
+        text += f"\n\n👑 <b>VIP бонус:</b> +{format_diamonds(base_reward)} (x2)"
+    else:
+        nudge = build_premium_nudge("daily", user_id)
+        if nudge:
+            text += nudge
+
     await update.message.reply_text(text, parse_mode="HTML")
+
+    # Check for streak crate
+    try:
+        from app.handlers.crate import check_streak_crate, open_crate_and_announce
+
+        if check_streak_crate(new_streak):
+            crate_text = await open_crate_and_announce(update, context, user_id, new_streak)
+            if crate_text:
+                await update.message.reply_text(crate_text, parse_mode="HTML")
+    except Exception as e:
+        logger.warning("Failed to open streak crate", error=str(e))
 
     try:
         update_quest_progress(user_id, "daily")
+    except Exception:
+        pass
+
+    # Award loyalty point
+    try:
+        from app.handlers.premium import add_loyalty_points
+
+        add_loyalty_points(user_id, 1)
     except Exception:
         pass
 

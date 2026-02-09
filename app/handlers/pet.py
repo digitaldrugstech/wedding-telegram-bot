@@ -430,8 +430,11 @@ async def show_pet(update: Update, user_id: int):
             pet.is_alive = False
             logger.info("Pet died from starvation", user_id=user_id, days=days_since_fed)
 
+            from app.handlers.premium import build_premium_nudge
+
+            nudge = build_premium_nudge("pet_dead", user_id)
             await update.message.reply_text(
-                "💀 <b>Твой питомец умер от голода</b>\n\n" "Ты не кормил его больше 3 дней",
+                f"💀 <b>Твой питомец умер от голода</b>\n\nТы не кормил его больше 3 дней{nudge}",
                 parse_mode="HTML",
             )
             return

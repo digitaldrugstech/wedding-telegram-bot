@@ -12,6 +12,7 @@ from app.database.models import CasinoGame, Cooldown, User
 from app.handlers.quest import update_quest_progress
 from app.utils.decorators import require_registered
 from app.utils.formatters import format_diamonds
+from app.utils.keyboards import casino_after_game_keyboard
 
 logger = structlog.get_logger()
 
@@ -76,6 +77,11 @@ async def coinflip_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if win:
             payout = int(bet * WIN_MULTIPLIER)
+            # Lucky charm bonus (+15%)
+            from app.handlers.premium import has_active_boost
+
+            if has_active_boost(user_id, "lucky_charm"):
+                payout += int(payout * 0.15)
             user.balance += payout
             result_type = "win"
         else:
@@ -106,14 +112,20 @@ async def coinflip_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"💰 Баланс: {format_diamonds(balance)}"
         )
     else:
+        # Lucky charm nudge on loss (throttled)
+        from app.handlers.premium import build_premium_nudge, has_active_boost as _cf_has_boost
+
+        nudge = ""
+        if not _cf_has_boost(user_id, "lucky_charm"):
+            nudge = build_premium_nudge("casino_loss", user_id)
         text = (
             f"🪙 <b>Монетка</b>\n\n"
             f"{side}!\n\n"
             f"💸 Проигрыш: {format_diamonds(bet)}\n"
-            f"💰 Баланс: {format_diamonds(balance)}"
+            f"💰 Баланс: {format_diamonds(balance)}{nudge}"
         )
 
-    await update.message.reply_text(text, parse_mode="HTML")
+    await update.message.reply_text(text, parse_mode="HTML", reply_markup=casino_after_game_keyboard("coinflip", user_id))
 
     try:
         update_quest_progress(user_id, "casino")

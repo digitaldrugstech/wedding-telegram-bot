@@ -492,7 +492,7 @@ FLAVOR_TEXTS = {
 @require_registered
 async def work_menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /work command - show work menu."""
-    if not update.effective_user:
+    if not update.effective_user or not update.message:
         return
 
     user_id = update.effective_user.id
@@ -530,7 +530,7 @@ async def work_menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 @require_registered
 async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /job command - quick work."""
-    if not update.effective_user:
+    if not update.effective_user or not update.message:
         return
 
     user_id = update.effective_user.id
@@ -735,7 +735,12 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 if seconds_remaining > 0 and not time_str:
                     time_str.append(f"{int(seconds_remaining)}с")
 
-                await update.message.reply_text(f"Можешь работать через {' '.join(time_str)}")
+                from app.handlers.premium import build_premium_nudge
+
+                nudge = build_premium_nudge("cooldown", user_id)
+                await update.message.reply_text(
+                    f"Можешь работать через {' '.join(time_str)}{nudge}", parse_mode="HTML"
+                )
                 return
 
         # Calculate salary based on profession
@@ -750,6 +755,13 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         prestige = user.prestige_level or 0
         if prestige > 0:
             earned = int(earned * (1 + prestige * 0.05))
+
+        # Apply double income boost
+        from app.handlers.premium import has_active_boost
+
+        double_income = has_active_boost(user_id, "double_income")
+        if double_income:
+            earned *= 2
 
         # Update user balance
         user.balance += earned
@@ -767,6 +779,12 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         promotion_chance = PROMOTION_CHANCES.get(job.job_level, 0.02)
         guaranteed_works = GUARANTEED_PROMOTION_WORKS.get(job.job_level, 999)
+
+        # Check premium promotion boost (50% chance, consumed on use)
+        from app.handlers.premium import consume_boost
+
+        if consume_boost(user_id, "promotion_chance"):
+            promotion_chance = 0.50  # 50% instead of normal 2-5%
 
         # Selfmade trap: при попытке апа с максимального уровня (отдельная проверка)
         if job.job_type == "selfmade" and job.job_level == SELFMADE_TRAP_LEVEL:
@@ -841,6 +859,14 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception:
             pass  # Quest tracking is non-critical
 
+        # Award loyalty point
+        try:
+            from app.handlers.premium import add_loyalty_points
+
+            add_loyalty_points(user_id, 1)
+        except Exception:
+            pass
+
 
 async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle work menu callbacks."""
@@ -908,7 +934,10 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     if seconds_remaining > 0 and not time_str:
                         time_str.append(f"{int(seconds_remaining)}с")
 
-                    await safe_edit_message(query, f"Можешь работать через {' '.join(time_str)}")
+                    from app.handlers.premium import build_premium_nudge
+
+                    nudge = build_premium_nudge("cooldown", user_id)
+                    await safe_edit_message(query, f"Можешь работать через {' '.join(time_str)}{nudge}")
                     return
 
             # Calculate salary
@@ -924,6 +953,12 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if prestige > 0:
                 earned = int(earned * (1 + prestige * 0.05))
 
+            # Apply double income boost
+            from app.handlers.premium import has_active_boost
+
+            if has_active_boost(user_id, "double_income"):
+                earned *= 2
+
             # Update user balance
             user.balance += earned
 
@@ -938,6 +973,12 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             max_level = 6 if job.job_type == "selfmade" else 10
             promotion_chance = PROMOTION_CHANCES.get(job.job_level, 0.02)
             guaranteed_works = GUARANTEED_PROMOTION_WORKS.get(job.job_level, 999)
+
+            # Check premium promotion boost (50% chance, consumed on use)
+            from app.handlers.premium import consume_boost
+
+            if consume_boost(user_id, "promotion_chance"):
+                promotion_chance = 0.50  # 50% instead of normal 2-5%
 
             # Selfmade trap: при попытке апа с максимального уровня
             if job.job_type == "selfmade" and job.job_level == SELFMADE_TRAP_LEVEL:

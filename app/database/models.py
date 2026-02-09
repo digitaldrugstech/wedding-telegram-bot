@@ -720,6 +720,41 @@ class GangMember(Base):
         return f"<GangMember(gang_id={self.gang_id}, user_id={self.user_id}, role={self.role})>"
 
 
+class StarPurchase(Base):
+    """Track Telegram Stars purchases."""
+
+    __tablename__ = "star_purchases"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(BigInteger, ForeignKey("users.telegram_id"), nullable=False)
+    product = Column(String(50), nullable=False)
+    stars_amount = Column(Integer, nullable=False)
+    diamonds_granted = Column(BigInteger, default=0, nullable=False)
+    chat_id = Column(BigInteger, nullable=True)
+    telegram_charge_id = Column(String(255), nullable=True)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+
+    def __repr__(self):
+        return f"<StarPurchase(user_id={self.user_id}, product={self.product}, stars={self.stars_amount})>"
+
+
+class ActiveBoost(Base):
+    """Track active premium boosts (VIP, lucky charm, shield, etc.)."""
+
+    __tablename__ = "active_boosts"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(BigInteger, ForeignKey("users.telegram_id"), nullable=False)
+    boost_type = Column(String(50), nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+
+    __table_args__ = (UniqueConstraint("user_id", "boost_type", name="uq_user_boost"),)
+
+    def __repr__(self):
+        return f"<ActiveBoost(user_id={self.user_id}, type={self.boost_type})>"
+
+
 class ChatActivity(Base):
     """Track bot activity per chat."""
 
@@ -735,3 +770,28 @@ class ChatActivity(Base):
 
     def __repr__(self):
         return f"<ChatActivity(chat_id={self.chat_id}, title={self.title}, commands={self.command_count})>"
+
+
+class Referral(Base):
+    """Referral tracking model."""
+
+    __tablename__ = "referrals"
+
+    id = Column(Integer, primary_key=True)
+    referrer_id = Column(BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=False)
+    referred_id = Column(BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=False, unique=True)
+    referred_at = Column(DateTime, default=func.now(), nullable=False)
+    active_days = Column(Integer, default=0, nullable=False)
+    last_active_date = Column(String(10), nullable=True)
+    reward_given = Column(Boolean, default=False, nullable=False)
+    reward_given_at = Column(DateTime, nullable=True)
+
+    # Relationships
+    referrer = relationship("User", foreign_keys=[referrer_id])
+    referred = relationship("User", foreign_keys=[referred_id])
+
+    def __repr__(self):
+        return (
+            f"<Referral(referrer_id={self.referrer_id}, referred_id={self.referred_id}, "
+            f"active_days={self.active_days}, reward_given={self.reward_given})>"
+        )

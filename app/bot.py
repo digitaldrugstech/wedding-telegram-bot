@@ -15,7 +15,9 @@ from app.handlers.bounty import register_bounty_handlers
 from app.handlers.business import register_business_handlers
 from app.handlers.casino import register_casino_handlers
 from app.handlers.children import register_children_handlers
+from app.handlers.clanwar import register_clanwar_handlers
 from app.handlers.coinflip import register_coinflip_handlers
+from app.handlers.crate import register_crate_handlers
 from app.handlers.daily import register_daily_handlers
 from app.handlers.duel import register_duel_handlers
 from app.handlers.economy import register_economy_handlers
@@ -23,6 +25,7 @@ from app.handlers.feedback import register_feedback_handlers
 from app.handlers.fishing import register_fishing_handlers
 from app.handlers.gang import register_gang_handlers
 from app.handlers.giftbox import register_giftbox_handlers
+from app.handlers.heist import register_heist_handlers
 from app.handlers.house import register_house_handlers
 from app.handlers.insurance import register_insurance_handlers
 from app.handlers.kidnap import register_kidnap_handlers
@@ -31,9 +34,13 @@ from app.handlers.marriage import register_marriage_handlers
 from app.handlers.menu import register_menu_handlers
 from app.handlers.mine import register_mine_handlers
 from app.handlers.pet import register_pet_handlers
+from app.handlers.premium import register_premium_handlers
 from app.handlers.prestige import register_prestige_handlers
 from app.handlers.quest import initialize_quests, register_quest_handlers
+from app.handlers.raid import register_raid_handlers
+from app.handlers.referral import register_referral_handlers
 from app.handlers.rob import register_rob_handlers
+from app.handlers.roulette import register_roulette_handlers
 from app.handlers.scratch import register_scratch_handlers
 from app.handlers.shop import register_shop_handlers
 from app.handlers.social import register_social_handlers
@@ -98,7 +105,6 @@ def create_bot() -> Application:
     register_casino_handlers(application)
     register_daily_handlers(application)
     register_lottery_handlers(application)
-    register_economy_handlers(application)
     register_social_handlers(application)
     register_quest_handlers(application)
     register_pet_handlers(application)
@@ -115,6 +121,14 @@ def create_bot() -> Application:
     register_insurance_handlers(application)
     register_bounty_handlers(application)
     register_gang_handlers(application)
+    register_raid_handlers(application)
+    register_clanwar_handlers(application)
+    register_roulette_handlers(application)
+    register_crate_handlers(application)
+    register_referral_handlers(application)
+    register_economy_handlers(application)
+    register_premium_handlers(application)
+    register_heist_handlers(application)
     register_fishing_handlers(application)
     register_kidnap_handlers(application)
     register_feedback_handlers(application)
@@ -137,5 +151,27 @@ async def post_init(application: Application):
 
 
 async def post_shutdown(application: Application):
-    """Post-shutdown hook."""
+    """Post-shutdown hook — refund in-memory bets before exit."""
+    # Refund active roulette rounds
+    try:
+        from app.handlers.roulette import active_rounds as rr_rounds, _refund_all as rr_refund
+
+        for chat_id, rnd in list(rr_rounds.items()):
+            rr_refund(rnd)
+            logger.info("Refunded roulette round on shutdown", chat_id=chat_id, players=len(rnd["players"]))
+        rr_rounds.clear()
+    except Exception as e:
+        logger.error("Failed to refund roulette rounds", error=str(e))
+
+    # Refund active heist entries
+    try:
+        from app.handlers.heist import active_heists, _refund_all as heist_refund
+
+        for chat_id, h in list(active_heists.items()):
+            heist_refund(h)
+            logger.info("Refunded heist on shutdown", chat_id=chat_id, players=len(h["players"]))
+        active_heists.clear()
+    except Exception as e:
+        logger.error("Failed to refund heists", error=str(e))
+
     logger.info("Bot shutdown complete")

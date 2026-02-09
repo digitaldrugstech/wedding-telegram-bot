@@ -74,3 +74,9 @@ TAX_RATE = 0.05  # 5% tax rate
 # Insurance
 INSURANCE_WEEKLY_COST = 500  # Weekly insurance cost
 INSURANCE_DURATION_DAYS = 7  # Insurance duration in days
+
+# Referral System
+REFERRAL_INVITER_REWARD = 500  # Diamonds for inviter when referral completes 3 active days
+REFERRAL_INVITEE_REWARD = 200  # Diamonds for invitee on registration via referral
+REFERRAL_ACTIVE_DAYS_REQUIRED = 3  # Days the invitee must play before inviter gets reward
+REFERRAL_SHARE_REWARD = 50  # Diamonds for sharing a win/event

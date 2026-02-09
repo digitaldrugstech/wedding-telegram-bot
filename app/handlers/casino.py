@@ -19,6 +19,7 @@ from app.services.casino_service import (
 )
 from app.utils.decorators import require_registered
 from app.utils.formatters import format_diamonds
+from app.utils.keyboards import casino_after_game_keyboard, casino_menu_keyboard
 
 
 @require_registered
@@ -27,22 +28,14 @@ async def casino_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.effective_user or not update.message:
         return
 
+    user_id = update.effective_user.id
     casino_text = (
-        "<b>🎰 Казино</b>\n\n"
+        "🎰 <b>Казино</b>\n\n"
         f"Ставка: {format_diamonds(MIN_BET)} - {format_diamonds(MAX_BET)}\n\n"
-        "<b>Игры:</b>\n"
-        "🎰 /slots [ставка] — Слот-машина (до x30)\n"
-        "🎲 /dice [ставка] — Кости (до x3)\n"
-        "🎯 /darts [ставка] — Дартс (до x5)\n"
-        "🏀 /basketball [ставка] — Баскетбол (до x3)\n"
-        "🎳 /bowling [ставка] — Боулинг (до x4)\n"
-        "⚽ /football [ставка] — Футбол (до x3)\n"
-        "🃏 /blackjack [ставка] — Блэкджек (до x2.5)\n"
-        "🎫 /scratch [ставка] — Скретч-карта (до x5)\n\n"
-        "💡 Выигрыш зависит от результата"
+        "Выбери игру:"
     )
 
-    await update.message.reply_text(casino_text, parse_mode="HTML")
+    await update.message.reply_text(casino_text, parse_mode="HTML", reply_markup=casino_menu_keyboard(user_id))
 
 
 async def _play_casino_game(update: Update, context: ContextTypes.DEFAULT_TYPE, game_type: str, emoji: str):
@@ -112,7 +105,11 @@ async def _process_casino_result(context: ContextTypes.DEFAULT_TYPE):
 
             if success:
                 await context.bot.send_message(
-                    chat_id=chat_id, text=message, parse_mode="HTML", reply_to_message_id=message_id
+                    chat_id=chat_id,
+                    text=message,
+                    parse_mode="HTML",
+                    reply_to_message_id=message_id,
+                    reply_markup=casino_after_game_keyboard(game_type, user_id),
                 )
                 # Track quest progress
                 try:

@@ -12,6 +12,7 @@ from app.database.models import CasinoGame, Cooldown, User
 from app.handlers.quest import update_quest_progress
 from app.utils.decorators import require_registered
 from app.utils.formatters import format_diamonds
+from app.utils.keyboards import casino_after_game_keyboard
 
 logger = structlog.get_logger()
 
@@ -105,6 +106,12 @@ def _finish_game(user_id, bet, payout, result_type):
     """Record game result and set cooldown."""
     with get_db() as db:
         if payout > 0:
+            # Lucky charm bonus (+15%)
+            from app.handlers.premium import has_active_boost
+
+            if has_active_boost(user_id, "lucky_charm"):
+                payout += int(payout * 0.15)
+
             user = db.query(User).filter(User.telegram_id == user_id).first()
             user.balance += payout
 
@@ -212,7 +219,7 @@ async def blackjack_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"\u0414\u0438\u043b\u0435\u0440: {fmt_hand(dealer_cards)} = <b>21</b>\n\n"
             f"\U0001f91d \u041e\u0431\u0430 \u0431\u043b\u044d\u043a\u0434\u0436\u0435\u043a! \u0412\u043e\u0437\u0432\u0440\u0430\u0442: {format_diamonds(bet)}"
         )
-        await update.message.reply_text(text, parse_mode="HTML")
+        await update.message.reply_text(text, parse_mode="HTML", reply_markup=casino_after_game_keyboard("blackjack", user_id))
         logger.info("Blackjack push", user_id=user_id, bet=bet)
         return
 
@@ -228,7 +235,7 @@ async def blackjack_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"\u0414\u0438\u043b\u0435\u0440: {fmt_hand(dealer_cards)} = <b>{hand_value(dealer_cards)}</b>\n\n"
             f"\U0001f4b0 \u0412\u044b\u0438\u0433\u0440\u044b\u0448: {format_diamonds(payout)} (x2.5)"
         )
-        await update.message.reply_text(text, parse_mode="HTML")
+        await update.message.reply_text(text, parse_mode="HTML", reply_markup=casino_after_game_keyboard("blackjack", user_id))
         logger.info("Blackjack natural", user_id=user_id, bet=bet, payout=payout)
         return
 
@@ -282,15 +289,23 @@ async def blackjack_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             # Bust
             context.user_data["bj_active"] = False
             _finish_game(user_id, bet, 0, "loss")
+            # Lucky charm nudge on loss (throttled)
+            from app.handlers.premium import build_premium_nudge, has_active_boost as _bj_has_boost
+
+            nudge = ""
+            if not _bj_has_boost(user_id, "lucky_charm"):
+                nudge = build_premium_nudge("casino_loss", user_id)
             text = (
                 f"\U0001f0cf <b>\u041f\u0435\u0440\u0435\u0431\u043e\u0440!</b>\n\n"
                 f"\u0421\u0442\u0430\u0432\u043a\u0430: {format_diamonds(bet)}\n\n"
                 f"\u0422\u044b: {fmt_hand(player_cards)} = <b>{player_val}</b>\n"
                 f"\u0414\u0438\u043b\u0435\u0440: {fmt_hand(dealer_cards)} = <b>{hand_value(dealer_cards)}</b>\n\n"
-                f"\U0001f4b8 \u041f\u043e\u0442\u0435\u0440\u044f\u043d\u043e: {format_diamonds(bet)}"
+                f"\U0001f4b8 \u041f\u043e\u0442\u0435\u0440\u044f\u043d\u043e: {format_diamonds(bet)}{nudge}"
             )
             try:
-                await query.edit_message_text(text, parse_mode="HTML")
+                await query.edit_message_text(
+                    text, parse_mode="HTML", reply_markup=casino_after_game_keyboard("blackjack", user_id)
+                )
             except Exception:
                 pass
             logger.info("Blackjack bust", user_id=user_id, bet=bet, player_value=player_val)
@@ -336,16 +351,26 @@ async def blackjack_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
         _finish_game(user_id, bet, payout, result_type)
 
+        # Lucky charm nudge on loss (throttled)
+        loss_nudge = ""
+        if result_type == "loss":
+            from app.handlers.premium import build_premium_nudge, has_active_boost as _bj_stand_boost
+
+            if not _bj_stand_boost(user_id, "lucky_charm"):
+                loss_nudge = build_premium_nudge("casino_loss", user_id)
+
         text = (
             f"\U0001f0cf <b>\u0411\u043b\u044d\u043a\u0434\u0436\u0435\u043a</b>\n\n"
             f"\u0421\u0442\u0430\u0432\u043a\u0430: {format_diamonds(bet)}\n\n"
             f"\u0422\u044b: {fmt_hand(player_cards)} = <b>{player_val}</b>\n"
             f"\u0414\u0438\u043b\u0435\u0440: {fmt_hand(dealer_cards)} = <b>{dealer_val}</b>\n\n"
-            f"{result_line}"
+            f"{result_line}{loss_nudge}"
         )
 
         try:
-            await query.edit_message_text(text, parse_mode="HTML")
+            await query.edit_message_text(
+                text, parse_mode="HTML", reply_markup=casino_after_game_keyboard("blackjack", user_id)
+            )
         except Exception:
             pass
 

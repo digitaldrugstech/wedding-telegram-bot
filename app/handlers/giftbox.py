@@ -24,14 +24,16 @@ BOXES = {
         "name": "🎁 Маленький бокс",
         "price": 50,
         "rewards": [
-            {"type": "diamonds", "amount": 10, "label": "10💎", "weight": 30},
-            {"type": "diamonds", "amount": 25, "label": "25💎", "weight": 25},
-            {"type": "diamonds", "amount": 50, "label": "50💎", "weight": 15},
-            {"type": "diamonds", "amount": 100, "label": "100💎", "weight": 5},
-            {"type": "nothing", "amount": 0, "label": "Пусто", "weight": 25},
+            {"type": "diamonds", "amount": 15, "label": "15💎", "weight": 30},
+            {"type": "diamonds", "amount": 30, "label": "30💎", "weight": 25},
+            {"type": "diamonds", "amount": 50, "label": "50💎", "weight": 18},
+            {"type": "diamonds", "amount": 100, "label": "100💎", "weight": 7},
+            {"type": "diamonds", "amount": 150, "label": "150💎", "weight": 3},
+            {"type": "diamonds", "amount": 5, "label": "5💎", "weight": 10},
+            {"type": "nothing", "amount": 0, "label": "Пусто", "weight": 7},
         ],
-        # EV = 0.30*10 + 0.25*25 + 0.15*50 + 0.05*100 + 0.25*0 = 3+6.25+7.5+5 = 21.75
-        # House edge = (50-21.75)/50 = 56.5%
+        # EV = 0.30*15 + 0.25*30 + 0.18*50 + 0.07*100 + 0.03*150 + 0.10*5 + 0.07*0 = 4.5+7.5+9+7+4.5+0.5 = 33
+        # House edge = (50-33)/50 = 34%
     },
     "medium": {
         "name": "🎁 Средний бокс",
@@ -92,12 +94,12 @@ async def giftbox_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "🎁 <b>Гифт-боксы</b>\n\n"
             "Открой бокс и получи случайный приз!\n\n"
             f"🎁 /giftbox small — {format_diamonds(BOXES['small']['price'])}\n"
-            "   Алмазы 10-100 или пусто\n\n"
+            "   Алмазы 5-150 или пусто\n\n"
             f"🎁 /giftbox medium — {format_diamonds(BOXES['medium']['price'])}\n"
             "   Алмазы 50-500 или титул\n\n"
             f"🎁 /giftbox large — {format_diamonds(BOXES['large']['price'])}\n"
             "   Алмазы 100-2500 или редкий титул\n\n"
-            "💡 Можно получить титул из магазина бесплатно!"
+            "💡 Титулы также продаются в /shop"
         )
         await update.message.reply_text(text, parse_mode="HTML")
         return

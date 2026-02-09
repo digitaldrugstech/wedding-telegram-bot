@@ -31,7 +31,9 @@ BUSINESS_TYPES = {
 }
 
 MAX_BUSINESSES_PER_TYPE = 3  # Maximum 3 businesses of each type
+MAX_BUSINESSES_TOTAL = 8  # Maximum 8 businesses total (prevents inflation spiral)
 SELL_REFUND_PERCENTAGE = 0.70  # 70% refund
+MAINTENANCE_RATE = 0.08  # 8% maintenance costs (deducted from weekly payout)
 
 
 class BusinessService:
@@ -43,6 +45,11 @@ class BusinessService:
         # Validate business type
         if business_type not in BUSINESS_TYPES:
             return False, "Неверный тип бизнеса"
+
+        # Check global business cap
+        total_businesses = db.query(Business).filter(Business.user_id == user_id).count()
+        if total_businesses >= MAX_BUSINESSES_TOTAL:
+            return False, f"Максимум {MAX_BUSINESSES_TOTAL} бизнесов"
 
         # Check if user already has 3 of this type
         user_businesses = (
@@ -76,17 +83,19 @@ class BusinessService:
         business = Business(user_id=user_id, business_type=business_type, purchase_price=business_price)
 
         db.add(business)
-        db.commit()
-        db.refresh(business)
+        db.flush()
 
         logger.info("Business purchased", user_id=user_id, business_type=business_type, price=business_price)
+
+        net_payout = business_info["weekly_payout"] - int(business_info["weekly_payout"] * MAINTENANCE_RATE)
+        weeks_to_break_even = round(business_price / net_payout, 1) if net_payout > 0 else 99
 
         message = (
             f"💼 <b>Поздравляем с покупкой!</b>\n\n"
             f"{business_info['name']}\n"
             f"💰 Цена: {format_diamonds(business_price)}\n"
-            f"📈 Доход: {format_diamonds(business_info['weekly_payout'])}/неделя\n\n"
-            f"💡 Окупаемость: 1 неделя\n\n"
+            f"📈 Доход: {format_diamonds(net_payout)}/неделя (за вычетом обслуживания)\n\n"
+            f"💡 Окупаемость: ~{weeks_to_break_even} недель\n\n"
             f"💰 Остаток: {format_diamonds(user.balance)}"
         )
 
@@ -100,13 +109,15 @@ class BusinessService:
         result = []
         for business in businesses:
             business_info = BUSINESS_TYPES.get(business.business_type, BUSINESS_TYPES[1])
+            gross = business_info["weekly_payout"]
+            net = gross - int(gross * MAINTENANCE_RATE)
             result.append(
                 {
                     "id": business.id,
                     "name": business_info["name"],
                     "type": business.business_type,
                     "purchase_price": business.purchase_price,
-                    "weekly_payout": business_info["weekly_payout"],
+                    "weekly_payout": net,
                 }
             )
 
@@ -131,7 +142,6 @@ class BusinessService:
         # Delete business
         business_name = BUSINESS_TYPES.get(business.business_type, BUSINESS_TYPES[1])["name"]
         db.delete(business)
-        db.commit()
 
         logger.info("Business sold", user_id=user_id, business_id=business_id, refund=refund_amount)
 
@@ -161,7 +171,9 @@ class BusinessService:
 
         for business in all_businesses:
             business_info = BUSINESS_TYPES.get(business.business_type, BUSINESS_TYPES[1])
-            payout = business_info["weekly_payout"]
+            gross_payout = business_info["weekly_payout"]
+            maintenance = int(gross_payout * MAINTENANCE_RATE)
+            payout = gross_payout - maintenance
 
             # Get user and pay
             user = db.query(User).filter(User.telegram_id == business.user_id).first()

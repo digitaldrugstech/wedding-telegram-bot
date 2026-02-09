@@ -5,9 +5,9 @@ import random
 from datetime import datetime, timedelta
 
 import structlog
-from telegram import Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.error import BadRequest
-from telegram.ext import CommandHandler, ContextTypes
+from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
 from app.database.connection import get_db
 from app.database.models import Cooldown, User
@@ -110,6 +110,12 @@ async def fishing_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Catch fish
         fish_name, fish_emoji, sell_price = catch_fish()
 
+        # Apply double income boost
+        from app.handlers.premium import has_active_boost
+
+        if has_active_boost(user_id, "double_income"):
+            sell_price *= 2
+
         # Add sell price to balance
         user.balance += sell_price
 
@@ -141,7 +147,7 @@ async def fishing_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🎣 <b>Рыбалка</b>\n\n"
             f"{fish_emoji} Поймал: <b>{fish_name}</b>\n"
             f"💰 Продано за {format_diamonds(sell_price)}\n\n"
-            f"📉 Итого: {profit} (наживка {format_diamonds(BAIT_COST)})\n"
+            f"📉 Убыток: {format_diamonds(abs(profit))} (наживка {format_diamonds(BAIT_COST)})\n"
             f"💰 Баланс: {format_diamonds(balance)}"
         )
     else:
@@ -159,10 +165,19 @@ async def fishing_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"💰 Баланс: {format_diamonds(balance)}"
         )
 
+    fish_kb = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("📋 Виды рыб", callback_data=f"fish:list:{user_id}"),
+                InlineKeyboardButton("« Игры", callback_data=f"menu:games:{user_id}"),
+            ]
+        ]
+    )
+
     try:
-        await msg.edit_text(text, parse_mode="HTML")
+        await msg.edit_text(text, parse_mode="HTML", reply_markup=fish_kb)
     except BadRequest:
-        await update.message.reply_text(text, parse_mode="HTML")
+        await update.message.reply_text(text, parse_mode="HTML", reply_markup=fish_kb)
 
     try:
         update_quest_progress(user_id, "fish")
@@ -172,9 +187,8 @@ async def fishing_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info("Fishing", user_id=user_id, fish=fish_name, sell_price=sell_price)
 
 
-@require_registered
-async def fishlist_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /fishlist — show all fish and prices."""
+def _build_fishlist_text():
+    """Build fish list text."""
     text = "🎣 <b>Виды рыб</b>\n\n"
     text += f"🪱 Наживка: {format_diamonds(BAIT_COST)}\n\n"
 
@@ -185,13 +199,48 @@ async def fishlist_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             rarity = "обычная" if chance >= 15 else "редкая" if chance >= 5 else "легендарная"
             text += f"{emoji} {name} — {format_diamonds(price)} ({rarity})\n"
 
-    text += "\n💡 /fish — забросить удочку"
+    return text
 
+
+@require_registered
+async def fishlist_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /fishlist — show all fish and prices."""
+    if not update.effective_user or not update.message:
+        return
+    text = _build_fishlist_text() + "\n💡 /fish — забросить удочку"
     await update.message.reply_text(text, parse_mode="HTML")
+
+
+async def fishlist_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle fish:list button."""
+    query = update.callback_query
+    if not query or not update.effective_user:
+        return
+
+    parts = query.data.split(":")
+    if len(parts) != 3:
+        return
+
+    owner_id = int(parts[2])
+    user_id = update.effective_user.id
+
+    if user_id != owner_id:
+        await query.answer("Эта кнопка не для тебя", show_alert=True)
+        return
+
+    await query.answer()
+
+    text = _build_fishlist_text()
+    keyboard = [[InlineKeyboardButton("« Игры", callback_data=f"menu:games:{user_id}")]]
+
+    from app.utils.telegram_helpers import safe_edit_message
+
+    await safe_edit_message(query, text, reply_markup=InlineKeyboardMarkup(keyboard))
 
 
 def register_fishing_handlers(application):
     """Register fishing handlers."""
     application.add_handler(CommandHandler(["fish", "fishing"], fishing_command))
     application.add_handler(CommandHandler("fishlist", fishlist_command))
+    application.add_handler(CallbackQueryHandler(fishlist_callback, pattern=r"^fish:list:"))
     logger.info("Fishing handlers registered")

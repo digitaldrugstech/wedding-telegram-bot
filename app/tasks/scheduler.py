@@ -1,6 +1,5 @@
 """Background tasks scheduler using APScheduler."""
 
-import random
 from datetime import datetime
 
 import structlog
@@ -10,14 +9,6 @@ from apscheduler.triggers.interval import IntervalTrigger
 from telegram.ext import Application
 
 from app.config import config
-from app.constants import (
-    AUCTION_ITEMS,
-    STOCK_MAX_PRICE,
-    STOCK_MIN_PRICE,
-    STOCK_PRICE_CHANGE_PERCENTAGE,
-    TAX_RATE,
-    TAX_THRESHOLD,
-)
 from app.database.connection import get_db
 from app.services.business_service import BusinessService
 from app.services.children_service import ChildrenService
@@ -155,223 +146,6 @@ async def business_payout_task(application: Application):
         logger.error("Error in business payout task", error=str(e), exc_info=True)
 
 
-async def process_investments_task(application: Application):
-    """Process completed investments."""
-    logger.info("Processing completed investments")
-
-    try:
-        from app.database.models import Investment, User
-        from app.utils.formatters import format_diamonds
-
-        with get_db() as db:
-            # Find completed investments
-            completed = (
-                db.query(Investment)
-                .filter(Investment.is_completed.is_(False), Investment.completes_at <= datetime.utcnow())
-                .all()
-            )
-
-            for investment in completed:
-                user = db.query(User).filter(User.telegram_id == investment.user_id).first()
-                if not user:
-                    continue
-
-                # Calculate return
-                return_amount = int(investment.amount * (1 + investment.return_percentage / 100))
-                profit = return_amount - investment.amount
-
-                user.balance += return_amount
-                investment.is_completed = True
-
-                # Notify user
-                emoji = "📈" if profit > 0 else "📉" if profit < 0 else "📊"
-                result_text = (
-                    f"прибыль: +{format_diamonds(profit)}"
-                    if profit > 0
-                    else f"убыток: {format_diamonds(profit)}" if profit < 0 else "без изменений"
-                )
-
-                message = (
-                    f"{emoji} <b>Инвестиция завершена</b>\n\n"
-                    f"Вложено: {format_diamonds(investment.amount)}\n"
-                    f"Доходность: {investment.return_percentage:+d}%\n"
-                    f"Результат: {result_text}\n\n"
-                    f"Получено: {format_diamonds(return_amount)}\n"
-                    f"Баланс: {format_diamonds(user.balance)}"
-                )
-
-                try:
-                    await application.bot.send_message(chat_id=investment.user_id, text=message, parse_mode="HTML")
-                    logger.info(
-                        "Investment completed",
-                        user_id=investment.user_id,
-                        amount=investment.amount,
-                        return_percentage=investment.return_percentage,
-                    )
-                except Exception as e:
-                    logger.warning("Failed to notify user about investment", user_id=investment.user_id, error=str(e))
-
-            if completed:
-                logger.info("Investments processed", count=len(completed))
-
-    except Exception as e:
-        logger.error("Error in investment processing task", error=str(e), exc_info=True)
-
-
-async def update_stock_prices_task(application: Application):
-    """Update stock prices hourly."""
-    logger.info("Updating stock prices")
-
-    try:
-        from app.database.models import Stock
-
-        with get_db() as db:
-            stocks = db.query(Stock).all()
-
-            for stock in stocks:
-                # Random price change
-                change_percent = random.uniform(-STOCK_PRICE_CHANGE_PERCENTAGE, STOCK_PRICE_CHANGE_PERCENTAGE)
-                new_price = int(stock.price * (1 + change_percent / 100))
-
-                # Clamp to min/max
-                new_price = max(STOCK_MIN_PRICE, min(STOCK_MAX_PRICE, new_price))
-
-                stock.price = new_price
-                stock.last_updated = datetime.utcnow()
-
-            logger.info("Stock prices updated", count=len(stocks))
-
-    except Exception as e:
-        logger.error("Error in stock price update task", error=str(e), exc_info=True)
-
-
-async def close_auctions_task(application: Application):
-    """Close expired auctions."""
-    logger.info("Checking for expired auctions")
-
-    try:
-        from app.database.models import Auction, User
-        from app.utils.formatters import format_diamonds
-
-        with get_db() as db:
-            # Find expired auctions
-            expired = db.query(Auction).filter(Auction.is_active.is_(True), Auction.ends_at <= datetime.utcnow()).all()
-
-            for auction in expired:
-                auction.is_active = False
-
-                if auction.current_winner_id:
-                    # Winner gets the item
-                    item_data = AUCTION_ITEMS[auction.item]
-
-                    winner_message = (
-                        f"🎉 <b>Ты выиграл аукцион!</b>\n\n"
-                        f"{item_data['emoji']} {item_data['name']}\n"
-                        f"Твоя ставка: {format_diamonds(auction.current_price)}\n\n"
-                        f"Эффект действует {item_data['effect_days']} дней"
-                    )
-
-                    try:
-                        await application.bot.send_message(
-                            chat_id=auction.current_winner_id, text=winner_message, parse_mode="HTML"
-                        )
-                    except Exception as e:
-                        logger.warning(
-                            "Failed to notify auction winner", user_id=auction.current_winner_id, error=str(e)
-                        )
-
-                    # Notify creator
-                    creator_message = (
-                        f"🔨 <b>Аукцион завершен</b>\n\n"
-                        f"{item_data['emoji']} {item_data['name']}\n"
-                        f"Продано за {format_diamonds(auction.current_price)}"
-                    )
-
-                    creator = db.query(User).filter(User.telegram_id == auction.creator_id).first()
-                    if creator:
-                        creator.balance += auction.current_price
-
-                    try:
-                        await application.bot.send_message(
-                            chat_id=auction.creator_id, text=creator_message, parse_mode="HTML"
-                        )
-                    except Exception as e:
-                        logger.warning("Failed to notify auction creator", user_id=auction.creator_id, error=str(e))
-
-                    logger.info(
-                        "Auction closed with winner",
-                        auction_id=auction.id,
-                        winner_id=auction.current_winner_id,
-                        price=auction.current_price,
-                    )
-                else:
-                    # No bids, notify creator
-                    try:
-                        await application.bot.send_message(
-                            chat_id=auction.creator_id,
-                            text="🔨 Аукцион завершен без ставок",
-                            parse_mode="HTML",
-                        )
-                    except Exception as e:
-                        logger.warning("Failed to notify auction creator", user_id=auction.creator_id, error=str(e))
-
-                    logger.info("Auction closed without bids", auction_id=auction.id)
-
-            if expired:
-                logger.info("Auctions closed", count=len(expired))
-
-    except Exception as e:
-        logger.error("Error in auction closing task", error=str(e), exc_info=True)
-
-
-async def collect_taxes_task(application: Application):
-    """Weekly tax collection."""
-    logger.info("Collecting weekly taxes")
-
-    try:
-        from app.database.models import TaxPayment, User
-        from app.utils.formatters import format_diamonds
-
-        with get_db() as db:
-            users = db.query(User).filter(User.balance > TAX_THRESHOLD).all()
-
-            total_collected = 0
-
-            for user in users:
-                taxable_amount = user.balance - TAX_THRESHOLD
-                tax_amount = int(taxable_amount * TAX_RATE)
-
-                if tax_amount > 0:
-                    user.balance -= tax_amount
-                    total_collected += tax_amount
-
-                    # Record tax payment
-                    tax_payment = TaxPayment(
-                        user_id=user.telegram_id,
-                        amount=tax_amount,
-                        balance_at_time=user.balance + tax_amount,
-                    )
-                    db.add(tax_payment)
-
-                    # Notify user
-                    message = (
-                        f"🏛 <b>Налоговый сбор</b>\n\n"
-                        f"Списано: {format_diamonds(tax_amount)}\n"
-                        f"Ставка: {int(TAX_RATE * 100)}%\n\n"
-                        f"Баланс: {format_diamonds(user.balance)}"
-                    )
-
-                    try:
-                        await application.bot.send_message(chat_id=user.telegram_id, text=message, parse_mode="HTML")
-                    except Exception as e:
-                        logger.warning("Failed to notify user about tax", user_id=user.telegram_id, error=str(e))
-
-            logger.info("Tax collection completed", users_taxed=len(users), total_collected=total_collected)
-
-    except Exception as e:
-        logger.error("Error in tax collection task", error=str(e), exc_info=True)
-
-
 def start_scheduler(application: Application):
     """Start the background tasks scheduler."""
     global scheduler
@@ -418,36 +192,6 @@ def start_scheduler(application: Application):
         replace_existing=True,
     )
 
-    # Process investments every hour
-    scheduler.add_job(
-        process_investments_task,
-        trigger=IntervalTrigger(hours=1),
-        args=[application],
-        id="process_investments",
-        name="Process completed investments",
-        replace_existing=True,
-    )
-
-    # Update stock prices every hour
-    scheduler.add_job(
-        update_stock_prices_task,
-        trigger=IntervalTrigger(hours=1),
-        args=[application],
-        id="update_stock_prices",
-        name="Update stock prices",
-        replace_existing=True,
-    )
-
-    # Close expired auctions every 15 minutes
-    scheduler.add_job(
-        close_auctions_task,
-        trigger=IntervalTrigger(minutes=15),
-        args=[application],
-        id="close_auctions",
-        name="Close expired auctions",
-        replace_existing=True,
-    )
-
     # Weekly tax collection (Sunday at 20:00)
     scheduler.add_job(
         collect_taxes_task,
@@ -486,6 +230,53 @@ def start_scheduler(application: Application):
     )
 
     scheduler.start()
+
+
+async def collect_taxes_task(application: Application):
+    """Weekly tax collection — 5% on balance above 50k."""
+    logger.info("Running weekly tax collection")
+
+    try:
+        from app.constants import TAX_RATE, TAX_THRESHOLD
+        from app.database.models import TaxPayment, User
+        from app.utils.formatters import format_diamonds
+
+        with get_db() as db:
+            rich_users = db.query(User).filter(User.balance > TAX_THRESHOLD).all()
+
+            total_collected = 0
+            taxed_count = 0
+
+            for user in rich_users:
+                taxable = user.balance - TAX_THRESHOLD
+                tax = int(taxable * TAX_RATE)
+
+                if tax <= 0:
+                    continue
+
+                user.balance -= tax
+                total_collected += tax
+                taxed_count += 1
+
+                db.add(TaxPayment(user_id=user.telegram_id, amount=tax))
+
+                try:
+                    await application.bot.send_message(
+                        chat_id=user.telegram_id,
+                        text=(
+                            f"🏛 <b>Налоговая служба</b>\n\n"
+                            f"Еженедельный налог:\n"
+                            f"💸 -{format_diamonds(tax)}\n\n"
+                            f"💰 Баланс: {format_diamonds(user.balance)}"
+                        ),
+                        parse_mode="HTML",
+                    )
+                except Exception as e:
+                    logger.warning("Failed to notify user about tax", user_id=user.telegram_id, error=str(e))
+
+            logger.info("Tax collection complete", taxed=taxed_count, total=total_collected)
+    except Exception as e:
+        logger.error("Error in tax collection task", error=str(e), exc_info=True)
 
 
 async def cleanup_expired_cooldowns_task(application: Application):

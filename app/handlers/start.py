@@ -1,18 +1,83 @@
 """Start and profile handlers."""
 
+import html
+
+import structlog
 from sqlalchemy import func
 from telegram import Update
 from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
+from app.constants import REFERRAL_INVITEE_REWARD
 from app.database.connection import get_db
-from app.database.models import Business, Child, Job, User, UserAchievement
+from app.database.models import Business, Child, Job, Referral, User, UserAchievement
 from app.handlers.work import PROFESSION_EMOJI, PROFESSION_NAMES
 from app.services.business_service import BUSINESS_TYPES, BusinessService
 from app.services.marriage_service import MarriageService
 from app.utils.decorators import button_owner_only, require_registered
 from app.utils.formatters import format_diamonds
-from app.utils.keyboards import profile_keyboard
+from app.utils.keyboards import gender_selection_keyboard, profile_keyboard
 from app.utils.telegram_helpers import safe_edit_message
+
+logger = structlog.get_logger()
+
+
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /start command with optional deep link referral parameter."""
+    if not update.effective_user or not update.message:
+        return
+
+    user_id = update.effective_user.id
+    username = update.effective_user.username or update.effective_user.first_name
+
+    # Parse deep link parameter (e.g., /start ref_123456)
+    referrer_id = None
+    if context.args and len(context.args) > 0:
+        arg = context.args[0]
+        if arg.startswith("ref_"):
+            try:
+                referrer_id = int(arg[4:])
+            except ValueError:
+                referrer_id = None
+
+    # Store referrer_id in user_data for use during gender selection
+    if referrer_id:
+        context.user_data["referrer_id"] = referrer_id
+
+    # Check if user already registered
+    with get_db() as db:
+        user = db.query(User).filter(User.telegram_id == user_id).first()
+
+    if user:
+        # Already registered — show profile hint
+        if referrer_id:
+            await update.message.reply_text(
+                "👋 Ты уже зарегистрирован\n\n" "/profile — твой профиль\n" "/help — справка",
+            )
+        else:
+            await update.message.reply_text(
+                "👋 С возвращением!\n\n" "/profile — профиль\n" "/help — справка\n" "/menu — главное меню",
+            )
+        return
+
+    # New user — show registration with referral hint
+    ref_text = ""
+    if referrer_id and referrer_id != user_id:
+        with get_db() as db:
+            referrer = db.query(User).filter(User.telegram_id == referrer_id).first()
+            if referrer:
+                ref_name = f"@{referrer.username}" if referrer.username else "друга"
+                ref_text = f"\n🎁 По приглашению {ref_name} — бонус {format_diamonds(REFERRAL_INVITEE_REWARD)}!\n"
+
+    await update.message.reply_text(
+        f"👋 Привет, {username}\n\n"
+        f"Wedding Bot — семейная жизнь на сервере\n{ref_text}\n"
+        f"💍 Женись, заводи детей\n"
+        f"💼 Работай, покупай дом\n"
+        f"💰 Открывай бизнес\n"
+        f"🎰 Играй в казино\n\n"
+        f"Выбери пол:",
+        reply_markup=gender_selection_keyboard(user_id),
+    )
 
 
 @button_owner_only
@@ -29,6 +94,9 @@ async def gender_selection_callback(update: Update, context: ContextTypes.DEFAUL
     gender = query.data.split(":")[1]  # "gender:male:user_id" -> "male"
 
     is_new_user = False
+    referrer_id = context.user_data.get("referrer_id")
+    referral_bonus = 0
+
     with get_db() as db:
         user = db.query(User).filter(User.telegram_id == user_id).first()
 
@@ -37,8 +105,13 @@ async def gender_selection_callback(update: Update, context: ContextTypes.DEFAUL
             user.gender = gender
             user.username = username
         else:
-            # Create new user
-            user = User(telegram_id=user_id, username=username, gender=gender, balance=0)
+            # Create new user (with referral bonus if applicable)
+            starting_balance = 0
+            if referrer_id and referrer_id != user_id:
+                starting_balance = REFERRAL_INVITEE_REWARD
+                referral_bonus = REFERRAL_INVITEE_REWARD
+
+            user = User(telegram_id=user_id, username=username, gender=gender, balance=starting_balance)
             db.add(user)
             is_new_user = True
 
@@ -48,10 +121,24 @@ async def gender_selection_callback(update: Update, context: ContextTypes.DEFAUL
 
         check_and_award_achievement(user_id, "first_steps")
 
+        # Process referral
+        if referrer_id and referrer_id != user_id:
+            from app.handlers.referral import process_referral_registration
+
+            if process_referral_registration(referrer_id, user_id):
+                logger.info("Referral registration processed", referrer_id=referrer_id, referred_id=user_id)
+
+    # Clear referrer from user_data
+    context.user_data.pop("referrer_id", None)
+
     gender_emoji = "♂️" if gender == "male" else "♀️"
+    bonus_text = ""
+    if referral_bonus > 0:
+        bonus_text = f"\n🎁 Бонус за приглашение: {format_diamonds(referral_bonus)}\n"
+
     await safe_edit_message(
         query,
-        f"✅ {gender_emoji} Регистрация завершена\n\n" f"/profile — профиль\n" f"/work — работа",
+        f"✅ {gender_emoji} Регистрация завершена{bonus_text}\n\n" f"/profile — профиль\n" f"/work — работа",
         reply_markup=profile_keyboard(user_id),
     )
 
@@ -59,7 +146,7 @@ async def gender_selection_callback(update: Update, context: ContextTypes.DEFAUL
 @require_registered
 async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /profile command."""
-    if not update.effective_user:
+    if not update.effective_user or not update.message:
         return
 
     user_id = update.effective_user.id
@@ -91,7 +178,7 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if marriage:
             partner_id = MarriageService.get_partner_id(marriage, user_id)
             partner = db.query(User).filter(User.telegram_id == partner_id).first()
-            partner_name = partner.username if partner else f"User{partner_id}"
+            partner_name = html.escape(partner.username) if partner and partner.username else f"User{partner_id}"
             marriage_info = f"Женат/Замужем (@{partner_name})"
         else:
             marriage_info = "Не в браке"
@@ -126,20 +213,32 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             prestige_display = f"\n🔄 Престиж: {get_prestige_display(prestige)} (+{prestige * 5}% доход)"
 
+        # Active boosts display
+        from app.handlers.premium import _format_active_boosts, get_vip_badge, has_ever_purchased
+
+        boosts_text = _format_active_boosts(user_id)
+        boosts_display = f"\n\n<b>Бусты:</b>\n{boosts_text}" if boosts_text else ""
+
+        # VIP badge (shows crown next to name if any boost is active)
+        vip_badge = get_vip_badge(user_id)
+
+        # Starter pack nudge for non-payers (profile is always shown so not throttled — it's opt-in)
+        starter_nudge = ""
+        if not has_ever_purchased(user_id) and not boosts_text:
+            starter_nudge = "\n\n🎁 <i>Стартовый набор: 5000 алмазов + бусты за 50 ⭐ — /premium</i>"
+
         profile_text = (
-            f"👤 {user.username} {gender_emoji}{title_display}\n"
-            f"🎮 Сервер: не привязан\n\n"
+            f"👤 <b>{html.escape(user.username or str(user_id))}</b> {gender_emoji}{title_display}{vip_badge}\n\n"
             f"💰 {format_diamonds(user.balance)}\n"
             f"💼 {job_info}\n"
             f"🏢 {business_info}\n"
             f"💍 {marriage_info}\n"
             f"👶 Детей: {children_count}\n"
             f"{rep_emoji} Репутация: {user.reputation:+d}\n"
-            f"🏆 Достижений: {achievements_count}{prestige_display}\n\n"
-            f"📅 С {user.created_at.strftime('%d.%m.%Y')}"
+            f"🏆 Достижений: {achievements_count}{prestige_display}{boosts_display}{starter_nudge}"
         )
 
-        await update.message.reply_text(profile_text, reply_markup=profile_keyboard(user_id))
+        await update.message.reply_text(profile_text, reply_markup=profile_keyboard(user_id), parse_mode="HTML")
 
 
 async def top_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -168,6 +267,8 @@ def build_top_message(category: str, user_id: int):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
+    from app.handlers.premium import get_vip_badge
+
     with get_db() as db:
         if category == "balance":
             users = db.query(User).filter(User.is_banned.is_(False)).order_by(User.balance.desc()).limit(10).all()
@@ -175,8 +276,9 @@ def build_top_message(category: str, user_id: int):
             rows = []
             for i, u in enumerate(users, 1):
                 medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
-                name = u.username or f"User{u.telegram_id}"
-                rows.append(f"{medal} @{name} — {format_diamonds(u.balance)}")
+                name = html.escape(u.username or f"User{u.telegram_id}")
+                badge = get_vip_badge(u.telegram_id)
+                rows.append(f"{medal} @{name}{badge} — {format_diamonds(u.balance)}")
 
         elif category == "rep":
             users = (
@@ -190,8 +292,9 @@ def build_top_message(category: str, user_id: int):
             rows = []
             for i, u in enumerate(users, 1):
                 medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
-                name = u.username or f"User{u.telegram_id}"
-                rows.append(f"{medal} @{name} — {u.reputation:+d}")
+                name = html.escape(u.username or f"User{u.telegram_id}")
+                badge = get_vip_badge(u.telegram_id)
+                rows.append(f"{medal} @{name}{badge} — {u.reputation:+d}")
 
         elif category == "prestige":
             users = (
@@ -205,8 +308,9 @@ def build_top_message(category: str, user_id: int):
             rows = []
             for i, u in enumerate(users, 1):
                 medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
-                name = u.username or f"User{u.telegram_id}"
-                rows.append(f"{medal} @{name} — уровень {u.prestige_level} (+{u.prestige_level * 5}%)")
+                name = html.escape(u.username or f"User{u.telegram_id}")
+                badge = get_vip_badge(u.telegram_id)
+                rows.append(f"{medal} @{name}{badge} — уровень {u.prestige_level} (+{u.prestige_level * 5}%)")
 
         elif category == "achievements":
             from sqlalchemy import func as sqlfunc
@@ -224,8 +328,9 @@ def build_top_message(category: str, user_id: int):
             rows = []
             for i, (username, tid, cnt) in enumerate(results, 1):
                 medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
-                name = username or f"User{tid}"
-                rows.append(f"{medal} @{name} — {cnt} достижений")
+                name = html.escape(username or f"User{tid}")
+                badge = get_vip_badge(tid)
+                rows.append(f"{medal} @{name}{badge} — {cnt} достижений")
 
         else:
             title = "💰 Топ по балансу"
@@ -259,6 +364,7 @@ async def top_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 def register_start_handlers(application):
     """Register start and profile handlers."""
+    application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("profile", profile_command))
     application.add_handler(CommandHandler("top", top_command))
     application.add_handler(CallbackQueryHandler(gender_selection_callback, pattern="^gender:"))

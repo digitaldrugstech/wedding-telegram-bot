@@ -84,6 +84,14 @@ def require_registered(func: Callable) -> Callable:
             if current_username and user.username != current_username:
                 user.username = current_username
 
+            # Track referral activity (for referred users)
+            try:
+                from app.handlers.referral import track_referral_activity
+
+                track_referral_activity(user_id)
+            except Exception:
+                pass  # Never crash on referral tracking
+
             # Track chat activity (group chats only)
             chat = update.effective_chat
             if chat and chat.type in ("group", "supergroup"):
@@ -151,7 +159,8 @@ def cooldown(action: str, seconds: int) -> Callable:
                     if seconds_remaining > 0 and not time_str:
                         time_str.append(f"{int(seconds_remaining)}с")
 
-                    await update.message.reply_text(f"Можешь работать через {' '.join(time_str)}")
+                    if update.message:
+                        await update.message.reply_text(f"Можешь работать через {' '.join(time_str)}")
                     return
 
             # Execute command
@@ -196,7 +205,8 @@ def admin_only(func: Callable) -> Callable:
             return
 
         if update.effective_user.id != config.admin_user_id:
-            await update.message.reply_text("🚫 У тебя нет прав")
+            if update.message:
+                await update.message.reply_text("🚫 У тебя нет прав")
             return
 
         return await func(update, context, *args, **kwargs)
@@ -222,12 +232,14 @@ def admin_only_private(func: Callable) -> Callable:
             return
 
         if update.effective_user.id != config.admin_user_id:
-            await update.message.reply_text("🚫 У тебя нет прав")
+            if update.message:
+                await update.message.reply_text("🚫 У тебя нет прав")
             return
 
         # Check if in private chat
-        if update.effective_chat.type != "private":
-            await update.message.reply_text("🚫 Команда доступна только в ЛС")
+        if update.effective_chat and update.effective_chat.type != "private":
+            if update.message:
+                await update.message.reply_text("🚫 Команда доступна только в ЛС")
             return
 
         return await func(update, context, *args, **kwargs)

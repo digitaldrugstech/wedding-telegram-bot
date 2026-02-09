@@ -1,6 +1,4 @@
-"""Social feature handlers (friends, reputation, achievements, rating)."""
-
-from datetime import datetime, timedelta
+"""Social feature handlers (friends, achievements, rating)."""
 
 import structlog
 from sqlalchemy import desc, func
@@ -10,12 +8,9 @@ from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 from app.database.connection import get_db
 from app.database.models import (
     Achievement,
-    Business,
     CasinoGame,
     Friendship,
     Job,
-    Marriage,
-    ReputationLog,
     User,
     UserAchievement,
 )
@@ -38,6 +33,8 @@ ACHIEVEMENTS_DATA = [
     {"code": "empire", "name": "Империя", "description": "Купил 10 бизнесов", "emoji": "🏙️"},
     {"code": "gambler", "name": "Азартный", "description": "Сыграл 100 игр в казино", "emoji": "🎰"},
     {"code": "lucky", "name": "Счастливчик", "description": "Выиграл джекпот в слотах", "emoji": "🍀"},
+    {"code": "recruiter", "name": "Рекрутер", "description": "Пригласил первого друга", "emoji": "📨"},
+    {"code": "influencer", "name": "Инфлюенсер", "description": "Пригласил 10 друзей", "emoji": "🌟"},
 ]
 
 
@@ -384,93 +381,14 @@ async def gift_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         sender.balance -= amount
         recipient.balance += amount
 
-        db.commit()
+        balance = sender.balance
 
-        await update.message.reply_text(
-            f"🎁 <b>Подарок отправлен</b>\n\n"
-            f"💰 {format_diamonds(amount)} → @{username}\n\n"
-            f"💰 Твой баланс: {format_diamonds(sender.balance)}",
-            parse_mode="HTML",
-        )
-
-
-# ==================== REPUTATION ====================
-
-
-@require_registered
-async def reputation_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /reputation @user [+/-] command."""
-    if not update.effective_user or not update.message:
-        return
-
-    from_user_id = update.effective_user.id
-
-    # Parse arguments
-    if not context.args or len(context.args) < 2:
-        await update.message.reply_text(
-            "⭐ <b>Репутация</b>\n\n"
-            "Использование:\n"
-            "/reputation @username +\n"
-            "/reputation @username -\n\n"
-            "Можно ставить раз в день каждому игроку",
-            parse_mode="HTML",
-        )
-        return
-
-    # Parse username and value
-    username = context.args[0].lstrip("@")
-    value_str = context.args[1]
-
-    if value_str == "+":
-        value = 1
-    elif value_str == "-":
-        value = -1
-    else:
-        await update.message.reply_text("❌ Укажи + или -")
-        return
-
-    with get_db() as db:
-        # Get target user
-        target = db.query(User).filter(User.username == username).first()
-
-        if not target:
-            await update.message.reply_text(f"❌ Пользователь @{username} не найден")
-            return
-
-        if target.telegram_id == from_user_id:
-            await update.message.reply_text("❌ Нельзя ставить себе репутацию")
-            return
-
-        # Check if already gave reputation today
-        today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-        existing = (
-            db.query(ReputationLog)
-            .filter(
-                ReputationLog.from_user_id == from_user_id,
-                ReputationLog.to_user_id == target.telegram_id,
-                ReputationLog.created_at >= today_start,
-            )
-            .first()
-        )
-
-        if existing:
-            await update.message.reply_text(f"❌ Ты уже ставил репутацию @{username} сегодня\n\nПопробуй завтра")
-            return
-
-        # Add reputation
-        target.reputation += value
-
-        # Log reputation
-        rep_log = ReputationLog(from_user_id=from_user_id, to_user_id=target.telegram_id, value=value)
-        db.add(rep_log)
-
-        db.commit()
-
-        emoji = "👍" if value > 0 else "👎"
-        await update.message.reply_text(
-            f"{emoji} <b>Репутация изменена</b>\n\n" f"👤 @{username}\n" f"⭐ Репутация: {target.reputation:+d}",
-            parse_mode="HTML",
-        )
+    await update.message.reply_text(
+        f"🎁 <b>Подарок отправлен</b>\n\n"
+        f"💰 {format_diamonds(amount)} → @{username}\n\n"
+        f"💰 Твой баланс: {format_diamonds(balance)}",
+        parse_mode="HTML",
+    )
 
 
 # ==================== ACHIEVEMENTS ====================
@@ -518,7 +436,6 @@ def rating_keyboard(user_id: int, category: str = "balance") -> InlineKeyboardMa
     """Build keyboard for rating categories."""
     categories = [
         ("💰 Баланс", "balance"),
-        ("⭐ Репутация", "reputation"),
         ("⚒️ Работы", "works"),
         ("🎰 Казино", "casino"),
     ]
@@ -610,13 +527,6 @@ async def rating_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 username = f"@{user.username}" if user.username else f"ID {user.telegram_id}"
                 text += f"{idx}. {username} — {format_diamonds(user.balance)}\n"
 
-        elif category == "reputation":
-            text += "<b>⭐ По репутации</b>\n\n"
-            top_users = db.query(User).order_by(desc(User.reputation)).limit(10).all()
-            for idx, user in enumerate(top_users, 1):
-                username = f"@{user.username}" if user.username else f"ID {user.telegram_id}"
-                text += f"{idx}. {username} — {user.reputation:+d}\n"
-
         elif category == "works":
             text += "<b>⚒️ По количеству работ</b>\n\n"
             top_jobs = db.query(Job).order_by(desc(Job.times_worked)).limit(10).all()
@@ -664,10 +574,6 @@ def register_social_handlers(application):
 
     # Gift
     application.add_handler(CommandHandler("friendgift", gift_command))
-
-    # Reputation
-    application.add_handler(CommandHandler("reputation", reputation_command))
-    application.add_handler(CommandHandler("rep", reputation_command))  # Alias
 
     # Achievements
     application.add_handler(CommandHandler("achievements", achievements_command))

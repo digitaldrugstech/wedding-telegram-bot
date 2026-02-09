@@ -1,5 +1,6 @@
 """Duel command handlers."""
 
+import html
 import random
 from datetime import datetime, timedelta
 
@@ -131,6 +132,9 @@ async def duel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("❌ У тебя уже есть активная дуэль с этим игроком")
             return
 
+        # Reserve challenger's bet atomically (prevents TOCTOU)
+        challenger.balance -= bet_amount
+
         # Create duel
         duel = Duel(
             challenger_id=user_id,
@@ -153,13 +157,14 @@ async def duel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    challenger_name = update.effective_user.username or update.effective_user.first_name
+    challenger_name = html.escape(update.effective_user.username or update.effective_user.first_name or "")
+    safe_opponent = html.escape(opponent_username)
     await update.message.reply_text(
         f"⚔️ <b>Вызов на дуэль!</b>\n\n"
-        f"{challenger_name} вызывает @{opponent_username} на дуэль\n\n"
+        f"{challenger_name} вызывает @{safe_opponent} на дуэль\n\n"
         f"Ставка: {format_diamonds(bet_amount)}\n"
         f"Победитель забирает всё\n\n"
-        f"@{opponent_username}, принимаешь вызов?",
+        f"@{safe_opponent}, принимаешь вызов?",
         reply_markup=reply_markup,
         parse_mode="HTML",
     )
@@ -185,22 +190,18 @@ async def duel_accept(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer("⚠️ Эта дуэль не для тебя", show_alert=True)
             return
 
-        # Check balances
+        # Challenger's bet already reserved at creation
         challenger = db.query(User).filter(User.telegram_id == duel.challenger_id).first()
         opponent = db.query(User).filter(User.telegram_id == duel.opponent_id).first()
 
-        if challenger.balance < duel.bet_amount:
-            await safe_edit_message(query, "❌ У вызывающего недостаточно алмазов")
-            duel.is_active = False
-            return
-
         if opponent.balance < duel.bet_amount:
-            await safe_edit_message(query, "❌ У тебя недостаточно алмазов")
+            # Refund challenger and cancel
+            challenger.balance += duel.bet_amount
             duel.is_active = False
+            await safe_edit_message(query, "❌ У тебя недостаточно алмазов")
             return
 
-        # Deduct bets
-        challenger.balance -= duel.bet_amount
+        # Deduct opponent's bet (challenger's already deducted)
         opponent.balance -= duel.bet_amount
 
         # 50/50 random winner
@@ -243,9 +244,9 @@ async def duel_accept(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         # Announce winner (must stay inside session to access ORM objects)
-        winner_name = winner.username or f"ID {winner_id}"
+        winner_name = html.escape(winner.username or f"ID {winner_id}")
         loser = db.query(User).filter(User.telegram_id == loser_id).first()
-        loser_name = loser.username or f"ID {loser_id}"
+        loser_name = html.escape(loser.username or f"ID {loser_id}")
 
     # Track quest progress for winner
     try:
@@ -279,6 +280,12 @@ async def duel_decline(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not duel:
             await safe_edit_message(query, "❌ Дуэль не найдена")
             return
+
+        # Refund challenger's reserved bet
+        if duel.is_active:
+            challenger = db.query(User).filter(User.telegram_id == duel.challenger_id).first()
+            if challenger:
+                challenger.balance += duel.bet_amount
 
         duel.is_active = False
 

@@ -3,6 +3,26 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 
+def main_menu_keyboard(user_id: int) -> InlineKeyboardMarkup:
+    """Main menu hub — primary entry point."""
+    keyboard = [
+        [
+            InlineKeyboardButton("💼 Работа", callback_data=f"menu:work:{user_id}"),
+            InlineKeyboardButton("💍 Семья", callback_data=f"menu:marriage:{user_id}"),
+        ],
+        [
+            InlineKeyboardButton("💰 Экономика", callback_data=f"menu:economy:{user_id}"),
+            InlineKeyboardButton("🎰 Казино", callback_data=f"menu:casino:{user_id}"),
+        ],
+        [
+            InlineKeyboardButton("🎮 Игры", callback_data=f"menu:games:{user_id}"),
+            InlineKeyboardButton("👥 Социальное", callback_data=f"menu:social:{user_id}"),
+        ],
+        [InlineKeyboardButton("👤 Профиль", callback_data=f"menu:profile:{user_id}")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
 def gender_selection_keyboard(user_id: int) -> InlineKeyboardMarkup:
     """Keyboard for gender selection."""
     keyboard = [
@@ -17,12 +37,18 @@ def gender_selection_keyboard(user_id: int) -> InlineKeyboardMarkup:
 def profile_keyboard(user_id: int) -> InlineKeyboardMarkup:
     """Keyboard for profile (quick access to main menus)."""
     keyboard = [
-        [InlineKeyboardButton("💼 Работа", callback_data=f"menu:work:{user_id}")],
-        [InlineKeyboardButton("💍 Брак", callback_data=f"menu:marriage:{user_id}")],
-        [InlineKeyboardButton("👨‍👩‍👧‍👦 Семья", callback_data=f"menu:family:{user_id}")],
-        [InlineKeyboardButton("🏠 Дом", callback_data=f"menu:house:{user_id}")],
-        [InlineKeyboardButton("💼 Бизнес", callback_data=f"menu:business:{user_id}")],
-        [InlineKeyboardButton("🎰 Казино", callback_data=f"menu:casino:{user_id}")],
+        [
+            InlineKeyboardButton("💼 Работа", callback_data=f"menu:work:{user_id}"),
+            InlineKeyboardButton("💍 Семья", callback_data=f"menu:marriage:{user_id}"),
+        ],
+        [
+            InlineKeyboardButton("💰 Экономика", callback_data=f"menu:economy:{user_id}"),
+            InlineKeyboardButton("🎰 Казино", callback_data=f"menu:casino:{user_id}"),
+        ],
+        [
+            InlineKeyboardButton("🎮 Игры", callback_data=f"menu:games:{user_id}"),
+            InlineKeyboardButton("👥 Социальное", callback_data=f"menu:social:{user_id}"),
+        ],
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -33,10 +59,12 @@ def work_menu_keyboard(has_job: bool = False, user_id: int = 0) -> InlineKeyboar
         keyboard = [
             [InlineKeyboardButton("💰 Работать", callback_data=f"work:do_job:{user_id}")],
             [InlineKeyboardButton("❌ Уволиться", callback_data=f"work:quit:{user_id}")],
+            [InlineKeyboardButton("« Меню", callback_data=f"menu:main:{user_id}")],
         ]
     else:
         keyboard = [
             [InlineKeyboardButton("📋 Выбрать профессию", callback_data=f"work:choose_profession:{user_id}")],
+            [InlineKeyboardButton("« Меню", callback_data=f"menu:main:{user_id}")],
         ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -97,17 +125,23 @@ def marriage_menu_keyboard(is_married: bool = False, user_id: int = 0) -> Inline
     if not is_married:
         keyboard = [
             [InlineKeyboardButton("💍 Найти пару", callback_data=f"marriage:info:{user_id}")],
+            [InlineKeyboardButton("« Меню", callback_data=f"menu:main:{user_id}")],
         ]
     else:
         keyboard = [
-            [InlineKeyboardButton("🌙 Брачная ночь", callback_data=f"marriage:make_love:{user_id}")],
-            [InlineKeyboardButton("❤️ Свидание", callback_data=f"marriage:date:{user_id}")],
-            [InlineKeyboardButton("💔 Изменить", callback_data=f"marriage:cheat:{user_id}")],
-            [InlineKeyboardButton("📋 Инфо о браке", callback_data=f"marriage:info:{user_id}")],
-            [InlineKeyboardButton("👥 Семья", callback_data=f"marriage:family:{user_id}")],
-            [InlineKeyboardButton("💰 Бюджет", callback_data=f"marriage:budget:{user_id}")],
-            [InlineKeyboardButton("✏️ Фамилия", callback_data=f"marriage:set_family_name:{user_id}")],
-            [InlineKeyboardButton("💔 Развестись", callback_data=f"marriage:divorce:{user_id}")],
+            [
+                InlineKeyboardButton("🌙 Брачная ночь", callback_data=f"marriage:make_love:{user_id}"),
+                InlineKeyboardButton("❤️ Свидание", callback_data=f"marriage:date:{user_id}"),
+            ],
+            [
+                InlineKeyboardButton("💝 Подарить", callback_data=f"marriage_gift:{user_id}"),
+                InlineKeyboardButton("👨‍👩‍👧‍👦 Дети", callback_data=f"menu:family:{user_id}"),
+            ],
+            [
+                InlineKeyboardButton("📋 Инфо", callback_data=f"marriage:info:{user_id}"),
+                InlineKeyboardButton("💔 Развод", callback_data=f"marriage:divorce:{user_id}"),
+            ],
+            [InlineKeyboardButton("« Меню", callback_data=f"menu:main:{user_id}")],
         ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -115,11 +149,16 @@ def marriage_menu_keyboard(is_married: bool = False, user_id: int = 0) -> Inline
 def family_menu_keyboard(user_id: int = 0) -> InlineKeyboardMarkup:
     """Keyboard for family/children menu."""
     keyboard = [
-        [InlineKeyboardButton("👶 Список детей", callback_data=f"family:list_children:{user_id}")],
-        [InlineKeyboardButton("🍼 Родить ребёнка", callback_data=f"family:have_child:{user_id}")],
-        [InlineKeyboardButton("🍽️ Покормить всех", callback_data=f"family:feed_all:{user_id}")],
-        [InlineKeyboardButton("📈 Вырастить всех", callback_data=f"family:age_all:{user_id}")],
+        [
+            InlineKeyboardButton("👶 Дети", callback_data=f"family:list:{user_id}"),
+            InlineKeyboardButton("🍼 Родить", callback_data=f"family:birth_menu:{user_id}"),
+        ],
+        [
+            InlineKeyboardButton("🍽️ Покормить", callback_data=f"family:feed_all:{user_id}"),
+            InlineKeyboardButton("📈 Вырастить", callback_data=f"family:age_all:{user_id}"),
+        ],
         [InlineKeyboardButton("👩‍🍼 Няня", callback_data=f"family:babysitter:{user_id}")],
+        [InlineKeyboardButton("« Меню", callback_data=f"menu:main:{user_id}")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -130,10 +169,12 @@ def house_menu_keyboard(has_house: bool = False, user_id: int = 0) -> InlineKeyb
         keyboard = [
             [InlineKeyboardButton("🏠 Мой дом", callback_data=f"house:info:{user_id}")],
             [InlineKeyboardButton("💰 Продать дом", callback_data=f"house:sell:{user_id}")],
+            [InlineKeyboardButton("« Меню", callback_data=f"menu:main:{user_id}")],
         ]
     else:
         keyboard = [
             [InlineKeyboardButton("🏠 Купить дом", callback_data=f"house:buy:{user_id}")],
+            [InlineKeyboardButton("« Меню", callback_data=f"menu:main:{user_id}")],
         ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -156,8 +197,11 @@ def business_menu_keyboard(user_id: int = 0) -> InlineKeyboardMarkup:
     """Keyboard for business menu."""
     keyboard = [
         [InlineKeyboardButton("📊 Мои бизнесы", callback_data=f"business:list:{user_id}")],
-        [InlineKeyboardButton("🛒 Купить бизнес", callback_data=f"business:buy:{user_id}")],
-        [InlineKeyboardButton("💰 Продать бизнес", callback_data=f"business:sell:{user_id}")],
+        [
+            InlineKeyboardButton("🛒 Купить", callback_data=f"business:buy:{user_id}"),
+            InlineKeyboardButton("💰 Продать", callback_data=f"business:sell:{user_id}"),
+        ],
+        [InlineKeyboardButton("« Меню", callback_data=f"menu:main:{user_id}")],
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -216,5 +260,121 @@ def confirm_keyboard(action: str, user_id: int = 0) -> InlineKeyboardMarkup:
             InlineKeyboardButton("✅ Да", callback_data=f"work:{action}_confirmed:{user_id}"),
             InlineKeyboardButton("❌ Нет", callback_data=f"work:{action}_cancelled:{user_id}"),
         ]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def casino_menu_keyboard(user_id: int) -> InlineKeyboardMarkup:
+    """Casino menu with game buttons."""
+    keyboard = [
+        [
+            InlineKeyboardButton("🎰 Слоты", callback_data=f"casino_info:slots:{user_id}"),
+            InlineKeyboardButton("🎲 Кости", callback_data=f"casino_info:dice:{user_id}"),
+            InlineKeyboardButton("🎯 Дартс", callback_data=f"casino_info:darts:{user_id}"),
+        ],
+        [
+            InlineKeyboardButton("🏀 Баскет", callback_data=f"casino_info:basketball:{user_id}"),
+            InlineKeyboardButton("🎳 Боулинг", callback_data=f"casino_info:bowling:{user_id}"),
+            InlineKeyboardButton("⚽ Футбол", callback_data=f"casino_info:football:{user_id}"),
+        ],
+        [
+            InlineKeyboardButton("🃏 Блэкджек", callback_data=f"casino_info:blackjack:{user_id}"),
+            InlineKeyboardButton("🎫 Скретч", callback_data=f"casino_info:scratch:{user_id}"),
+        ],
+        [
+            InlineKeyboardButton("🪙 Монетка", callback_data=f"casino_info:coinflip:{user_id}"),
+            InlineKeyboardButton("📊 Статистика", callback_data=f"casino_info:stats:{user_id}"),
+        ],
+        [InlineKeyboardButton("« Меню", callback_data=f"menu:main:{user_id}")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def casino_after_game_keyboard(game_type: str, user_id: int) -> InlineKeyboardMarkup:
+    """Buttons after casino game: play again + back to casino."""
+    keyboard = [
+        [
+            InlineKeyboardButton("🔄 Ещё раз", callback_data=f"casino_info:{game_type}:{user_id}"),
+            InlineKeyboardButton("🎰 Казино", callback_data=f"menu:casino:{user_id}"),
+        ],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def economy_menu_keyboard(user_id: int) -> InlineKeyboardMarkup:
+    """Economy submenu."""
+    keyboard = [
+        [
+            InlineKeyboardButton("💼 Бизнес", callback_data=f"menu:business:{user_id}"),
+            InlineKeyboardButton("🏠 Дом", callback_data=f"menu:house:{user_id}"),
+        ],
+        [
+            InlineKeyboardButton("🎁 Бонус", callback_data=f"econ:daily:{user_id}"),
+            InlineKeyboardButton("🎟 Лотерея", callback_data=f"econ:lottery:{user_id}"),
+        ],
+        [
+            InlineKeyboardButton("🏪 Магазин", callback_data=f"econ:shop:{user_id}"),
+            InlineKeyboardButton("🔄 Престиж", callback_data=f"econ:prestige:{user_id}"),
+        ],
+        [
+            InlineKeyboardButton("🏛 Налоги", callback_data=f"econ:tax:{user_id}"),
+            InlineKeyboardButton("⭐ Премиум", callback_data=f"econ:premium:{user_id}"),
+        ],
+        [InlineKeyboardButton("« Меню", callback_data=f"menu:main:{user_id}")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def games_menu_keyboard(user_id: int) -> InlineKeyboardMarkup:
+    """Games submenu."""
+    keyboard = [
+        [
+            InlineKeyboardButton("🐾 Питомец", callback_data=f"econ:pet:{user_id}"),
+            InlineKeyboardButton("🎣 Рыбалка", callback_data=f"econ:fish:{user_id}"),
+        ],
+        [
+            InlineKeyboardButton("⛏️ Шахта", callback_data=f"econ:mine:{user_id}"),
+            InlineKeyboardButton("🎡 Колесо", callback_data=f"econ:wheel:{user_id}"),
+        ],
+        [
+            InlineKeyboardButton("🎯 Квест", callback_data=f"econ:quest:{user_id}"),
+            InlineKeyboardButton("⚔️ Дуэль", callback_data=f"econ:duel:{user_id}"),
+        ],
+        [
+            InlineKeyboardButton("🔫 Ограбление", callback_data=f"econ:rob:{user_id}"),
+            InlineKeyboardButton("🔫 Рулетка", callback_data=f"econ:roulette:{user_id}"),
+        ],
+        [
+            InlineKeyboardButton("🎁 Сундуки", callback_data=f"econ:crate:{user_id}"),
+            InlineKeyboardButton("🛡 Страховка", callback_data=f"econ:insurance:{user_id}"),
+        ],
+        [
+            InlineKeyboardButton("🏦 Ограбление банка", callback_data=f"econ:heist:{user_id}"),
+        ],
+        [InlineKeyboardButton("« Меню", callback_data=f"menu:main:{user_id}")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def social_menu_keyboard(user_id: int) -> InlineKeyboardMarkup:
+    """Social submenu."""
+    keyboard = [
+        [
+            InlineKeyboardButton("👥 Друзья", callback_data=f"econ:friends:{user_id}"),
+            InlineKeyboardButton("🔫 Банда", callback_data=f"econ:gang:{user_id}"),
+        ],
+        [
+            InlineKeyboardButton("💥 Рейд", callback_data=f"econ:raid:{user_id}"),
+            InlineKeyboardButton("⚔️ Война кланов", callback_data=f"econ:clanwar:{user_id}"),
+        ],
+        [
+            InlineKeyboardButton("🎯 Награды", callback_data=f"econ:bounties:{user_id}"),
+            InlineKeyboardButton("🏆 Достижения", callback_data=f"econ:achievements:{user_id}"),
+        ],
+        [
+            InlineKeyboardButton("⭐ Рейтинг", callback_data=f"econ:rating:{user_id}"),
+            InlineKeyboardButton("🏆 Топ", callback_data=f"econ:top:{user_id}"),
+        ],
+        [InlineKeyboardButton("« Меню", callback_data=f"menu:main:{user_id}")],
     ]
     return InlineKeyboardMarkup(keyboard)

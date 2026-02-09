@@ -15,7 +15,7 @@ from app.utils.telegram_helpers import safe_edit_message
 @require_registered
 async def balance_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /balance command."""
-    if not update.effective_user:
+    if not update.effective_user or not update.message:
         return
 
     user_id = update.effective_user.id
@@ -40,10 +40,7 @@ async def transfer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Parse arguments
     if not context.args or len(context.args) < 2:
         await update.message.reply_text(
-            "💰 <b>Перевод алмазов</b>\n\n"
-            "Использование:\n"
-            "/transfer @username [сумма]\n\n"
-            "Пример: /transfer @user 100",
+            "💰 <b>Перевод алмазов</b>\n\n" "/transfer @username [сумма]\n\n" "Пример: /transfer @user 100",
             parse_mode="HTML",
         )
         return
@@ -53,12 +50,12 @@ async def transfer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         amount = int(context.args[1])
     except ValueError:
-        await update.message.reply_text("❌ Сумма должна быть числом")
+        await update.message.reply_text("❌ Укажи число")
         return
 
     # Validate amount
     if amount <= 0:
-        await update.message.reply_text("❌ Сумма должна быть больше 0")
+        await update.message.reply_text("❌ Сумма должна быть > 0")
         return
 
     with get_db() as db:
@@ -66,7 +63,7 @@ async def transfer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         sender = db.query(User).filter(User.telegram_id == sender_id).first()
 
         if not sender:
-            await update.message.reply_text("❌ Ошибка: пользователь не найден")
+            await update.message.reply_text("❌ Что-то пошло не так")
             return
 
         # Check balance
@@ -80,7 +77,7 @@ async def transfer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         recipient = db.query(User).filter(User.username == username).first()
 
         if not recipient:
-            await update.message.reply_text(f"❌ Пользователь @{username} не найден")
+            await update.message.reply_text(f"❌ @{username} не зарегистрирован")
             return
 
         # Can't transfer to self
@@ -137,18 +134,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    help_text = (
-        "📖 <b>Справка</b>\n\n"
-        "Выбери категорию команд:\n\n"
-        "💰 Экономика — работа, бизнес, переводы\n"
-        "🎰 Казино — игры на алмазы\n"
-        "💍 Семья — браки, дети, свидания\n"
-        "🏠 Дом — покупка и управление\n"
-        "🎮 Игры — дуэли, квесты, питомцы\n"
-        "👥 Социальное — друзья, подарки, рейтинги\n"
-        "ℹ️ Инфо — профиль, статистика\n\n"
-        "💎 Валюта — алмазы"
-    )
+    help_text = "📖 <b>Справка</b>\n\n" "Выбери категорию:\n\n" "💡 /menu — главное меню с кнопками"
 
     await update.message.reply_text(help_text, reply_markup=reply_markup, parse_mode="HTML")
 
@@ -195,7 +181,7 @@ async def help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup = InlineKeyboardMarkup(keyboard)
         text = (
             "📖 <b>Справка</b>\n\n"
-            "Выбери категорию команд:\n\n"
+            "Выбери категорию:\n\n"
             "💰 Экономика — работа, бизнес, переводы\n"
             "🎰 Казино — игры на алмазы\n"
             "💍 Семья — браки, дети, свидания\n"
@@ -220,16 +206,13 @@ async def help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/giftbox — гифт-бокс (50-500💎)\n"
             "/shop — магазин титулов\n"
             "/insurance — страховка от ограблений\n"
-            "/invest [сумма] — инвестиции (от -20% до +50%)\n"
-            "/stock — биржа акций\n"
-            "/auction — аукцион предметов\n"
             "/tax — налоговая информация\n"
-            "/prestige — сброс за +5% к доходу\n\n"
+            "/prestige — сброс за +5% к доходу\n"
+            "/premium — магазин за звёзды\n\n"
             "<b>Как это работает:</b>\n"
             "• Выбери профессию через /work\n"
             "• Работай /job для повышения уровня\n"
-            "• Открывай бизнесы для пассивного дохода\n"
-            "• Торгуй акциями на бирже"
+            "• Открывай бизнесы для пассивного дохода"
         )
 
     elif category == "casino":
@@ -263,7 +246,12 @@ async def help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/makelove — заняться любовью (24ч кд)\n"
             "/date — свидание (12ч кд)\n"
             "/cheat @username — измена (30% риск развода)\n"
-            "/family — меню детей\n\n"
+            "/anniversary — годовщина брака\n"
+            "/familybank — семейный банк\n\n"
+            "<b>Дети:</b>\n"
+            "/family — меню детей\n"
+            "/adopt — усыновить ребёнка\n"
+            "/childwork — отправить ребёнка работать\n\n"
             "<b>Как создать семью:</b>\n"
             "• Предложи брак через /propose\n"
             "• Занимайся любовью для зачатия детей\n"
@@ -293,18 +281,17 @@ async def help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = (
             "🎮 <b>Игры</b>\n\n"
             "/duel @username [ставка] — дуэль на алмазы\n"
+            "/rr [ставка] — русская рулетка (2-6 игроков)\n"
+            "/heist [easy|medium|hard] — ограбление банка (2-8 игроков)\n"
             "/mine — копать в шахте\n"
             "/wheel — колесо фортуны\n"
             "/quest — случайный квест\n"
             "/pet — питомец\n"
-            "/pet shop — аксессуары для питомца\n"
-            "/pet rename — переименовать питомца\n"
             "/fish — рыбалка\n"
-            "/fishlist — виды рыб\n\n"
+            "/crate — сундуки за серию /daily\n\n"
             "<b>Похищения:</b>\n"
             "/kidnap (реплай) — похитить ребёнка\n"
             "/ransom — заплатить выкуп\n"
-            "/release — отпустить\n"
             "/kidnaps — статус похищений\n\n"
             "<b>Награды:</b>\n"
             "/bounty @user [сумма] — назначить награду\n"
@@ -318,19 +305,23 @@ async def help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/friends — список друзей\n"
             "/addfriend @user — добавить в друзья\n"
             "/removefriend @user — удалить из друзей\n"
-            "/gift @user [сумма] — подарок другу (мин. 10)\n"
-            "/reputation @user [+/-] — репутация\n"
+            "/friendgift @user [сумма] — подарок другу\n"
             "/achievements — достижения\n"
             "/rating — рейтинг игроков\n\n"
+            "<b>Рефералы:</b>\n"
+            "/invite — пригласить друга (500💎 за реферала)\n"
+            "/myrefs — список рефералов\n\n"
             "<b>Банды:</b>\n"
             "/gang — меню банды\n"
             "/gang create [название] — создать банду\n"
-            "/gangs — топ банд\n\n"
+            "/gangs — топ банд\n"
+            "/raid [банда] — рейд на чужую банду\n"
+            "/clanwar — война кланов (недельный рейтинг)\n\n"
             "<b>Как это работает:</b>\n"
             "• Добавляй друзей через /addfriend\n"
+            "• Приглашай новых игроков через /invite\n"
             "• Создавай банды и приглашай участников\n"
-            "• Ставь репутацию раз в день\n"
-            "• Получай достижения за прогресс"
+            "• Рейди чужие банды и соревнуйся в войне кланов"
         )
 
     elif category == "info":

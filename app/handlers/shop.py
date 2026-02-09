@@ -26,6 +26,12 @@ SHOP_TITLES = {
     "devil": {"name": "Дьявол", "emoji": "😈", "display": "😈 Дьявол", "price": 2500},
     "king": {"name": "Король", "emoji": "🤴", "display": "🤴 Король", "price": 10000},
     "queen": {"name": "Королева", "emoji": "👸", "display": "👸 Королева", "price": 10000},
+    # Streak-exclusive titles (earned from crates, not buyable)
+    "survivor": {"name": "Выживший", "emoji": "🔥", "display": "🔥 Выживший", "price": 0},
+    "dedicated": {"name": "Преданный", "emoji": "💪", "display": "💪 Преданный", "price": 0},
+    "veteran": {"name": "Ветеран", "emoji": "⚔️", "display": "⚔️ Ветеран", "price": 0},
+    "immortal": {"name": "Бессмертный", "emoji": "🌟", "display": "🌟 Бессмертный", "price": 0},
+    "mythic": {"name": "Мифический", "emoji": "🐲", "display": "🐲 Мифический", "price": 0},
 }
 
 
@@ -67,19 +73,32 @@ async def shop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text += f"💰 Баланс: {format_diamonds(balance)}\n\n"
     text += "<b>Доступные титулы:</b>\n"
 
-    # Sort by price
-    sorted_titles = sorted(SHOP_TITLES.items(), key=lambda x: x[1]["price"])
+    # Streak-exclusive titles (price=0) shown separately
+    STREAK_TITLE_IDS = {"survivor", "dedicated", "veteran", "immortal", "mythic"}
 
-    for title_id, title_data in sorted_titles:
+    # Sort buyable titles by price
+    buyable_titles = [(tid, td) for tid, td in SHOP_TITLES.items() if tid not in STREAK_TITLE_IDS]
+    buyable_titles.sort(key=lambda x: x[1]["price"])
+
+    for title_id, title_data in buyable_titles:
         status = "✅" if title_id in owned else ""
         text += f"{title_data['display']} — {format_diamonds(title_data['price'])} {status}\n"
 
-    text += f"\n✅ = куплено ({len(owned)}/{len(SHOP_TITLES)})"
+    # Show streak titles if any are owned
+    streak_owned = [tid for tid in STREAK_TITLE_IDS if tid in owned]
+    if streak_owned:
+        text += "\n<b>Эксклюзивные (из сундуков):</b>\n"
+        for tid in sorted(streak_owned):
+            td = SHOP_TITLES[tid]
+            text += f"✅ {td['display']}\n"
 
-    # Build keyboard
+    text += f"\n✅ = куплено ({len(owned)}/{len(SHOP_TITLES)})"
+    text += "\n\n🎁 /crate — сундуки за серию /daily"
+
+    # Build keyboard (only for buyable titles)
     keyboard = []
     row = []
-    for title_id, title_data in sorted_titles:
+    for title_id, title_data in buyable_titles:
         if title_id in owned:
             label = f"✅ {title_data['emoji']}"
         else:

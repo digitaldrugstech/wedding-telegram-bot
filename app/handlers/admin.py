@@ -101,8 +101,11 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
         casino_games_today = db.query(CasinoGame).filter(CasinoGame.played_at >= today_start).count()
 
-        # Top 10 richest
-        top_users = db.query(User).order_by(User.balance.desc()).limit(10).all()
+        # Top 10 richest — extract plain values inside session
+        top_users = [
+            (u.username or f"User{u.telegram_id}", u.balance)
+            for u in db.query(User).order_by(User.balance.desc()).limit(10).all()
+        ]
 
     message = (
         f"📊 <b>Статистика бота</b>\n\n"
@@ -116,9 +119,8 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"<b>Топ 10 богатых:</b>\n"
     )
 
-    for i, user in enumerate(top_users, 1):
-        username = user.username or f"User{user.telegram_id}"
-        message += f"{i}. @{username} — {format_diamonds(user.balance)}\n"
+    for i, (username, balance) in enumerate(top_users, 1):
+        message += f"{i}. @{username} — {format_diamonds(balance)}\n"
 
     await update.message.reply_text(message, parse_mode="HTML")
 
@@ -126,7 +128,9 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 @admin_only_private
 async def user_info_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Show detailed user info."""
-    if not update.effective_user or not update.message or not context.args:
+    if not update.effective_user or not update.message:
+        return
+    if not context.args:
         await update.message.reply_text(
             "👤 <b>Информация о пользователе</b>\n\n"
             "Использование:\n"
@@ -187,7 +191,9 @@ async def user_info_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 @admin_only
 async def give_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Give diamonds to user (works with @username or telegram_id)."""
-    if not update.effective_user or not update.message or len(context.args) < 2:
+    if not update.effective_user or not update.message:
+        return
+    if not context.args or len(context.args) < 2:
         await update.message.reply_text(
             "💰 <b>Выдать алмазы</b>\n\n"
             "Использование:\n"
@@ -251,7 +257,9 @@ async def give_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 @admin_only_private
 async def take_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Take diamonds from user."""
-    if not update.effective_user or not update.message or len(context.args) < 2:
+    if not update.effective_user or not update.message:
+        return
+    if not context.args or len(context.args) < 2:
         await update.message.reply_text(
             "💰 <b>Забрать алмазы</b>\n\n"
             "Использование:\n"
@@ -294,7 +302,9 @@ async def take_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 @admin_only
 async def ban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Ban user (works with @username or telegram_id, optional reason)."""
-    if not update.effective_user or not update.message or not context.args:
+    if not update.effective_user or not update.message:
+        return
+    if not context.args:
         await update.message.reply_text(
             "🚫 <b>Забанить пользователя</b>\n\n"
             "Использование:\n"
@@ -349,7 +359,9 @@ async def ban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 @admin_only
 async def unban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Unban user (works with @username or telegram_id)."""
-    if not update.effective_user or not update.message or not context.args:
+    if not update.effective_user or not update.message:
+        return
+    if not context.args:
         await update.message.reply_text(
             "✅ <b>Разбанить пользователя</b>\n\n"
             "Использование:\n"
@@ -398,7 +410,9 @@ async def unban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 @admin_only_private
 async def broadcast_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Broadcast message to all users."""
-    if not update.effective_user or not update.message or not context.args:
+    if not update.effective_user or not update.message:
+        return
+    if not context.args:
         await update.message.reply_text(
             "📢 <b>Рассылка</b>\n\n" "Использование:\n" "/broadcast [message]\n\n" "Пример: /broadcast Привет всем!",
             parse_mode="HTML",
@@ -435,7 +449,9 @@ async def maintenance_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     """Toggle maintenance mode."""
     global MAINTENANCE_MODE
 
-    if not update.effective_user or not update.message or not context.args:
+    if not update.effective_user or not update.message:
+        return
+    if not context.args:
         status = "включён" if MAINTENANCE_MODE else "выключен"
         await update.message.reply_text(
             f"🔧 <b>Режим обслуживания</b>\n\n"
@@ -598,6 +614,68 @@ async def topchats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(text, parse_mode="HTML")
 
 
+@admin_only_private
+async def announce_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Announce to all tracked group chats, pin only in production chat."""
+    if not update.effective_user or not update.message:
+        return
+    if not context.args:
+        await update.message.reply_text(
+            "📢 <b>Анонс во все чаты</b>\n\n"
+            "Использование:\n"
+            "/announce [текст в HTML]\n\n"
+            "Отправляет во все отслеживаемые чаты\n"
+            "Закрепляет только в продовом",
+            parse_mode="HTML",
+        )
+        return
+
+    from app.constants import PRODUCTION_CHAT_ID
+
+    message_text = " ".join(context.args)
+
+    # Get all tracked group chats
+    with get_db() as db:
+        chats = db.query(ChatActivity).filter(ChatActivity.chat_type.in_(["group", "supergroup"])).all()
+        chat_ids = [c.chat_id for c in chats]
+
+    if not chat_ids:
+        await update.message.reply_text("Нет отслеживаемых чатов")
+        return
+
+    sent_count = 0
+    failed_count = 0
+    pinned = False
+
+    for chat_id in chat_ids:
+        try:
+            result = await context.bot.send_message(chat_id=chat_id, text=message_text, parse_mode="HTML")
+            sent_count += 1
+
+            # Pin only in production chat
+            if chat_id == PRODUCTION_CHAT_ID:
+                try:
+                    await context.bot.pin_chat_message(chat_id=chat_id, message_id=result.message_id)
+                    pinned = True
+                except Exception as e:
+                    logger.warning("Failed to pin announcement", chat_id=chat_id, error=str(e))
+        except Exception as e:
+            failed_count += 1
+            logger.warning("Failed to send announcement", chat_id=chat_id, error=str(e))
+        await asyncio.sleep(0.1)
+
+    pin_status = "📌 Закреплено в проде" if pinned else "⚠️ Не закреплено в проде"
+    await update.message.reply_text(
+        f"📢 <b>Анонс отправлен</b>\n\n"
+        f"✅ Чатов: {sent_count}\n"
+        f"❌ Ошибок: {failed_count}\n"
+        f"{pin_status}",
+        parse_mode="HTML",
+    )
+
+    logger.info("Announcement sent", admin_id=update.effective_user.id, sent=sent_count, failed=failed_count, pinned=pinned)
+
+
 def register_admin_handlers(application):
     """Register admin handlers."""
     application.add_handler(CommandHandler("reset_cd", reset_cooldown_command))
@@ -612,4 +690,5 @@ def register_admin_handlers(application):
     application.add_handler(CommandHandler("maintenance", maintenance_command))
     application.add_handler(CommandHandler("chats", chats_command))
     application.add_handler(CommandHandler("topchats", topchats_command))
+    application.add_handler(CommandHandler("announce", announce_command))
     application.add_handler(CallbackQueryHandler(admin_callback, pattern="^admin:"))
