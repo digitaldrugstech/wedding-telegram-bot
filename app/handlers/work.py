@@ -19,7 +19,7 @@ from app.database.connection import get_db
 from app.database.models import Cooldown, InterpolFine, Job, User
 from app.handlers.quest import update_quest_progress
 from app.utils.decorators import require_registered, set_cooldown
-from app.utils.formatters import format_diamonds
+from app.utils.formatters import format_diamonds, format_word
 from app.utils.keyboards import profession_selection_keyboard, work_menu_keyboard
 from app.utils.telegram_helpers import safe_edit_message
 
@@ -1143,7 +1143,7 @@ async def profession_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
                 query,
                 f"✅ Профессия сменена\n\n"
                 f"📋 {new_title} ({new_level} ур.)\n\n"
-                f"⚠️ Потерял {level_penalty} {'уровень' if level_penalty == 1 else 'уровня'}",
+                f"⚠️ Потерял {format_word(level_penalty, 'уровень', 'уровня', 'уровней')}",
                 reply_markup=work_menu_keyboard(has_job=True, user_id=user_id),
             )
         else:

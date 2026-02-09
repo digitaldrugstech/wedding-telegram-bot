@@ -179,6 +179,12 @@ async def duel_accept(update: Update, context: ContextTypes.DEFAULT_TYPE):
     duel_id = int(query.data.split(":")[2])
     opponent_id = update.effective_user.id
 
+    # Ban check
+    with get_db() as db:
+        opponent_check = db.query(User).filter(User.telegram_id == opponent_id).first()
+        if not opponent_check or opponent_check.is_banned:
+            return
+
     with get_db() as db:
         duel = db.query(Duel).filter(Duel.id == duel_id, Duel.is_active.is_(True)).first()
 

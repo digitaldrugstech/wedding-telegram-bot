@@ -11,7 +11,7 @@ from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 from app.database.connection import get_db
 from app.database.models import Lottery, LotteryTicket, User
 from app.utils.decorators import require_registered
-from app.utils.formatters import format_diamonds
+from app.utils.formatters import format_diamonds, format_word
 
 logger = structlog.get_logger()
 
@@ -137,7 +137,7 @@ async def buyticket_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         balance = user.balance
 
     text = (
-        f"🎟 <b>Билет{'ы' if count > 1 else ''} куплен{'ы' if count > 1 else ''}!</b>\n\n"
+        f"🎟 <b>{format_word(count, 'Билет куплен', 'Билета куплено', 'Билетов куплено')}!</b>\n\n"
         f"Куплено: {count} шт.\n"
         f"Потрачено: {format_diamonds(total_cost)}\n"
         f"Твоих билетов: {total_user_tickets}/{MAX_TICKETS_PER_USER}\n\n"
@@ -271,7 +271,7 @@ async def draw_lottery(context: ContextTypes.DEFAULT_TYPE):
         "🎉 <b>Розыгрыш лотереи!</b>\n\n"
         f"🏆 Победитель: @{winner_username}\n"
         f"💰 Приз: {format_diamonds(prize)}\n"
-        f"🎫 Всего билетов: {total_tickets}\n"
+        f"🎫 Всего {format_word(total_tickets, 'билет', 'билета', 'билетов')}\n"
         f"💰 Джекпот был: {format_diamonds(jackpot)}\n\n"
         f"🎟 Новая лотерея уже началась! /lottery"
     )

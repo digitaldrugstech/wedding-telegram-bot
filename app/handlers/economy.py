@@ -8,7 +8,7 @@ from app.constants import TAX_RATE, TAX_THRESHOLD
 from app.database.connection import get_db
 from app.database.models import TaxPayment, User
 from app.utils.decorators import require_registered
-from app.utils.formatters import format_diamonds
+from app.utils.formatters import format_diamonds, format_word
 
 logger = structlog.get_logger()
 
@@ -37,7 +37,7 @@ async def tax_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Еженедельный налог: {format_diamonds(weekly_tax)}\n"
             f"Ставка: {int(TAX_RATE * 100)}% от суммы свыше {format_diamonds(TAX_THRESHOLD)}\n\n"
             f"Всего выплачено налогов: {format_diamonds(total_paid)}\n"
-            f"Выплат: {total_taxes}"
+            f"{format_word(total_taxes, 'Выплата', 'Выплаты', 'Выплат')}"
         )
 
         await update.message.reply_text(text, parse_mode="HTML")

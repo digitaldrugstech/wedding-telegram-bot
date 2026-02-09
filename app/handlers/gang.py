@@ -9,7 +9,7 @@ from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 from app.database.connection import get_db
 from app.database.models import Gang, GangMember, User
 from app.utils.decorators import button_owner_only, require_registered
-from app.utils.formatters import format_diamonds
+from app.utils.formatters import format_diamonds, format_word
 from app.utils.telegram_helpers import safe_edit_message
 
 logger = structlog.get_logger()
@@ -193,7 +193,7 @@ async def gang_invite(update: Update, context: ContextTypes.DEFAULT_TYPE, user_i
         current_count = db.query(GangMember).filter(GangMember.gang_id == gang.id).count()
         max_members = GANG_MAX_MEMBERS_BY_LEVEL.get(gang.level, 5)
         if current_count >= max_members:
-            await update.message.reply_text(f"❌ Банда полна ({current_count}/{max_members})\n\n/gang upgrade — увеличить лимит")
+            await update.message.reply_text(f"❌ Банда полна ({format_word(current_count, 'участник', 'участника', 'участников')}/{max_members})\n\n/gang upgrade — увеличить лимит")
             return
 
         # Find target
@@ -492,7 +492,7 @@ async def gangs_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             text += (
                 f"{i}. <b>{html.escape(gang.name)}</b> (ур.{gang.level})\n"
-                f"   👑 @{html.escape(str(leader_name))} | {member_count} чел. | Банк: {format_diamonds(gang.bank)}\n\n"
+                f"   👑 @{html.escape(str(leader_name))} | {format_word(member_count, 'участник', 'участника', 'участников')} | Банк: {format_diamonds(gang.bank)}\n\n"
             )
 
     await update.message.reply_text(text, parse_mode="HTML")

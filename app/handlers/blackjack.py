@@ -265,6 +265,14 @@ async def blackjack_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
         return
 
+    # Ban check
+    with get_db() as db:
+        bj_user = db.query(User).filter(User.telegram_id == user_id).first()
+        if not bj_user or bj_user.is_banned:
+            context.user_data["bj_active"] = False
+            await query.answer("Доступ запрещён", show_alert=True)
+            return
+
     await query.answer()
 
     if not context.user_data.get("bj_active"):

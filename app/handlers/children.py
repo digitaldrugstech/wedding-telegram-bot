@@ -18,7 +18,7 @@ from app.services.children_service import (
 )
 from app.services.marriage_service import MarriageService
 from app.utils.decorators import require_registered
-from app.utils.formatters import format_diamonds
+from app.utils.formatters import format_diamonds, format_word
 from app.utils.telegram_helpers import safe_edit_message
 
 logger = structlog.get_logger()
@@ -50,10 +50,10 @@ async def family_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             dead_children = [c for c in children if not c.is_alive]
 
             message = "👨‍👩‍👧‍👦 <b>Семья</b>\n\n"
-            message += f"👶 Детей: {len(alive_children)}\n"
+            message += f"👶 {format_word(len(alive_children), 'Ребёнок', 'Ребёнка', 'Детей')}\n"
 
             if dead_children:
-                message += f"💀 Умерло: {len(dead_children)}\n"
+                message += f"💀 {format_word(len(dead_children), 'Умер', 'Умерло', 'Умерло')}\n"
 
             message += "\n<b>Дети:</b>\n"
 
@@ -205,7 +205,7 @@ async def family_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 message += f"⏰ Уже сыты: {already_fed}\n\n"
 
             if insufficient > 0:
-                message += f"❌ Недостаточно алмазов для: {insufficient}\n\n"
+                message += f"❌ Не хватило алмазов на {format_word(insufficient, 'ребёнка', 'детей', 'детей')}\n\n"
 
             if fed == 0 and already_fed == 0 and insufficient == 0:
                 message += "Нет детей для кормления"
