@@ -31,18 +31,33 @@ QUEST_TEMPLATES = {
     "pet": [
         ("Покорми питомца {count} раз", [3, 5], [50, 100]),
     ],
+    "fish": [
+        ("Порыбачь {count} раз", [3, 5], [80, 120]),
+    ],
+    "duel": [
+        ("Выиграй {count} дуэль", [1, 2], [150, 250]),
+    ],
+    "rob": [
+        ("Ограбь {count} игрока", [1, 2], [100, 200]),
+    ],
+    "bounty": [
+        ("Назначь {count} награду", [1, 2], [100, 150]),
+    ],
+    "daily": [
+        ("Получи ежедневный бонус {count} раз", [1, 1], [50, 50]),
+    ],
 }
 
 
 def initialize_quests():
-    """Initialize quest templates in database (run once on startup)."""
+    """Initialize quest templates in database. Adds new types on each startup."""
     with get_db() as db:
-        existing = db.query(Quest).count()
-        if existing > 0:
-            return  # Quests already initialized
+        existing_types = set(row[0] for row in db.query(Quest.quest_type).distinct().all())
 
-        # Create all quest variants
+        added = 0
         for quest_type, templates in QUEST_TEMPLATES.items():
+            if quest_type in existing_types:
+                continue
             for description, counts, rewards in templates:
                 for i in range(len(counts)):
                     quest = Quest(
@@ -52,7 +67,10 @@ def initialize_quests():
                         reward=rewards[i],
                     )
                     db.add(quest)
-        logger.info("Initialized quest templates")
+                    added += 1
+
+        if added > 0:
+            logger.info("Added new quest templates", count=added)
 
 
 def assign_daily_quests(user_id: int):

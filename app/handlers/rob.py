@@ -12,6 +12,7 @@ from app.database.connection import get_db
 from app.database.models import Cooldown, User
 from app.handlers.bounty import collect_bounties, get_target_bounties
 from app.handlers.insurance import has_active_insurance
+from app.handlers.quest import update_quest_progress
 from app.utils.decorators import require_registered
 from app.utils.formatters import format_diamonds
 
@@ -97,6 +98,7 @@ async def rob_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         success = random.random() < ROB_SUCCESS_CHANCE
 
         bounty_collected = 0
+        fine = 0
 
         if success:
             # Steal from target
@@ -142,6 +144,13 @@ async def rob_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     await update.message.reply_text(text, parse_mode="HTML")
+
+    if success:
+        try:
+            update_quest_progress(user_id, "rob")
+        except Exception:
+            pass
+
     logger.info("Rob attempt", user_id=user_id, target_id=target_id, success=success, amount=steal_amount)
 
 

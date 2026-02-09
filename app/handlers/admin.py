@@ -7,7 +7,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
 from app.database.connection import get_db
-from app.database.models import Business, Child, Cooldown, Marriage, User
+from app.database.models import Business, ChatActivity, Child, Cooldown, Marriage, User
 from app.utils.decorators import admin_only, admin_only_private
 from app.utils.formatters import format_diamonds
 from app.utils.telegram_helpers import safe_edit_message
@@ -550,6 +550,54 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
+@admin_only
+async def chats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /chats — show all chats where bot is active (admin only)."""
+    if not update.effective_user or not update.message:
+        return
+
+    with get_db() as db:
+        chats = db.query(ChatActivity).order_by(ChatActivity.command_count.desc()).all()
+
+        if not chats:
+            await update.message.reply_text("Нет данных о чатах. Трекинг только начался.")
+            return
+
+        text = "💬 <b>Чаты бота</b>\n\n"
+        for i, c in enumerate(chats, 1):
+            title = c.title or f"ID {c.chat_id}"
+            text += (
+                f"{i}. <b>{title}</b>\n"
+                f"   ID: <code>{c.chat_id}</code>\n"
+                f"   Команд: {c.command_count}\n"
+                f"   Тип: {c.chat_type}\n\n"
+            )
+
+    await update.message.reply_text(text, parse_mode="HTML")
+
+
+async def topchats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /topchats — show most active chats (public)."""
+    if not update.effective_user or not update.message:
+        return
+
+    with get_db() as db:
+        chats = db.query(ChatActivity).order_by(ChatActivity.command_count.desc()).limit(10).all()
+
+        if not chats:
+            await update.message.reply_text("📊 Пока нет данных о чатах")
+            return
+
+        rows = []
+        for i, c in enumerate(chats, 1):
+            title = c.title or "???"
+            medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
+            rows.append(f"{medal} {title} — {c.command_count} команд")
+
+    text = "💬 <b>Топ чатов</b>\n\n" + "\n".join(rows)
+    await update.message.reply_text(text, parse_mode="HTML")
+
+
 def register_admin_handlers(application):
     """Register admin handlers."""
     application.add_handler(CommandHandler("reset_cd", reset_cooldown_command))
@@ -562,4 +610,6 @@ def register_admin_handlers(application):
     application.add_handler(CommandHandler("unban", unban_command))
     application.add_handler(CommandHandler("broadcast", broadcast_command))
     application.add_handler(CommandHandler("maintenance", maintenance_command))
+    application.add_handler(CommandHandler("chats", chats_command))
+    application.add_handler(CommandHandler("topchats", topchats_command))
     application.add_handler(CallbackQueryHandler(admin_callback, pattern="^admin:"))

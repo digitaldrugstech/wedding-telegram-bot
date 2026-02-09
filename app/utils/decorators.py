@@ -8,7 +8,7 @@ from telegram import Update
 from telegram.ext import ContextTypes
 
 from app.database.connection import get_db
-from app.database.models import Cooldown, User
+from app.database.models import ChatActivity, Cooldown, User
 
 
 def set_cooldown(update: Update, user_id: int, action: str, hours: float):
@@ -62,26 +62,48 @@ def require_registered(func: Callable) -> Callable:
             user = db.query(User).filter(User.telegram_id == user_id).first()
 
             if not user:
-                # Show registration instead of asking to use /start
-                await update.message.reply_text(
-                    f"👋 Привет, {username}\n\n"
-                    f"Wedding Bot — семейная жизнь на сервере\n\n"
-                    f"💍 Женись, заводи детей\n"
-                    f"💼 Работай, покупай дом\n"
-                    f"💰 Открывай бизнес\n\n"
-                    f"Выбери пол:",
-                    reply_markup=gender_selection_keyboard(user_id),
-                )
+                if update.message:
+                    await update.message.reply_text(
+                        f"👋 Привет, {username}\n\n"
+                        f"Wedding Bot — семейная жизнь на сервере\n\n"
+                        f"💍 Женись, заводи детей\n"
+                        f"💼 Работай, покупай дом\n"
+                        f"💰 Открывай бизнес\n\n"
+                        f"Выбери пол:",
+                        reply_markup=gender_selection_keyboard(user_id),
+                    )
                 return
 
             if user.is_banned:
-                await update.message.reply_text("🚫 Ты заблокирован")
+                if update.message:
+                    await update.message.reply_text("🚫 Ты заблокирован")
                 return
 
             # Auto-update username if changed in Telegram
             current_username = update.effective_user.username
             if current_username and user.username != current_username:
                 user.username = current_username
+
+            # Track chat activity (group chats only)
+            chat = update.effective_chat
+            if chat and chat.type in ("group", "supergroup"):
+                try:
+                    activity = db.query(ChatActivity).filter(ChatActivity.chat_id == chat.id).first()
+                    if activity:
+                        activity.command_count += 1
+                        activity.last_active_at = datetime.utcnow()
+                        if chat.title and activity.title != chat.title:
+                            activity.title = chat.title
+                    else:
+                        activity = ChatActivity(
+                            chat_id=chat.id,
+                            title=chat.title or "Unknown",
+                            chat_type=chat.type,
+                            command_count=1,
+                        )
+                        db.add(activity)
+                except Exception:
+                    pass  # Never crash on tracking
 
         return await func(update, context, *args, **kwargs)
 

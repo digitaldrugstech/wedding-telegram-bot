@@ -165,7 +165,7 @@ async def fishing_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(text, parse_mode="HTML")
 
     try:
-        update_quest_progress(user_id, "casino")
+        update_quest_progress(user_id, "fish")
     except Exception:
         pass
 

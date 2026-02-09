@@ -10,6 +10,7 @@ from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 from app.database.connection import get_db
 from app.database.models import Cooldown, Duel, User
 from app.handlers.bounty import collect_bounties
+from app.handlers.quest import update_quest_progress
 from app.utils.decorators import button_owner_only, require_registered
 from app.utils.formatters import format_diamonds
 from app.utils.telegram_helpers import safe_edit_message
@@ -245,6 +246,12 @@ async def duel_accept(update: Update, context: ContextTypes.DEFAULT_TYPE):
         winner_name = winner.username or f"ID {winner_id}"
         loser = db.query(User).filter(User.telegram_id == loser_id).first()
         loser_name = loser.username or f"ID {loser_id}"
+
+    # Track quest progress for winner
+    try:
+        update_quest_progress(winner_id, "duel")
+    except Exception:
+        pass
 
     result_text = (
         f"⚔️ <b>Дуэль завершена!</b>\n\n"

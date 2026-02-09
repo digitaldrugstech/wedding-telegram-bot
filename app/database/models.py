@@ -431,7 +431,9 @@ class Quest(Base):
     id = Column(Integer, primary_key=True)
     quest_type = Column(
         String(50),
-        CheckConstraint("quest_type IN ('work', 'casino', 'transfer', 'marriage', 'pet')"),
+        CheckConstraint(
+            "quest_type IN ('work', 'casino', 'transfer', 'marriage', 'pet', 'fish', 'duel', 'rob', 'bounty', 'gang', 'daily')"
+        ),
         nullable=False,
     )
     description = Column(String(255), nullable=False)
@@ -716,3 +718,20 @@ class GangMember(Base):
 
     def __repr__(self):
         return f"<GangMember(gang_id={self.gang_id}, user_id={self.user_id}, role={self.role})>"
+
+
+class ChatActivity(Base):
+    """Track bot activity per chat."""
+
+    __tablename__ = "chat_activity"
+
+    chat_id = Column(BigInteger, primary_key=True)
+    title = Column(String(255), nullable=True)
+    chat_type = Column(String(20), nullable=False, default="group")
+    command_count = Column(BigInteger, default=0, nullable=False)
+    user_count = Column(Integer, default=0, nullable=False)
+    last_active_at = Column(DateTime, default=func.now(), nullable=False)
+    first_seen_at = Column(DateTime, default=func.now(), nullable=False)
+
+    def __repr__(self):
+        return f"<ChatActivity(chat_id={self.chat_id}, title={self.title}, commands={self.command_count})>"

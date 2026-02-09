@@ -9,6 +9,7 @@ from telegram.ext import CommandHandler, ContextTypes
 
 from app.database.connection import get_db
 from app.database.models import Bounty, User
+from app.handlers.quest import update_quest_progress
 from app.utils.decorators import require_registered
 from app.utils.formatters import format_diamonds
 
@@ -159,6 +160,11 @@ async def bounty_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"💰 Баланс: {format_diamonds(balance)}",
         parse_mode="HTML",
     )
+
+    try:
+        update_quest_progress(user_id, "bounty")
+    except Exception:
+        pass
 
     logger.info("Bounty placed", placer_id=user_id, target=username, amount=amount, fee=fee)
 
