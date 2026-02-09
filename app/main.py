@@ -77,39 +77,8 @@ async def main():
         )
         logger.info("Bot started successfully")
 
-        # Send update announcement to production chat
+        # Send startup notification to debug chat
         try:
-            import os
-
-            announce_chat_id = int(os.getenv("ANNOUNCE_CHAT_ID", "-1003086018945"))
-
-            update_text = (
-                f"\U0001f389 <b>Wedding Bot v{__version__}</b>\n\n"
-                "\U0001f381 <b>\u041d\u043e\u0432\u043e\u0435:</b>\n"
-                "\u2022 /daily \u2014 \u0435\u0436\u0435\u0434\u043d\u0435\u0432\u043d\u044b\u0439 \u0431\u043e\u043d\u0443\u0441 (\u0441\u0435\u0440\u0438\u044f \u0434\u043d\u0435\u0439 = \u0431\u043e\u043b\u044c\u0448\u0435 \u043d\u0430\u0433\u0440\u0430\u0434\u0430)\n"
-                "\u2022 /lottery \u2014 \u043b\u043e\u0442\u0435\u0440\u0435\u044f \u0441 \u0434\u0436\u0435\u043a\u043f\u043e\u0442\u043e\u043c (\u0440\u043e\u0437\u044b\u0433\u0440\u044b\u0448 \u043a\u0430\u0436\u0434\u0443\u044e \u0441\u0443\u0431\u0431\u043e\u0442\u0443)\n"
-                "\u2022 /friendgift \u2014 \u043f\u043e\u0434\u0430\u0440\u043e\u043a \u0434\u0440\u0443\u0433\u0443 (\u0431\u0435\u0437 \u043a\u043e\u043c\u0438\u0441\u0441\u0438\u0438)\n\n"
-                "\U0001f41b <b>\u0418\u0441\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u043e:</b>\n"
-                "\u2022 \u041f\u0438\u0442\u043e\u043c\u0446\u044b \u043a\u043e\u0440\u0440\u0435\u043a\u0442\u043d\u043e \u043f\u043e\u043a\u0430\u0437\u044b\u0432\u0430\u044e\u0442 \u0441\u0442\u0430\u0442\u044b\n"
-                "\u2022 18 \u043f\u0440\u043e\u0444\u0435\u0441\u0441\u0438\u0439 \u0432 \u043c\u0435\u043d\u044e\n"
-                "\u2022 \u041a\u043e\u0440\u0440\u0435\u043a\u0442\u043d\u044b\u0435 \u043c\u043d\u043e\u0436\u0438\u0442\u0435\u043b\u0438 \u043a\u0430\u0437\u0438\u043d\u043e\n\n"
-                "\U0001f4ac \u041d\u0430\u0448\u0451\u043b \u0431\u0430\u0433? \u041f\u0438\u0448\u0438 /bug_report"
-            )
-
-            try:
-                msg = await application.bot.send_message(chat_id=announce_chat_id, text=update_text, parse_mode="HTML")
-                # Pin the announcement
-                try:
-                    await application.bot.pin_chat_message(
-                        chat_id=announce_chat_id, message_id=msg.message_id, disable_notification=True
-                    )
-                    logger.info("Update announcement pinned", chat_id=announce_chat_id)
-                except Exception as pin_err:
-                    logger.warning("Could not pin announcement", error=str(pin_err))
-                logger.info("Update announcement sent", chat_id=announce_chat_id)
-            except Exception as send_err:
-                logger.debug("Could not send announcement", chat_id=announce_chat_id, error=str(send_err))
-
             # Also send to debug chat
             try:
                 await application.bot.send_message(

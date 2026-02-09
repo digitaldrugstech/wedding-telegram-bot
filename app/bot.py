@@ -26,6 +26,7 @@ from app.handlers.mine import register_mine_handlers
 from app.handlers.pet import register_pet_handlers
 from app.handlers.quest import initialize_quests, register_quest_handlers
 from app.handlers.scratch import register_scratch_handlers
+from app.handlers.shop import register_shop_handlers
 from app.handlers.social import register_social_handlers
 from app.handlers.start import register_start_handlers
 from app.handlers.utils import register_utils_handlers
@@ -97,6 +98,7 @@ def create_bot() -> Application:
     register_wheel_handlers(application)
     register_scratch_handlers(application)
     register_blackjack_handlers(application)
+    register_shop_handlers(application)
     register_feedback_handlers(application)
     register_admin_handlers(application)
 

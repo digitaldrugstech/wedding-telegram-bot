@@ -109,8 +109,17 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         gender_emoji = "♂️" if user.gender == "male" else "♀️"
         rep_emoji = "⭐" if user.reputation >= 0 else "💀"
 
+        # Title display
+        title_display = ""
+        if user.active_title:
+            from app.handlers.shop import SHOP_TITLES
+
+            title_info = SHOP_TITLES.get(user.active_title)
+            if title_info:
+                title_display = f" | {title_info['display']}"
+
         profile_text = (
-            f"👤 {user.username} {gender_emoji}\n"
+            f"👤 {user.username} {gender_emoji}{title_display}\n"
             f"🎮 Сервер: не привязан\n\n"
             f"💰 {format_diamonds(user.balance)}\n"
             f"💼 {job_info}\n"
