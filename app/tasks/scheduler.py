@@ -293,11 +293,13 @@ async def cleanup_stale_games_task(application: Application):
     """Clean up expired heists and roulette rounds, refunding players."""
     try:
         from app.handlers.heist import HEIST_JOIN_TIMEOUT_SECONDS, _refund_all as heist_refund, active_heists
+        from app.handlers.raid import RAID_JOIN_TIMEOUT_SECONDS, active_raids
         from app.handlers.roulette import RR_JOIN_TIMEOUT_SECONDS, _refund_all as rr_refund, active_rounds
 
         now = datetime.utcnow()
         stale_heist_chats = []
         stale_rr_chats = []
+        stale_raid_keys = []
 
         for chat_id, heist in list(active_heists.items()):
             elapsed = (now - heist["created_at"]).total_seconds()
@@ -321,9 +323,18 @@ async def cleanup_stale_games_task(application: Application):
                 rr_refund(rnd)
                 logger.info("Stale roulette round cleaned up", chat_id=chat_id, players=len(rnd["players"]))
 
-        total = len(stale_heist_chats) + len(stale_rr_chats)
+        for key, raid in list(active_raids.items()):
+            elapsed = (now - raid["initiated_at"]).total_seconds()
+            if elapsed > RAID_JOIN_TIMEOUT_SECONDS + 60:
+                stale_raid_keys.append(key)
+
+        for key in stale_raid_keys:
+            active_raids.pop(key, None)
+            logger.info("Stale raid cleaned up", raid_key=key)
+
+        total = len(stale_heist_chats) + len(stale_rr_chats) + len(stale_raid_keys)
         if total > 0:
-            logger.info("Stale games cleanup done", heists=len(stale_heist_chats), roulette=len(stale_rr_chats))
+            logger.info("Stale games cleanup done", heists=len(stale_heist_chats), roulette=len(stale_rr_chats), raids=len(stale_raid_keys))
     except Exception as e:
         logger.error("Error in stale games cleanup", error=str(e), exc_info=True)
 

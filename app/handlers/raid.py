@@ -247,118 +247,126 @@ async def raid_go_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     raid = active_raids.pop(key)
-    raiders = raid["raiders"]
-    count = len(raiders)
 
-    await query.answer()
+    try:
+        raiders = raid["raiders"]
+        count = len(raiders)
 
-    # Check minimum raiders
-    if count < RAID_MIN_MEMBERS:
-        await safe_edit_message(
-            query,
-            f"❌ <b>Рейд отменён</b>\n\n"
-            f"Недостаточно участников: {count}/{RAID_MIN_MEMBERS}\n"
-            f"Нужно минимум {format_word(RAID_MIN_MEMBERS, 'рейдер', 'рейдера', 'рейдеров')}",
-        )
-        return
+        await query.answer()
 
-    # Calculate success chance
-    chance = min(90, RAID_BASE_SUCCESS + (count - 1) * RAID_MEMBER_BONUS)
-    success = random.randint(1, 100) <= chance
-
-    with get_db() as db:
-        attacker_gang = db.query(Gang).filter(Gang.id == attacker_gang_id).first()
-        target_gang = db.query(Gang).filter(Gang.id == target_gang_id).first()
-
-        if not attacker_gang or not target_gang:
-            await safe_edit_message(query, "❌ Одна из банд больше не существует")
+        # Check minimum raiders
+        if count < RAID_MIN_MEMBERS:
+            await safe_edit_message(
+                query,
+                f"❌ <b>Рейд отменён</b>\n\n"
+                f"Недостаточно участников: {count}/{RAID_MIN_MEMBERS}\n"
+                f"Нужно минимум {format_word(RAID_MIN_MEMBERS, 'рейдер', 'рейдера', 'рейдеров')}",
+            )
             return
 
-        attacker_name = html.escape(attacker_gang.name)
-        target_name = html.escape(target_gang.name)
+        # Calculate success chance
+        chance = min(90, RAID_BASE_SUCCESS + (count - 1) * RAID_MEMBER_BONUS)
+        success = random.randint(1, 100) <= chance
 
-        if success:
-            # Steal from target bank
-            steal_percent = random.randint(RAID_MIN_STEAL_PERCENT, RAID_MAX_STEAL_PERCENT)
-            stolen = max(1, int(target_gang.bank * steal_percent / 100))
-            stolen = min(stolen, target_gang.bank)
+        with get_db() as db:
+            attacker_gang = db.query(Gang).filter(Gang.id == attacker_gang_id).first()
+            target_gang = db.query(Gang).filter(Gang.id == target_gang_id).first()
 
-            target_gang.bank -= stolen
+            if not attacker_gang or not target_gang:
+                await safe_edit_message(query, "❌ Одна из банд больше не существует")
+                return
 
-            # Split between gang bank and raiders personally
-            gang_share = stolen // 2  # 50% to gang bank
-            raider_share = stolen - gang_share  # 50% split among raiders
-            per_raider = max(1, raider_share // count)
-            remainder = raider_share - per_raider * count
+            attacker_name = html.escape(attacker_gang.name)
+            target_name = html.escape(target_gang.name)
 
-            attacker_gang.bank += gang_share
+            if success:
+                # Steal from target bank
+                steal_percent = random.randint(RAID_MIN_STEAL_PERCENT, RAID_MAX_STEAL_PERCENT)
+                stolen = max(1, int(target_gang.bank * steal_percent / 100))
+                stolen = min(stolen, target_gang.bank)
 
-            # Pay each raider (distribute remainder to first N raiders)
-            for i, raider_id in enumerate(raiders):
-                raider_user = db.query(User).filter(User.telegram_id == raider_id).first()
-                if raider_user:
-                    bonus = 1 if i < remainder else 0
-                    raider_user.balance += per_raider + bonus
+                target_gang.bank -= stolen
 
-            result_text = (
-                f"💥 <b>РЕЙД УСПЕШЕН!</b>\n\n"
-                f"⚔️ «{attacker_name}» ограбили «{target_name}»!\n\n"
-                f"💰 Украдено: {format_diamonds(stolen)}\n"
-                f"🏦 В банк банды: {format_diamonds(gang_share)}\n"
-                f"👤 Каждому рейдеру: {format_diamonds(per_raider)}\n"
-                f"👥 Рейдеров: {count} (шанс был {chance}%)\n\n"
-                f"🏦 Банк «{target_name}»: {format_diamonds(target_gang.bank)}"
-            )
-        else:
-            # Penalty — lose from own gang bank
-            penalty = max(1, int(attacker_gang.bank * RAID_FAIL_PENALTY_PERCENT / 100))
-            penalty = min(penalty, attacker_gang.bank)
-            attacker_gang.bank -= penalty
+                # Split between gang bank and raiders personally
+                gang_share = stolen // 2  # 50% to gang bank
+                raider_share = stolen - gang_share  # 50% split among raiders
+                per_raider = max(1, raider_share // count)
+                remainder = raider_share - per_raider * count
 
-            result_text = (
-                f"🚨 <b>РЕЙД ПРОВАЛЕН!</b>\n\n"
-                f"⚔️ «{attacker_name}» не смогла ограбить «{target_name}»!\n\n"
-                f"💸 Штраф из банка банды: {format_diamonds(penalty)}\n"
-                f"👥 Рейдеров: {count} (шанс был {chance}%)\n\n"
-                f"🏦 Банк «{attacker_name}»: {format_diamonds(attacker_gang.bank)}"
-            )
+                attacker_gang.bank += gang_share
 
-        # Set cooldown for all raiders
-        expires_at = datetime.utcnow() + timedelta(hours=RAID_COOLDOWN_HOURS)
-        cd_action = "raid"
-        for raider_id in raiders:
-            cooldown = db.query(Cooldown).filter(Cooldown.user_id == raider_id, Cooldown.action == cd_action).first()
-            if cooldown:
-                cooldown.expires_at = expires_at
+                # Pay each raider (distribute remainder to first N raiders)
+                for i, raider_id in enumerate(raiders):
+                    raider_user = db.query(User).filter(User.telegram_id == raider_id).first()
+                    if raider_user:
+                        bonus = 1 if i < remainder else 0
+                        raider_user.balance += per_raider + bonus
+
+                result_text = (
+                    f"💥 <b>РЕЙД УСПЕШЕН!</b>\n\n"
+                    f"⚔️ «{attacker_name}» ограбили «{target_name}»!\n\n"
+                    f"💰 Украдено: {format_diamonds(stolen)}\n"
+                    f"🏦 В банк банды: {format_diamonds(gang_share)}\n"
+                    f"👤 Каждому рейдеру: {format_diamonds(per_raider)}\n"
+                    f"👥 Рейдеров: {count} (шанс был {chance}%)\n\n"
+                    f"🏦 Банк «{target_name}»: {format_diamonds(target_gang.bank)}"
+                )
             else:
-                db.add(Cooldown(user_id=raider_id, action=cd_action, expires_at=expires_at))
+                # Penalty — lose from own gang bank
+                penalty = max(1, int(attacker_gang.bank * RAID_FAIL_PENALTY_PERCENT / 100))
+                penalty = min(penalty, attacker_gang.bank)
+                attacker_gang.bank -= penalty
 
-        # Try to notify target gang leader
-        target_leader_id = target_gang.leader_id
+                result_text = (
+                    f"🚨 <b>РЕЙД ПРОВАЛЕН!</b>\n\n"
+                    f"⚔️ «{attacker_name}» не смогла ограбить «{target_name}»!\n\n"
+                    f"💸 Штраф из банка банды: {format_diamonds(penalty)}\n"
+                    f"👥 Рейдеров: {count} (шанс был {chance}%)\n\n"
+                    f"🏦 Банк «{attacker_name}»: {format_diamonds(attacker_gang.bank)}"
+                )
 
-    await safe_edit_message(query, result_text)
+            # Set cooldown for all raiders
+            expires_at = datetime.utcnow() + timedelta(hours=RAID_COOLDOWN_HOURS)
+            cd_action = "raid"
+            for raider_id in raiders:
+                cooldown = db.query(Cooldown).filter(Cooldown.user_id == raider_id, Cooldown.action == cd_action).first()
+                if cooldown:
+                    cooldown.expires_at = expires_at
+                else:
+                    db.add(Cooldown(user_id=raider_id, action=cd_action, expires_at=expires_at))
 
-    # Notify target gang leader
-    if success:
+            # Try to notify target gang leader
+            target_leader_id = target_gang.leader_id
+
+        await safe_edit_message(query, result_text)
+
+        # Notify target gang leader
+        if success:
+            try:
+                notify_text = (
+                    f"🚨 <b>Твою банду ограбили!</b>\n\n"
+                    f"⚔️ «{attacker_name}» совершила рейд!\n"
+                    f"💸 Украдено из банка: {format_diamonds(stolen)}\n\n"
+                    f"/gang — посмотреть банду"
+                )
+                await context.bot.send_message(chat_id=target_leader_id, text=notify_text, parse_mode="HTML")
+            except Exception:
+                pass
+
+        logger.info(
+            "Raid completed",
+            attacker_gang=attacker_gang_id,
+            target_gang=target_gang_id,
+            success=success,
+            raiders=count,
+            chance=chance,
+        )
+    except Exception as e:
+        logger.error("Raid processing failed", error=str(e), exc_info=True)
         try:
-            notify_text = (
-                f"🚨 <b>Твою банду ограбили!</b>\n\n"
-                f"⚔️ «{attacker_name}» совершила рейд!\n"
-                f"💸 Украдено из банка: {format_diamonds(stolen)}\n\n"
-                f"/gang — посмотреть банду"
-            )
-            await context.bot.send_message(chat_id=target_leader_id, text=notify_text, parse_mode="HTML")
+            await safe_edit_message(query, "❌ Ошибка рейда")
         except Exception:
             pass
-
-    logger.info(
-        "Raid completed",
-        attacker_gang=attacker_gang_id,
-        target_gang=target_gang_id,
-        success=success,
-        raiders=count,
-        chance=chance,
-    )
 
 
 def register_raid_handlers(application):

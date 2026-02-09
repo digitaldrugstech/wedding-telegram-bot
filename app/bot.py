@@ -174,4 +174,14 @@ async def post_shutdown(application: Application):
     except Exception as e:
         logger.error("Failed to refund heists", error=str(e))
 
+    # Clear stale raids (no fees to refund, just cleanup)
+    try:
+        from app.handlers.raid import active_raids
+
+        if active_raids:
+            logger.info("Clearing active raids on shutdown", count=len(active_raids))
+            active_raids.clear()
+    except Exception as e:
+        logger.error("Failed to clear raids", error=str(e))
+
     logger.info("Bot shutdown complete")

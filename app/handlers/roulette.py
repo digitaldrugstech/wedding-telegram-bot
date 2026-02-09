@@ -228,105 +228,114 @@ async def rr_spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     rnd = active_rounds.pop(chat_id)
-    players = rnd["players"]
-    bet = rnd["bet"]
-    count = len(players)
 
-    await query.answer()
+    try:
+        players = rnd["players"]
+        bet = rnd["bet"]
+        count = len(players)
 
-    if count < RR_MIN_PLAYERS:
-        # Refund all
-        _refund_all(rnd)
+        await query.answer()
+
+        if count < RR_MIN_PLAYERS:
+            # Refund all
+            _refund_all(rnd)
+            try:
+                await query.edit_message_text(
+                    f"❌ <b>Раунд отменён</b>\n\n" f"Недостаточно игроков: {count}/{RR_MIN_PLAYERS}\n" f"Ставки возвращены",
+                    parse_mode="HTML",
+                )
+            except BadRequest:
+                pass
+            return
+
+        # Animate the barrel spinning
+        player_ids = list(players.keys())
+        player_names = list(players.values())
+
+        # Animation frames
+        frames = [
+            "🔫 Крутим барабан...\n\n🔄 |  |  |  |  |  |",
+            "🔫 Барабан крутится...\n\n|  🔄  |  |  |  |",
+            "🔫 Замедляется...\n\n|  |  🔄  |  |  |",
+            "🔫 Почти...\n\n|  |  |  🔄  |  |",
+            "🔫 ...\n\n|  |  |  |  🔄  |",
+        ]
+
         try:
-            await query.edit_message_text(
-                f"❌ <b>Раунд отменён</b>\n\n" f"Недостаточно игроков: {count}/{RR_MIN_PLAYERS}\n" f"Ставки возвращены",
-                parse_mode="HTML",
-            )
+            for frame in frames:
+                await query.edit_message_text(frame)
+                await asyncio.sleep(0.8)
         except BadRequest:
             pass
-        return
 
-    # Animate the barrel spinning
-    player_ids = list(players.keys())
-    player_names = list(players.values())
+        # Pick the loser
+        loser_id = random.choice(player_ids)
+        loser_name = players[loser_id]
 
-    # Animation frames
-    frames = [
-        "🔫 Крутим барабан...\n\n🔄 |  |  |  |  |  |",
-        "🔫 Барабан крутится...\n\n|  🔄  |  |  |  |",
-        "🔫 Замедляется...\n\n|  |  🔄  |  |  |",
-        "🔫 Почти...\n\n|  |  |  🔄  |  |",
-        "🔫 ...\n\n|  |  |  |  🔄  |",
-    ]
+        # Calculate payouts
+        total_pot = bet * count
+        house_fee = max(1, int(total_pot * RR_HOUSE_FEE_PERCENT / 100))
+        distributable = total_pot - house_fee
+        winners = [pid for pid in player_ids if pid != loser_id]
+        per_winner = distributable // len(winners) if winners else 0
+        remainder = distributable - (per_winner * len(winners)) if winners else 0
 
-    try:
-        for frame in frames:
-            await query.edit_message_text(frame)
-            await asyncio.sleep(0.8)
-    except BadRequest:
-        pass
+        # Pay winners (remainder goes to a random winner so no diamonds vanish)
+        with get_db() as db:
+            bonus_winner = random.choice(winners) if winners and remainder > 0 else None
+            for winner_id in winners:
+                payout = per_winner + (remainder if winner_id == bonus_winner else 0)
+                winner_user = db.query(User).filter(User.telegram_id == winner_id).first()
+                if winner_user:
+                    winner_user.balance += payout
 
-    # Pick the loser
-    loser_id = random.choice(player_ids)
-    loser_name = players[loser_id]
+            # Record casino games
+            for pid in player_ids:
+                if pid == loser_id:
+                    db.add(CasinoGame(user_id=pid, bet_amount=bet, result="loss", payout=0))
+                else:
+                    db.add(CasinoGame(user_id=pid, bet_amount=bet, result="win", payout=per_winner))
 
-    # Calculate payouts
-    total_pot = bet * count
-    house_fee = max(1, int(total_pot * RR_HOUSE_FEE_PERCENT / 100))
-    distributable = total_pot - house_fee
-    winners = [pid for pid in player_ids if pid != loser_id]
-    per_winner = distributable // len(winners) if winners else 0
-    remainder = distributable - (per_winner * len(winners)) if winners else 0
+        # Build result
+        profit = per_winner - bet
+        winner_list = "\n".join(f"  ✅ @{players[wid]} (+{format_diamonds(profit)})" for wid in winners)
 
-    # Pay winners (remainder goes to a random winner so no diamonds vanish)
-    with get_db() as db:
-        bonus_winner = random.choice(winners) if winners and remainder > 0 else None
-        for winner_id in winners:
-            payout = per_winner + (remainder if winner_id == bonus_winner else 0)
-            winner_user = db.query(User).filter(User.telegram_id == winner_id).first()
-            if winner_user:
-                winner_user.balance += payout
+        result_text = (
+            f"🔫💥 <b>ВЫСТРЕЛ!</b>\n\n"
+            f"💀 @{loser_name} — убит! (-{format_diamonds(bet)})\n\n"
+            f"Выжившие:\n{winner_list}\n\n"
+            f"💰 Банк: {format_diamonds(total_pot)}\n"
+            f"💸 Комиссия: {format_diamonds(house_fee)}\n"
+            f"👤 Каждому: {format_diamonds(per_winner)}"
+        )
 
-        # Record casino games
-        for pid in player_ids:
-            if pid == loser_id:
-                db.add(CasinoGame(user_id=pid, bet_amount=bet, result="loss", payout=0))
-            else:
-                db.add(CasinoGame(user_id=pid, bet_amount=bet, result="win", payout=per_winner))
-
-    # Build result
-    profit = per_winner - bet
-    winner_list = "\n".join(f"  ✅ @{players[wid]} (+{format_diamonds(profit)})" for wid in winners)
-
-    result_text = (
-        f"🔫💥 <b>ВЫСТРЕЛ!</b>\n\n"
-        f"💀 @{loser_name} — убит! (-{format_diamonds(bet)})\n\n"
-        f"Выжившие:\n{winner_list}\n\n"
-        f"💰 Банк: {format_diamonds(total_pot)}\n"
-        f"💸 Комиссия: {format_diamonds(house_fee)}\n"
-        f"👤 Каждому: {format_diamonds(per_winner)}"
-    )
-
-    try:
-        await query.edit_message_text(result_text, parse_mode="HTML")
-    except BadRequest:
-        pass
-
-    # Track quest progress for winners
-    for winner_id in winners:
         try:
-            update_quest_progress(winner_id, "casino")
-        except Exception:
+            await query.edit_message_text(result_text, parse_mode="HTML")
+        except BadRequest:
             pass
 
-    logger.info(
-        "RR completed",
-        chat_id=chat_id,
-        players=count,
-        loser=loser_id,
-        pot=total_pot,
-        per_winner=per_winner,
-    )
+        # Track quest progress for winners
+        for winner_id in winners:
+            try:
+                update_quest_progress(winner_id, "casino")
+            except Exception:
+                pass
+
+        logger.info(
+            "RR completed",
+            chat_id=chat_id,
+            players=count,
+            loser=loser_id,
+            pot=total_pot,
+            per_winner=per_winner,
+        )
+    except Exception as e:
+        _refund_all(rnd)
+        logger.error("Roulette processing failed, refunded", error=str(e), exc_info=True)
+        try:
+            await query.edit_message_text("❌ Ошибка, ставки возвращены")
+        except Exception:
+            pass
 
 
 def _refund_all(rnd: dict):

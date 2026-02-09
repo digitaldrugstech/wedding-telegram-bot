@@ -1,6 +1,7 @@
 """Economy handlers — tax system."""
 
 import structlog
+from sqlalchemy import func
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
@@ -28,7 +29,7 @@ async def tax_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Get total taxes paid
         total_taxes = db.query(TaxPayment).filter(TaxPayment.user_id == user_id).count()
-        total_paid = sum(t.amount for t in db.query(TaxPayment).filter(TaxPayment.user_id == user_id).all())
+        total_paid = db.query(func.coalesce(func.sum(TaxPayment.amount), 0)).filter(TaxPayment.user_id == user_id).scalar()
 
         text = (
             f"🏛 <b>Налоговая система</b>\n\n"

@@ -290,116 +290,125 @@ async def heist_go_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     heist = active_heists.pop(chat_id)
-    players = heist["players"]
-    tier = heist["tier"]
-    count = len(players)
 
-    await query.answer()
+    try:
+        players = heist["players"]
+        tier = heist["tier"]
+        count = len(players)
 
-    if count < HEIST_MIN_PLAYERS:
-        _refund_all(heist)
+        await query.answer()
+
+        if count < HEIST_MIN_PLAYERS:
+            _refund_all(heist)
+            try:
+                await query.edit_message_text(
+                    f"❌ <b>Ограбление отменено</b>\n\n"
+                    f"Недостаточно участников: {count}/{HEIST_MIN_PLAYERS}\n"
+                    f"Ставки возвращены",
+                    parse_mode="HTML",
+                )
+            except BadRequest:
+                pass
+            return
+
+        # Animation
         try:
-            await query.edit_message_text(
-                f"❌ <b>Ограбление отменено</b>\n\n"
-                f"Недостаточно участников: {count}/{HEIST_MIN_PLAYERS}\n"
-                f"Ставки возвращены",
-                parse_mode="HTML",
-            )
+            for frame in HEIST_ANIMATIONS:
+                await query.edit_message_text(frame)
+                await asyncio.sleep(0.8)
         except BadRequest:
             pass
-        return
 
-    # Animation
-    try:
-        for frame in HEIST_ANIMATIONS:
-            await query.edit_message_text(frame)
-            await asyncio.sleep(0.8)
-    except BadRequest:
-        pass
+        # Calculate result
+        chance = min(tier["max_success"], tier["base_success"] + (count - 1) * tier["player_bonus"])
+        success = random.randint(1, 100) <= chance
 
-    # Calculate result
-    chance = min(tier["max_success"], tier["base_success"] + (count - 1) * tier["player_bonus"])
-    success = random.randint(1, 100) <= chance
+        entry_fee = tier["entry_fee"]
+        player_ids = list(players.keys())
 
-    entry_fee = tier["entry_fee"]
-    player_ids = list(players.keys())
+        if success:
+            # Each player gets individual random payout
+            payouts = {}
+            with get_db() as db:
+                for pid in player_ids:
+                    payout = random.randint(tier["payout_min"], tier["payout_max"])
+                    payouts[pid] = payout
+                    player_user = db.query(User).filter(User.telegram_id == pid).first()
+                    if player_user:
+                        player_user.balance += payout
 
-    if success:
-        # Each player gets individual random payout
-        payouts = {}
-        with get_db() as db:
+                # Set cooldown for all
+                expires_at = datetime.utcnow() + timedelta(hours=HEIST_COOLDOWN_HOURS)
+                for pid in player_ids:
+                    cd = db.query(Cooldown).filter(Cooldown.user_id == pid, Cooldown.action == "heist").first()
+                    if cd:
+                        cd.expires_at = expires_at
+                    else:
+                        db.add(Cooldown(user_id=pid, action="heist", expires_at=expires_at))
+
+            total_stolen = sum(payouts.values())
+            player_lines = []
             for pid in player_ids:
-                payout = random.randint(tier["payout_min"], tier["payout_max"])
-                payouts[pid] = payout
-                player_user = db.query(User).filter(User.telegram_id == pid).first()
-                if player_user:
-                    player_user.balance += payout
+                name = players[pid]
+                profit = payouts[pid] - entry_fee
+                player_lines.append(f"  💰 @{name}: +{format_diamonds(profit)} чистыми")
 
-            # Set cooldown for all
-            expires_at = datetime.utcnow() + timedelta(hours=HEIST_COOLDOWN_HOURS)
-            for pid in player_ids:
-                cd = db.query(Cooldown).filter(Cooldown.user_id == pid, Cooldown.action == "heist").first()
-                if cd:
-                    cd.expires_at = expires_at
-                else:
-                    db.add(Cooldown(user_id=pid, action="heist", expires_at=expires_at))
+            result_text = (
+                f"🏦💰 <b>ОГРАБЛЕНИЕ ВЕКА!</b>\n\n"
+                f"✅ Команда ворвалась в банк и ушла с добычей!\n\n"
+                f"👥 Участников: {count} (шанс был {chance}%)\n\n"
+                + "\n".join(player_lines)
+                + f"\n\n💎 Всего украдено: {format_diamonds(total_stolen)}"
+            )
+        else:
+            # Failure — entry fees burned (already deducted)
+            total_lost = entry_fee * count
 
-        total_stolen = sum(payouts.values())
-        player_lines = []
-        for pid in player_ids:
-            name = players[pid]
-            profit = payouts[pid] - entry_fee
-            player_lines.append(f"  💰 @{name}: +{format_diamonds(profit)} чистыми")
+            with get_db() as db:
+                # Set cooldown for all
+                expires_at = datetime.utcnow() + timedelta(hours=HEIST_COOLDOWN_HOURS)
+                for pid in player_ids:
+                    cd = db.query(Cooldown).filter(Cooldown.user_id == pid, Cooldown.action == "heist").first()
+                    if cd:
+                        cd.expires_at = expires_at
+                    else:
+                        db.add(Cooldown(user_id=pid, action="heist", expires_at=expires_at))
 
-        result_text = (
-            f"🏦💰 <b>ОГРАБЛЕНИЕ ВЕКА!</b>\n\n"
-            f"✅ Команда ворвалась в банк и ушла с добычей!\n\n"
-            f"👥 Участников: {count} (шанс был {chance}%)\n\n"
-            + "\n".join(player_lines)
-            + f"\n\n💎 Всего украдено: {format_diamonds(total_stolen)}"
-        )
-    else:
-        # Failure — entry fees burned (already deducted)
-        total_lost = entry_fee * count
+            result_text = (
+                f"🚨 <b>ПРОВАЛ!</b>\n\n"
+                f"Сработала сигнализация — охрана поймала команду!\n\n"
+                f"👥 Участников: {count} (шанс был {chance}%)\n"
+                f"💸 Потеряно: {format_diamonds(total_lost)} (по {format_diamonds(entry_fee)} с каждого)\n\n"
+                f"<i>Попробуй снова через {HEIST_COOLDOWN_HOURS}ч</i>"
+            )
 
-        with get_db() as db:
-            # Set cooldown for all
-            expires_at = datetime.utcnow() + timedelta(hours=HEIST_COOLDOWN_HOURS)
-            for pid in player_ids:
-                cd = db.query(Cooldown).filter(Cooldown.user_id == pid, Cooldown.action == "heist").first()
-                if cd:
-                    cd.expires_at = expires_at
-                else:
-                    db.add(Cooldown(user_id=pid, action="heist", expires_at=expires_at))
-
-        result_text = (
-            f"🚨 <b>ПРОВАЛ!</b>\n\n"
-            f"Сработала сигнализация — охрана поймала команду!\n\n"
-            f"👥 Участников: {count} (шанс был {chance}%)\n"
-            f"💸 Потеряно: {format_diamonds(total_lost)} (по {format_diamonds(entry_fee)} с каждого)\n\n"
-            f"<i>Попробуй снова через {HEIST_COOLDOWN_HOURS}ч</i>"
-        )
-
-    try:
-        await query.edit_message_text(result_text, parse_mode="HTML")
-    except BadRequest:
-        pass
-
-    # Track quest progress for participants
-    for pid in player_ids:
         try:
-            update_quest_progress(pid, "casino")
-        except Exception:
+            await query.edit_message_text(result_text, parse_mode="HTML")
+        except BadRequest:
             pass
 
-    logger.info(
-        "Heist completed",
-        chat_id=chat_id,
-        tier=heist["tier_key"],
-        players=count,
-        success=success,
-        chance=chance,
-    )
+        # Track quest progress for participants
+        for pid in player_ids:
+            try:
+                update_quest_progress(pid, "casino")
+            except Exception:
+                pass
+
+        logger.info(
+            "Heist completed",
+            chat_id=chat_id,
+            tier=heist["tier_key"],
+            players=count,
+            success=success,
+            chance=chance,
+        )
+    except Exception as e:
+        _refund_all(heist)
+        logger.error("Heist processing failed, refunded", error=str(e), exc_info=True)
+        try:
+            await query.edit_message_text("❌ Ошибка, ставки возвращены")
+        except Exception:
+            pass
 
 
 def _refund_all(heist: dict):
