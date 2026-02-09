@@ -10,6 +10,7 @@ from telegram.ext import CommandHandler, ContextTypes
 
 from app.database.connection import get_db
 from app.database.models import Cooldown, User
+from app.handlers.insurance import has_active_insurance
 from app.utils.decorators import require_registered
 from app.utils.formatters import format_diamonds
 
@@ -80,6 +81,11 @@ async def rob_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(
                 f"❌ У @{target_name} слишком мало алмазов\n\nМинимум у жертвы: {format_diamonds(ROB_MIN_TARGET_BALANCE)}"
             )
+            return
+
+        # Check insurance
+        if has_active_insurance(db, target_id):
+            await update.message.reply_text("🛡 У этого игрока есть страховка\n\nОграбление невозможно")
             return
 
         # Calculate steal amount

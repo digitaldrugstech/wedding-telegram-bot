@@ -479,6 +479,7 @@ class Pet(Base):
     happiness = Column(Integer, CheckConstraint("happiness BETWEEN 0 AND 100"), default=50, nullable=False)
     last_fed_at = Column(DateTime, default=func.now(), nullable=False)
     last_played_at = Column(DateTime, nullable=True)
+    accessories = Column(String(500), default="", nullable=False)
     is_alive = Column(Boolean, default=True, nullable=False)
     created_at = Column(DateTime, default=func.now(), nullable=False)
 

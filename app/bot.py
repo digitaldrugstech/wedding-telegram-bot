@@ -19,6 +19,7 @@ from app.handlers.duel import register_duel_handlers
 from app.handlers.economy import register_economy_handlers
 from app.handlers.giftbox import register_giftbox_handlers
 from app.handlers.feedback import register_feedback_handlers
+from app.handlers.insurance import register_insurance_handlers
 from app.handlers.house import register_house_handlers
 from app.handlers.lottery import register_lottery_handlers
 from app.handlers.marriage import register_marriage_handlers
@@ -107,6 +108,7 @@ def create_bot() -> Application:
     register_prestige_handlers(application)
     register_coinflip_handlers(application)
     register_rob_handlers(application)
+    register_insurance_handlers(application)
     register_feedback_handlers(application)
     register_admin_handlers(application)
 
