@@ -13,7 +13,7 @@ from app.database.models import Cooldown, User
 from app.handlers.quest import update_quest_progress
 from app.services.marriage_service import DIVORCE_COST, GIFT_MIN, PROPOSE_COST, MarriageService
 from app.utils.decorators import require_registered
-from app.utils.formatters import format_diamonds, format_time_remaining
+from app.utils.formatters import format_diamonds, format_time_remaining, format_word
 from app.utils.telegram_helpers import safe_edit_message
 
 logger = structlog.get_logger()
@@ -330,7 +330,7 @@ async def marriage_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 message = (
                     f"💍 <b>Брак</b>\n\n"
                     f"👫 @{partner_name}\n"
-                    f"📅 {days_married} дней\n"
+                    f"📅 {format_word(days_married, 'день', 'дня', 'дней')}\n"
                     f"❤️ Любовь: {marriage.love_count} раз\n\n"
                     f"💰 Ты: {format_diamonds(user.balance)}\n"
                     f"💰 Партнёр: {format_diamonds(partner.balance)}"

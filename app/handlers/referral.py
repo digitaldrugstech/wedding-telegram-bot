@@ -226,7 +226,7 @@ async def myrefs_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 status = f"✅ Готово (+{format_diamonds(REFERRAL_INVITER_REWARD)})"
             else:
                 days_left = REFERRAL_ACTIVE_DAYS_REQUIRED - ref.active_days
-                status = f"⏳ {ref.active_days}/{REFERRAL_ACTIVE_DAYS_REQUIRED} дней (осталось {days_left})"
+                status = f"⏳ {ref.active_days}/{REFERRAL_ACTIVE_DAYS_REQUIRED} (осталось {format_word(days_left, 'день', 'дня', 'дней')})"
 
             text += f"• {name} — {status}\n"
 

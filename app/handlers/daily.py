@@ -10,9 +10,33 @@ from app.database.connection import get_db
 from app.database.models import User
 from app.handlers.quest import update_quest_progress
 from app.utils.decorators import require_registered
-from app.utils.formatters import format_diamonds
+from app.utils.formatters import format_diamonds, format_word
 
 logger = structlog.get_logger()
+
+# Tips for feature discovery — shown one per day, rotating
+DAILY_TIPS = [
+    "💡 /propose @user — предложи руку и сердце!",
+    "💡 /heist easy — ограбь банк с друзьями!",
+    "💡 /roulette 100 — русская рулетка на алмазы",
+    "💡 /duel @user 50 — вызови друга на дуэль",
+    "💡 /rob @user — ограбь другого игрока (рискованно!)",
+    "💡 /blackjack 100 — блэкджек против бота",
+    "💡 /lottery — купи билет лотереи, джекпот растёт каждый день",
+    "💡 /mine — добывай алмазы (прокачивай кирку!)",
+    "💡 /fish — рыбалка с редким уловом и коллекцией",
+    "💡 /business — купи бизнес и получай пассивный доход",
+    "💡 /quest — ежедневные квесты за алмазы",
+    "💡 /wheel — колесо фортуны, крути бесплатно раз в день",
+    "💡 /scratch — скретч-карта, может повезти!",
+    "💡 /gang create — создай банду с друзьями",
+    "💡 /invite — пригласи друга и получи бонус",
+    "💡 /pet — заведи питомца, качай уровень",
+    "💡 /crate — сундуки за серию /daily",
+    "💡 /house — купи дом (защита от похищений)",
+    "💡 /coinflip @user 100 — монетка на алмазы",
+    "💡 /bounty — назначь награду за голову",
+]
 
 # Streak rewards (day: diamonds)
 STREAK_REWARDS = {
@@ -117,12 +141,12 @@ async def daily_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = (
         f"🎁 <b>Ежедневный бонус</b>\n\n"
         f"💎 +{format_diamonds(reward)}\n"
-        f"📅 Серия: {new_streak} дней\n"
+        f"📅 Серия: {format_word(new_streak, 'день', 'дня', 'дней')}\n"
         f"{streak_bar}\n"
     )
 
     if milestone > 0:
-        text += f"\n🏆 <b>Бонус за {new_streak} дней!</b> +{format_diamonds(milestone)}\n"
+        text += f"\n🏆 <b>Бонус за {format_word(new_streak, 'день', 'дня', 'дней')}!</b> +{format_diamonds(milestone)}\n"
 
     text += f"\n💰 Баланс: {format_diamonds(balance)}"
 
@@ -131,7 +155,7 @@ async def daily_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if next_milestones:
         next_m = next_milestones[0]
         days_left = next_m - new_streak
-        text += f"\n\n📌 До бонуса x{MILESTONE_BONUSES[next_m]}: {days_left} дней"
+        text += f"\n\n📌 До бонуса x{MILESTONE_BONUSES[next_m]}: {format_word(days_left, 'день', 'дня', 'дней')}"
 
     # Show next crate milestone
     from app.handlers.crate import CRATE_MILESTONES
@@ -140,7 +164,7 @@ async def daily_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if next_crates:
         next_c = next_crates[0]
         crate_days = next_c - new_streak
-        text += f"\n🎁 До сундука: {crate_days} дней (/crate)"
+        text += f"\n🎁 До сундука: {format_word(crate_days, 'день', 'дня', 'дней')} (/crate)"
 
     # VIP nudge — show what double income would have given (throttled)
     from app.handlers.premium import build_premium_nudge
@@ -151,6 +175,10 @@ async def daily_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         nudge = build_premium_nudge("daily", user_id)
         if nudge:
             text += nudge
+
+    # Tip of the day — rotate through tips based on streak
+    tip = DAILY_TIPS[new_streak % len(DAILY_TIPS)]
+    text += f"\n\n{tip}"
 
     await update.message.reply_text(text, parse_mode="HTML")
 

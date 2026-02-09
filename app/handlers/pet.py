@@ -12,7 +12,7 @@ from app.database.connection import get_db
 from app.database.models import Cooldown, Pet, User
 from app.handlers.quest import update_quest_progress
 from app.utils.decorators import require_registered
-from app.utils.formatters import format_diamonds
+from app.utils.formatters import format_diamonds, format_word
 
 logger = structlog.get_logger()
 
@@ -460,7 +460,7 @@ async def show_pet(update: Update, user_id: int):
             text += f"📦 Аксессуаров: {len(owned_acc)}/{len(PET_ACCESSORIES)}\n"
 
         text += (
-            f"\nПокормлен: {days_since_fed} дней назад\n\n"
+            f"\nПокормлен: {format_word(days_since_fed, 'день', 'дня', 'дней')} назад\n\n"
             f"Команды:\n"
             f"/pet feed — покормить ({format_diamonds(FEED_COST)})\n"
             f"/pet play — поиграть (раз в час)\n"

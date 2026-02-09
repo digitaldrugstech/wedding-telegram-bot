@@ -10,7 +10,7 @@ import structlog
 from sqlalchemy.orm import Session
 
 from app.database.models import Child, House, Job, Marriage, User
-from app.utils.formatters import format_diamonds
+from app.utils.formatters import format_diamonds, format_word
 
 logger = structlog.get_logger()
 
@@ -354,7 +354,7 @@ class ChildrenService:
         # Check if already in school
         if child.is_in_school and child.school_expires_at and child.school_expires_at > datetime.utcnow():
             days_left = (child.school_expires_at - datetime.utcnow()).days
-            return False, f"Уже учится (осталось {days_left} дней)"
+            return False, f"Уже учится (осталось {format_word(days_left, 'день', 'дня', 'дней')})"
 
         # Get user
         user = db.query(User).filter(User.telegram_id == user_id).first()

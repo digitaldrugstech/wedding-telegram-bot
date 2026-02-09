@@ -9,7 +9,7 @@ from telegram.ext import CommandHandler, ContextTypes
 from app.database.connection import get_db
 from app.database.models import Insurance, User
 from app.utils.decorators import require_registered
-from app.utils.formatters import format_diamonds
+from app.utils.formatters import format_diamonds, format_word
 
 logger = structlog.get_logger()
 
@@ -118,7 +118,7 @@ async def buy_insurance(update: Update, user_id: int):
 
     await update.message.reply_text(
         "🛡 <b>Страховка куплена!</b>\n\n"
-        f"Действует {INSURANCE_DURATION_DAYS} дней\n"
+        f"Действует {format_word(INSURANCE_DURATION_DAYS, 'день', 'дня', 'дней')}\n"
         f"Истекает: {expires_at.strftime('%d.%m.%Y %H:%M')} UTC\n\n"
         "Теперь тебя нельзя ограбить\n\n"
         f"💰 Потрачено: {format_diamonds(INSURANCE_COST)}\n"

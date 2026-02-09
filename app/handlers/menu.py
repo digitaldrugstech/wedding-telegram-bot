@@ -119,7 +119,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             from app.handlers.premium import get_vip_badge
 
-            vip_badge = get_vip_badge(user_id)
+            vip_badge = get_vip_badge(user_id, db=db)
 
             profile_text = (
                 f"👤 {html.escape(user.username or str(user_id))} {gender_emoji}{title_display}{vip_badge}\n\n"
@@ -179,7 +179,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         from app.database.connection import get_db
         from app.database.models import User
         from app.services.marriage_service import MarriageService
-        from app.utils.formatters import format_diamonds
+        from app.utils.formatters import format_diamonds, format_word
 
         with get_db() as db:
             marriage = MarriageService.get_active_marriage(db, user_id)
@@ -210,7 +210,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 message = (
                     f"💍 <b>Брак</b>\n\n"
                     f"👫 @{partner_name}\n"
-                    f"📅 Вместе: {days_married} дней\n"
+                    f"📅 Вместе: {format_word(days_married, 'день', 'дня', 'дней')}\n"
                     f"❤️ Любовь: {marriage.love_count}"
                 )
                 await safe_edit_message(query, message, reply_markup=reply_markup)
