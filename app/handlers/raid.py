@@ -233,6 +233,13 @@ async def raid_go_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("❌ Только организатор может начать рейд", show_alert=True)
         return
 
+    # Ban check
+    with get_db() as db:
+        initiator = db.query(User).filter(User.telegram_id == user_id).first()
+        if not initiator or initiator.is_banned:
+            await query.answer("Доступ запрещён", show_alert=True)
+            return
+
     key = _raid_key(attacker_gang_id, target_gang_id)
 
     if key not in active_raids:

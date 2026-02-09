@@ -278,6 +278,13 @@ async def heist_go_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("❌ Только организатор может начать", show_alert=True)
         return
 
+    # Ban check
+    with get_db() as db:
+        host = db.query(User).filter(User.telegram_id == user_id).first()
+        if not host or host.is_banned:
+            await query.answer("Доступ запрещён", show_alert=True)
+            return
+
     if chat_id not in active_heists:
         await query.answer("❌ Ограбление уже завершено", show_alert=True)
         return
