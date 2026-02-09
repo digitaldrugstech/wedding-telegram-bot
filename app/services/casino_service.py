@@ -214,10 +214,22 @@ class CasinoService:
 
     @staticmethod
     def get_user_stats(db: Session, user_id: int) -> dict:
-        """Get user's casino statistics."""
-        games = db.query(CasinoGame).filter(CasinoGame.user_id == user_id).all()
+        """Get user's casino statistics (DB-level aggregation)."""
+        from sqlalchemy import case, func
 
-        if not games:
+        row = (
+            db.query(
+                func.count(CasinoGame.id).label("total_games"),
+                func.coalesce(func.sum(CasinoGame.bet_amount), 0).label("total_bet"),
+                func.coalesce(func.sum(CasinoGame.payout), 0).label("total_winnings"),
+                func.sum(case((CasinoGame.result == "win", 1), else_=0)).label("wins"),
+            )
+            .filter(CasinoGame.user_id == user_id)
+            .first()
+        )
+
+        total_games = row.total_games or 0
+        if total_games == 0:
             return {
                 "total_games": 0,
                 "total_bet": 0,
@@ -226,17 +238,14 @@ class CasinoService:
                 "win_rate": 0,
             }
 
-        total_games = len(games)
-        total_bet = sum(game.bet_amount for game in games)
-        total_winnings = sum(game.payout for game in games)
-        total_profit = total_winnings - total_bet
-        wins = sum(1 for game in games if game.result == "win")
-        win_rate = (wins / total_games * 100) if total_games > 0 else 0
+        total_bet = row.total_bet
+        total_winnings = row.total_winnings
+        wins = row.wins or 0
 
         return {
             "total_games": total_games,
             "total_bet": total_bet,
             "total_winnings": total_winnings,
-            "total_profit": total_profit,
-            "win_rate": win_rate,
+            "total_profit": total_winnings - total_bet,
+            "win_rate": (wins / total_games * 100) if total_games > 0 else 0,
         }

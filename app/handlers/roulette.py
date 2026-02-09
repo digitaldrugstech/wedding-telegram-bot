@@ -250,7 +250,6 @@ async def rr_spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Animate the barrel spinning
         player_ids = list(players.keys())
-        player_names = list(players.values())
 
         # Animation frames
         frames = [
