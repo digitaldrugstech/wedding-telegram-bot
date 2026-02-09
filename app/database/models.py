@@ -33,6 +33,7 @@ class User(Base):
     last_daily_at = Column(DateTime, nullable=True)
     active_title = Column(String(100), nullable=True)
     purchased_titles = Column(String(1000), default="", nullable=False)
+    prestige_level = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime, default=func.now(), nullable=False)
     updated_at = Column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 

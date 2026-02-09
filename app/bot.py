@@ -17,6 +17,7 @@ from app.handlers.daily import register_daily_handlers
 from app.handlers.children import register_children_handlers
 from app.handlers.duel import register_duel_handlers
 from app.handlers.economy import register_economy_handlers
+from app.handlers.giftbox import register_giftbox_handlers
 from app.handlers.feedback import register_feedback_handlers
 from app.handlers.house import register_house_handlers
 from app.handlers.lottery import register_lottery_handlers
@@ -24,6 +25,7 @@ from app.handlers.marriage import register_marriage_handlers
 from app.handlers.menu import register_menu_handlers
 from app.handlers.mine import register_mine_handlers
 from app.handlers.pet import register_pet_handlers
+from app.handlers.prestige import register_prestige_handlers
 from app.handlers.quest import initialize_quests, register_quest_handlers
 from app.handlers.scratch import register_scratch_handlers
 from app.handlers.shop import register_shop_handlers
@@ -99,6 +101,8 @@ def create_bot() -> Application:
     register_scratch_handlers(application)
     register_blackjack_handlers(application)
     register_shop_handlers(application)
+    register_giftbox_handlers(application)
+    register_prestige_handlers(application)
     register_feedback_handlers(application)
     register_admin_handlers(application)
 

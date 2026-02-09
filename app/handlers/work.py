@@ -746,6 +746,11 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         earned = random.randint(min_salary, max_salary)
 
+        # Apply prestige bonus
+        prestige = user.prestige_level or 0
+        if prestige > 0:
+            earned = int(earned * (1 + prestige * 0.05))
+
         # Update user balance
         user.balance += earned
 
@@ -913,6 +918,11 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 min_salary, max_salary = SALARY_RANGES.get(job.job_level, (10, 20))
 
             earned = random.randint(min_salary, max_salary)
+
+            # Apply prestige bonus
+            prestige = user.prestige_level or 0
+            if prestige > 0:
+                earned = int(earned * (1 + prestige * 0.05))
 
             # Update user balance
             user.balance += earned

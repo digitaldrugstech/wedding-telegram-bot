@@ -118,6 +118,14 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if title_info:
                 title_display = f" | {title_info['display']}"
 
+        # Prestige display
+        prestige_display = ""
+        prestige = user.prestige_level or 0
+        if prestige > 0:
+            from app.handlers.prestige import get_prestige_display
+
+            prestige_display = f"\n🔄 Престиж: {get_prestige_display(prestige)} (+{prestige * 5}% доход)"
+
         profile_text = (
             f"👤 {user.username} {gender_emoji}{title_display}\n"
             f"🎮 Сервер: не привязан\n\n"
@@ -127,7 +135,7 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"💍 {marriage_info}\n"
             f"👶 Детей: {children_count}\n"
             f"{rep_emoji} Репутация: {user.reputation:+d}\n"
-            f"🏆 Достижений: {achievements_count}\n\n"
+            f"🏆 Достижений: {achievements_count}{prestige_display}\n\n"
             f"📅 С {user.created_at.strftime('%d.%m.%Y')}"
         )
 
