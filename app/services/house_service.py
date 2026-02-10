@@ -22,7 +22,6 @@ HOUSE_TYPES = {
 
 SELL_REFUND_PERCENTAGE = 0.70  # 70% refund
 
-
 class HouseService:
     """Service for managing houses."""
 
@@ -162,7 +161,6 @@ class HouseService:
 
         # Delete house
         db.delete(house)
-
 
         logger.info("House sold", user_id=user_id, marriage_id=marriage.id, refund=refund_amount)
 

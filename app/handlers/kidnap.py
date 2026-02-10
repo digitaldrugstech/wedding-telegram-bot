@@ -232,12 +232,12 @@ async def ransom_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         child_name = child.name or "Безымянный" if child else "Ребёнок"
         balance = user.balance
         kidnapper_id = kidnapping.kidnapper_id
-        kidnapper_name = kidnapper.username or f"ID {kidnapper_id}"
+        kidnapper_display = f"@{html.escape(kidnapper.username)}" if kidnapper and kidnapper.username else f"ID {kidnapper_id}"
 
     await update.message.reply_text(
         f"✅ <b>Ребёнок спасён!</b>\n\n"
         f"👶 {html.escape(child_name)} вернулся домой\n"
-        f"💸 Выкуп {format_diamonds(ransom)} уплачен @{html.escape(str(kidnapper_name))}\n\n"
+        f"💸 Выкуп {format_diamonds(ransom)} уплачен {kidnapper_display}\n\n"
         f"💰 Баланс: {format_diamonds(balance)}",
         parse_mode="HTML",
     )
@@ -297,11 +297,11 @@ async def kidnap_status_command(update: Update, context: ContextTypes.DEFAULT_TY
             child = db.query(Child).filter(Child.id == as_kidnapper.child_id).first()
             victim = db.query(User).filter(User.telegram_id == as_kidnapper.victim_id).first()
             child_name = child.name or "Безымянный" if child else "?"
-            victim_name = victim.username or f"ID {as_kidnapper.victim_id}" if victim else "?"
+            victim_display = f"@{html.escape(victim.username)}" if victim and victim.username else f"ID {as_kidnapper.victim_id}"
 
             text += (
                 f"🔓 <b>Ты похитил:</b>\n"
-                f"👶 {html.escape(child_name)} (у @{html.escape(str(victim_name))})\n"
+                f"👶 {html.escape(child_name)} (у {victim_display})\n"
                 f"💰 Выкуп: {format_diamonds(as_kidnapper.ransom_amount)}\n"
                 f"/release — отпустить\n\n"
             )
@@ -310,11 +310,11 @@ async def kidnap_status_command(update: Update, context: ContextTypes.DEFAULT_TY
             child = db.query(Child).filter(Child.id == as_victim.child_id).first()
             kidnapper = db.query(User).filter(User.telegram_id == as_victim.kidnapper_id).first()
             child_name = child.name or "Безымянный" if child else "?"
-            kidnapper_name = kidnapper.username or f"ID {as_victim.kidnapper_id}" if kidnapper else "?"
+            kidnapper_display = f"@{html.escape(kidnapper.username)}" if kidnapper and kidnapper.username else f"ID {as_victim.kidnapper_id}"
 
             text += (
                 f"🚨 <b>У тебя похитили:</b>\n"
-                f"👶 {html.escape(child_name)} (похитил @{html.escape(str(kidnapper_name))})\n"
+                f"👶 {html.escape(child_name)} (похитил {kidnapper_display})\n"
                 f"💰 Выкуп: {format_diamonds(as_victim.ransom_amount)}\n"
                 f"/ransom — заплатить выкуп\n\n"
             )

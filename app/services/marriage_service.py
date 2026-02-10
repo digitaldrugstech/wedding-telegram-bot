@@ -27,7 +27,6 @@ ANNIVERSARY_COOLDOWN_DAYS = 7  # 1 week
 ANNIVERSARY_REWARD_PER_WEEK = 100  # алмазы за каждую неделю брака
 ANNIVERSARY_MAX_REWARD = 1000  # макс награда
 
-
 class MarriageService:
     """Service for marriage operations."""
 
@@ -208,8 +207,6 @@ class MarriageService:
         marriage.is_active = False
         marriage.ended_at = datetime.utcnow()
 
-
-
         logger.info("Divorce processed", user_id=user_id, marriage_id=marriage.id, partner_id=partner_id)
         return True, "Развод оформлен", partner_id
 
@@ -237,8 +234,6 @@ class MarriageService:
         # Transfer
         giver.balance -= amount
         partner.balance += amount
-
-
 
         logger.info("Gift sent", giver_id=giver_id, partner_id=partner_id, amount=amount)
         return True, f"Подарил {format_diamonds(amount)} супругу/супруге"
@@ -309,8 +304,6 @@ class MarriageService:
                     conceived = False
                     logger.error("Failed to create child", marriage_id=marriage.id, error=str(e))
 
-
-
         logger.info(
             "Make love",
             user_id=user_id,
@@ -375,8 +368,6 @@ class MarriageService:
         ]
         location = random.choice(locations)
 
-
-
         logger.info("Date completed", user_id=user_id, earned=earned, location=location)
         return earned, location
 
@@ -436,7 +427,6 @@ class MarriageService:
         member = FamilyMember(marriage_id=marriage_id, user_id=user_id)
         db.add(member)
 
-
         logger.info("Family member added", marriage_id=marriage_id, user_id=user_id)
         return True
 
@@ -495,8 +485,6 @@ class MarriageService:
         partner1.balance += reward_per_partner
         partner2.balance += reward_per_partner
 
-
-
         logger.info("Anniversary celebrated", user_id=user_id, weeks=weeks_married, reward=reward_per_partner)
         return reward_per_partner, weeks_married
 
@@ -521,8 +509,6 @@ class MarriageService:
         # Transfer
         user.balance -= amount
         marriage.family_bank_balance += amount
-
-
 
         logger.info(
             "Deposited to family bank", user_id=user_id, amount=amount, new_balance=marriage.family_bank_balance
@@ -551,8 +537,6 @@ class MarriageService:
         # Transfer
         marriage.family_bank_balance -= amount
         user.balance += amount
-
-
 
         logger.info(
             "Withdrawn from family bank", user_id=user_id, amount=amount, new_balance=marriage.family_bank_balance

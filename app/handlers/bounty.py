@@ -68,8 +68,8 @@ async def bounty_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 text += "<b>Твои активные награды:</b>\n"
                 for b in my_bounties:
                     target = db.query(User).filter(User.telegram_id == b.target_id).first()
-                    target_name = target.username or f"ID {b.target_id}" if target else f"ID {b.target_id}"
-                    text += f"🎯 @{html.escape(str(target_name))} — {format_diamonds(b.amount)}\n"
+                    display = f"@{html.escape(target.username)}" if target and target.username else f"ID {b.target_id}"
+                    text += f"🎯 {display} — {format_diamonds(b.amount)}\n"
                 text += "\n/bounty cancel — отменить награду\n\n"
 
             text += "Использование:\n/bounty @username [сумма]"
@@ -145,7 +145,7 @@ async def bounty_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         db.add(bounty)
 
-        target_name = html.escape(str(target.username or f"ID {target.telegram_id}"))
+        target_display = f"@{html.escape(target.username)}" if target.username else f"ID {target.telegram_id}"
         balance = user.balance
 
         # Get total bounty on target (new bounty already in session, no need to add again)
@@ -153,10 +153,10 @@ async def bounty_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(
         f"🎯 <b>Награда назначена!</b>\n\n"
-        f"Цель: @{target_name}\n"
+        f"Цель: {target_display}\n"
         f"Награда: {format_diamonds(amount)}\n"
         f"Комиссия: {format_diamonds(fee)}\n\n"
-        f"Общая награда за @{target_name}: {format_diamonds(total_on_target)}\n\n"
+        f"Общая награда за {target_display}: {format_diamonds(total_on_target)}\n\n"
         f"💰 Баланс: {format_diamonds(balance)}",
         parse_mode="HTML",
     )
@@ -189,13 +189,13 @@ async def cancel_bounty(update: Update, user_id: int):
         bounty.is_active = False
 
         target = db.query(User).filter(User.telegram_id == bounty.target_id).first()
-        target_name = target.username or f"ID {bounty.target_id}" if target else f"ID {bounty.target_id}"
+        target_display = f"@{html.escape(target.username)}" if target and target.username else f"ID {bounty.target_id}"
         refund = bounty.amount
         balance = user.balance
 
     await update.message.reply_text(
         f"✅ <b>Награда отменена</b>\n\n"
-        f"Цель: @{html.escape(str(target_name))}\n"
+        f"Цель: {target_display}\n"
         f"Возврат: {format_diamonds(refund)}\n"
         f"(комиссия не возвращается)\n\n"
         f"💰 Баланс: {format_diamonds(balance)}",
@@ -223,8 +223,8 @@ async def bounties_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for b in bounties:
             if b.target_id not in target_totals:
                 target = db.query(User).filter(User.telegram_id == b.target_id).first()
-                target_name = target.username or f"ID {b.target_id}" if target else f"ID {b.target_id}"
-                target_totals[b.target_id] = {"name": target_name, "amount": 0, "count": 0}
+                display = f"@{html.escape(target.username)}" if target and target.username else f"ID {b.target_id}"
+                target_totals[b.target_id] = {"name": display, "amount": 0, "count": 0}
             target_totals[b.target_id]["amount"] += b.amount
             target_totals[b.target_id]["count"] += 1
 
@@ -233,7 +233,7 @@ async def bounties_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         text = "🎯 <b>Доска разыскиваемых</b>\n\n"
         for i, t in enumerate(sorted_targets[:10], 1):
-            text += f"{i}. @{html.escape(str(t['name']))} — {format_diamonds(t['amount'])}"
+            text += f"{i}. {t['name']} — {format_diamonds(t['amount'])}"
             if t["count"] > 1:
                 text += f" ({format_word(t['count'], 'награда', 'награды', 'наград')})"
             text += "\n"

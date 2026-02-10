@@ -84,9 +84,9 @@ async def gang_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         member_list = []
         for m in members:
             u = db.query(User).filter(User.telegram_id == m.user_id).first()
-            name = u.username or f"ID {m.user_id}" if u else f"ID {m.user_id}"
+            display = f"@{html.escape(u.username)}" if u and u.username else f"ID {m.user_id}"
             role_emoji = "👑" if m.role == "leader" else "👤"
-            member_list.append(f"{role_emoji} @{html.escape(str(name))}")
+            member_list.append(f"{role_emoji} {display}")
 
         next_upgrade = GANG_UPGRADE_COSTS.get(gang.level + 1)
         upgrade_text = f"\n💰 Апгрейд до ур.{gang.level + 1}: {format_diamonds(next_upgrade)} (из банка)" if next_upgrade else ""
@@ -490,11 +490,11 @@ async def gangs_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for i, gang in enumerate(gangs, 1):
             member_count = db.query(GangMember).filter(GangMember.gang_id == gang.id).count()
             leader = db.query(User).filter(User.telegram_id == gang.leader_id).first()
-            leader_name = leader.username or f"ID {gang.leader_id}" if leader else "?"
+            leader_display = f"@{html.escape(leader.username)}" if leader and leader.username else f"ID {gang.leader_id}"
 
             text += (
                 f"{i}. <b>{html.escape(gang.name)}</b> (ур.{gang.level})\n"
-                f"   👑 @{html.escape(str(leader_name))} | {format_word(member_count, 'участник', 'участника', 'участников')} | Банк: {format_diamonds(gang.bank)}\n\n"
+                f"   👑 {leader_display} | {format_word(member_count, 'участник', 'участника', 'участников')} | Банк: {format_diamonds(gang.bank)}\n\n"
             )
 
     await update.message.reply_text(text, parse_mode="HTML")

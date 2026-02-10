@@ -39,7 +39,6 @@ TEEN_AUTO_WORK_MIN = 20
 TEEN_AUTO_WORK_MAX = 50
 TEEN_AUTO_WORK_INTERVAL = 14400  # 4 hours in seconds
 
-
 class ChildrenService:
     """Service for managing children."""
 
@@ -144,7 +143,6 @@ class ChildrenService:
         # Create child
         child = ChildrenService.create_child(db, marriage_id)
 
-
         logger.info("IVF birth successful", child_id=child.id, marriage_id=marriage_id, user_id=user_id)
 
         return True, "", child
@@ -234,7 +232,6 @@ class ChildrenService:
         # Feed
         child.last_fed_at = datetime.utcnow()
 
-
         logger.info("Child fed", child_id=child_id, user_id=user_id)
 
         return True, ""
@@ -267,8 +264,6 @@ class ChildrenService:
             child.last_fed_at = datetime.utcnow()
             fed_count += 1
 
-
-
         logger.info(
             "Fed all children",
             marriage_id=marriage_id,
@@ -296,8 +291,6 @@ class ChildrenService:
             child.is_alive = False
             dead_children_info.append((child, child.parent1_id, child.parent2_id))
             logger.warning("Child died from starvation", child_id=child.id, last_fed_at=child.last_fed_at)
-
-
 
         return dead_children_info
 
@@ -330,7 +323,6 @@ class ChildrenService:
 
         # Age up
         child.age_stage = next_stage
-
 
         logger.info("Child aged up", child_id=child_id, new_stage=next_stage, user_id=user_id)
 
@@ -365,7 +357,6 @@ class ChildrenService:
         child.is_in_school = True
         child.school_expires_at = datetime.utcnow() + timedelta(days=SCHOOL_DURATION_DAYS)
 
-
         logger.info("Child enrolled in school", child_id=child_id, user_id=user_id)
 
         return True, ""
@@ -397,8 +388,6 @@ class ChildrenService:
 
         # Feed all children who need it
         fed, already_fed, insufficient = ChildrenService.feed_all_children(db, marriage_id, user_id)
-
-
 
         logger.info("Babysitter hired", marriage_id=marriage_id, user_id=user_id, children_fed=fed)
 
@@ -469,8 +458,6 @@ class ChildrenService:
         if child.is_working and not child.last_work_time:
             child.last_work_time = datetime.utcnow() - timedelta(seconds=TEEN_AUTO_WORK_INTERVAL)
 
-
-
         logger.info("Child work toggled", child_id=child_id, is_working=child.is_working)
 
         return True, "", child.is_working
@@ -509,7 +496,6 @@ class ChildrenService:
 
         # Update child work time
         child.last_work_time = datetime.utcnow()
-
 
         logger.info("Child auto work processed", child_id=child_id, earnings=earnings, parent_id=child.parent1_id)
 
@@ -551,8 +537,6 @@ class ChildrenService:
             results.append((child.id, child.parent1_id, earnings))
 
             logger.info("Child auto work processed", child_id=child.id, earnings=earnings, parent_id=child.parent1_id)
-
-
 
         return results
 

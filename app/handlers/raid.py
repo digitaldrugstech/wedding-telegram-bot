@@ -132,7 +132,7 @@ async def raid_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "initiator_id": user_id,
     }
 
-    username = update.effective_user.username or update.effective_user.first_name
+    username_display = f"@{html.escape(update.effective_user.username)}" if update.effective_user.username else html.escape(update.effective_user.first_name)
 
     keyboard = InlineKeyboardMarkup(
         [
@@ -152,7 +152,7 @@ async def raid_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"⚔️ «{attacker_name}» нападает на «{target_safe_name}»!\n\n"
         f"💰 В банке цели: {format_diamonds(target_bank)}\n"
         f"👥 Рейдеров: 1\n\n"
-        f"@{html.escape(str(username))} начинает рейд!\n\n"
+        f"{username_display} начинает рейд!\n\n"
         f"⏰ {RAID_JOIN_TIMEOUT_SECONDS // 60} мин на сбор — жми «Присоединиться»!\n"
         f"Нужно минимум {format_word(RAID_MIN_MEMBERS, 'участник', 'участника', 'участников')}\n\n"
         f"Лидер жмёт «НАЧАТЬ РЕЙД» когда готовы",
