@@ -364,7 +364,7 @@ async def family_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif action == "work":
             child_id = int(parts[2])
 
-            success, error, earnings = ChildrenService.work_teen(db, child_id)
+            success, error, earnings = ChildrenService.work_teen(db, child_id, user_id)
 
             if not success:
                 await safe_edit_message(query, f"❌ {error}")

@@ -43,11 +43,19 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if referrer_id:
         context.user_data["referrer_id"] = referrer_id
 
-    # Check if user already registered
+    # Check if user already registered + referrer lookup in single session
     with get_db() as db:
         user = db.query(User).filter(User.telegram_id == user_id).first()
+        is_registered = user is not None
 
-    if user:
+        ref_text = ""
+        if not is_registered and referrer_id and referrer_id != user_id:
+            referrer = db.query(User).filter(User.telegram_id == referrer_id).first()
+            if referrer:
+                ref_name = f"@{referrer.username}" if referrer.username else "друга"
+                ref_text = f"\n🎁 По приглашению {ref_name} — бонус {format_diamonds(REFERRAL_INVITEE_REWARD)}!\n"
+
+    if is_registered:
         # Already registered — show profile hint
         if referrer_id:
             await update.message.reply_text(
@@ -58,15 +66,6 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 "👋 С возвращением!\n\n" "/profile — профиль\n" "/help — справка\n" "/menu — главное меню",
             )
         return
-
-    # New user — show registration with referral hint
-    ref_text = ""
-    if referrer_id and referrer_id != user_id:
-        with get_db() as db:
-            referrer = db.query(User).filter(User.telegram_id == referrer_id).first()
-            if referrer:
-                ref_name = f"@{referrer.username}" if referrer.username else "друга"
-                ref_text = f"\n🎁 По приглашению {ref_name} — бонус {format_diamonds(REFERRAL_INVITEE_REWARD)}!\n"
 
     await update.message.reply_text(
         f"👋 Привет, {username}\n\n"

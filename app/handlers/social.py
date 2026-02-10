@@ -56,15 +56,15 @@ def init_achievements():
                 logger.info("Achievement created", code=ach_data["code"])
 
 
-def check_and_award_achievement(user_id: int, achievement_code: str):
+def check_and_award_achievement(user_id: int, achievement_code: str, db=None):
     """
     Check and award achievement to user if not already earned.
 
-    This is a wrapper for AchievementService.check_and_award for backwards compatibility.
+    Pass an existing db session to avoid opening a nested one.
     """
     from app.services.achievement_service import AchievementService
 
-    return AchievementService.check_and_award(user_id, achievement_code)
+    return AchievementService.check_and_award(user_id, achievement_code, db=db)
 
 
 # ==================== FRIENDS ====================

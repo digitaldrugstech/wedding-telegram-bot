@@ -405,7 +405,7 @@ class ChildrenService:
         return True, f"Няня накормила {fed} детей"
 
     @staticmethod
-    def work_teen(db: Session, child_id: int) -> Tuple[bool, str, int]:
+    def work_teen(db: Session, child_id: int, user_id: int = None) -> Tuple[bool, str, int]:
         """Teen works and earns diamonds (30-60, +50% if in school)."""
         child = db.query(Child).filter(Child.id == child_id, Child.is_alive.is_(True)).first()
 
@@ -430,13 +430,13 @@ class ChildrenService:
         if child.is_in_school and child.school_expires_at and child.school_expires_at > datetime.utcnow():
             earnings = int(base_earnings * (1 + SCHOOL_WORK_BONUS))
 
-        # Pay parent
-        parent = db.query(User).filter(User.telegram_id == child.parent1_id).first()
+        # Pay the initiating parent (fallback to parent1)
+        parent_id = user_id if user_id in (child.parent1_id, child.parent2_id) else child.parent1_id
+        parent = db.query(User).filter(User.telegram_id == parent_id).first()
         parent.balance += earnings
 
         # Update child
         child.last_work_time = datetime.utcnow()
-
 
         logger.info("Teen worked", child_id=child_id, earnings=earnings, school_bonus=child.is_in_school)
 
