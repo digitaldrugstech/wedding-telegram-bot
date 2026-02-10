@@ -28,31 +28,31 @@ HEIST_TIERS = {
         "name": "Лёгкое",
         "emoji": "🟢",
         "entry_fee": 200,
-        "base_success": 60,
-        "player_bonus": 5,
-        "max_success": 85,
-        "payout_min": 250,
-        "payout_max": 350,
+        "base_success": 55,
+        "player_bonus": 4,
+        "max_success": 75,
+        "payout_min": 200,
+        "payout_max": 300,
     },
     "medium": {
         "name": "Среднее",
         "emoji": "🟡",
         "entry_fee": 500,
-        "base_success": 45,
-        "player_bonus": 5,
-        "max_success": 75,
-        "payout_min": 700,
-        "payout_max": 1100,
+        "base_success": 40,
+        "player_bonus": 4,
+        "max_success": 65,
+        "payout_min": 550,
+        "payout_max": 850,
     },
     "hard": {
         "name": "Сложное",
         "emoji": "🔴",
         "entry_fee": 1000,
-        "base_success": 30,
-        "player_bonus": 7,
-        "max_success": 65,
-        "payout_min": 1800,
-        "payout_max": 2800,
+        "base_success": 25,
+        "player_bonus": 5,
+        "max_success": 55,
+        "payout_min": 1400,
+        "payout_max": 2100,
     },
 }
 
@@ -138,12 +138,15 @@ async def heist_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         user.balance -= entry_fee
 
-    username = html.escape(update.effective_user.username or update.effective_user.first_name or f"User{user_id}")
+    if update.effective_user.username:
+        display_name = f"@{html.escape(update.effective_user.username)}"
+    else:
+        display_name = html.escape(update.effective_user.first_name or f"User{user_id}")
 
     active_heists[chat_id] = {
         "tier_key": tier_key,
         "tier": tier,
-        "players": {user_id: username},
+        "players": {user_id: display_name},
         "host_id": user_id,
         "created_at": datetime.utcnow(),
     }
@@ -162,7 +165,7 @@ async def heist_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"💰 Вход: {format_diamonds(entry_fee)}\n"
         f"🎯 Шанс: {chance}%\n\n"
         f"👥 Участники (1/{HEIST_MAX_PLAYERS}):\n"
-        f"• @{username}\n\n"
+        f"• {display_name}\n\n"
         f"⏰ {HEIST_JOIN_TIMEOUT_SECONDS // 60} мин на сбор\n"
         f"Нужно минимум {format_word(HEIST_MIN_PLAYERS, 'участник', 'участника', 'участников')}\n\n"
         f"<i>Организатор жмёт «НАЧАТЬ!» когда все готовы</i>",
@@ -229,15 +232,18 @@ async def heist_join_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
             return
         user.balance -= entry_fee
 
-    username = html.escape(update.effective_user.username or update.effective_user.first_name or f"User{user_id}")
-    heist["players"][user_id] = username
+    if update.effective_user.username:
+        display_name = f"@{html.escape(update.effective_user.username)}"
+    else:
+        display_name = html.escape(update.effective_user.first_name or f"User{user_id}")
+    heist["players"][user_id] = display_name
     count = len(heist["players"])
     chance = min(tier["max_success"], tier["base_success"] + (count - 1) * tier["player_bonus"])
 
     await query.answer(f"Ты в команде! ({count} чел, {chance}% шанс)")
 
     # Update message
-    player_list = "\n".join(f"• @{name}" for name in heist["players"].values())
+    player_list = "\n".join(f"• {name}" for name in heist["players"].values())
     keyboard = InlineKeyboardMarkup(
         [
             [InlineKeyboardButton(f"🏦 Войти ({format_diamonds(entry_fee)})", callback_data=f"heist:join:{chat_id}")],
@@ -350,7 +356,7 @@ async def heist_go_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             for pid in player_ids:
                 name = players[pid]
                 profit = payouts[pid] - entry_fee
-                player_lines.append(f"  💰 @{name}: +{format_diamonds(profit)} чистыми")
+                player_lines.append(f"  💰 {name}: +{format_diamonds(profit)} чистыми")
 
             result_text = (
                 f"🏦💰 <b>ОГРАБЛЕНИЕ ВЕКА!</b>\n\n"

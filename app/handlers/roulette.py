@@ -81,11 +81,14 @@ async def rr_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user.balance -= bet
         balance = user.balance
 
-    username = html.escape(update.effective_user.username or update.effective_user.first_name or f"User{user_id}")
+    if update.effective_user.username:
+        display_name = f"@{html.escape(update.effective_user.username)}"
+    else:
+        display_name = html.escape(update.effective_user.first_name or f"User{user_id}")
 
     active_rounds[chat_id] = {
         "bet": bet,
-        "players": {user_id: username},
+        "players": {user_id: display_name},
         "host_id": user_id,
         "created_at": datetime.utcnow(),
     }
@@ -105,7 +108,7 @@ async def rr_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🔫 <b>Русская рулетка</b>\n\n"
         f"💰 Ставка: {format_diamonds(bet)} с каждого\n\n"
         f"👥 Игроки (1/{RR_MAX_PLAYERS}):\n"
-        f"• @{username}\n\n"
+        f"• {display_name}\n\n"
         f"⏰ {RR_JOIN_TIMEOUT_SECONDS // 60}м {RR_JOIN_TIMEOUT_SECONDS % 60}с на вход\n"
         f"Нужно минимум {format_word(RR_MIN_PLAYERS, 'игрок', 'игрока', 'игроков')}\n\n"
         f"<i>Организатор нажимает «КРУТИТЬ!» когда все готовы</i>",
@@ -165,14 +168,17 @@ async def rr_join_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         user.balance -= bet
 
-    username = html.escape(update.effective_user.username or update.effective_user.first_name or f"User{user_id}")
-    rnd["players"][user_id] = username
+    if update.effective_user.username:
+        display_name = f"@{html.escape(update.effective_user.username)}"
+    else:
+        display_name = html.escape(update.effective_user.first_name or f"User{user_id}")
+    rnd["players"][user_id] = display_name
     count = len(rnd["players"])
 
     await query.answer(f"Ты в игре! (всего {count})")
 
     # Update message
-    player_list = "\n".join(f"• @{name}" for name in rnd["players"].values())
+    player_list = "\n".join(f"• {name}" for name in rnd["players"].values())
     keyboard = InlineKeyboardMarkup(
         [
             [
@@ -296,11 +302,11 @@ async def rr_spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Build result
         profit = per_winner - bet
-        winner_list = "\n".join(f"  ✅ @{players[wid]} (+{format_diamonds(profit)})" for wid in winners)
+        winner_list = "\n".join(f"  ✅ {players[wid]} (+{format_diamonds(profit)})" for wid in winners)
 
         result_text = (
             f"🔫💥 <b>ВЫСТРЕЛ!</b>\n\n"
-            f"💀 @{loser_name} — убит! (-{format_diamonds(bet)})\n\n"
+            f"💀 {loser_name} — убит! (-{format_diamonds(bet)})\n\n"
             f"Выжившие:\n{winner_list}\n\n"
             f"💰 Банк: {format_diamonds(total_pot)}\n"
             f"💸 Комиссия: {format_diamonds(house_fee)}\n"
