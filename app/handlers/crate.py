@@ -222,9 +222,12 @@ async def open_crate_and_announce(update: Update, context: ContextTypes.DEFAULT_
     reward = roll_crate(crate_type)
     reward_text = apply_crate_reward(user_id, reward)
 
-    username = ""
+    user_display = ""
     if update.effective_user:
-        username = html.escape(update.effective_user.username or update.effective_user.first_name or f"User{user_id}")
+        if update.effective_user.username:
+            user_display = f"@{html.escape(update.effective_user.username)}"
+        else:
+            user_display = html.escape(update.effective_user.first_name or f"User{user_id}")
 
     # Build dramatic crate opening text
     crate_text = (
@@ -241,7 +244,7 @@ async def open_crate_and_announce(update: Update, context: ContextTypes.DEFAULT_
 
         try:
             announce_text = (
-                f"{info['emoji']} <b>@{username} открыл {info['name']}!</b>\n\n"
+                f"{info['emoji']} <b>{user_display} открыл {info['name']}!</b>\n\n"
                 f"📅 Серия: {format_word(streak, 'день', 'дня', 'дней')}\n"
                 f"Лут: <b>{reward_text}</b>"
             )

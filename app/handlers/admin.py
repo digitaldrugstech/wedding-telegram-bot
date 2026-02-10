@@ -240,10 +240,12 @@ async def give_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user.balance += amount
 
 
+        user_display = f"@{html.escape(user.username)}" if user.username else f"ID {user.telegram_id}"
         await update.message.reply_text(
             f"✅ Выдано {format_diamonds(amount)}\n"
-            f"@{user.username or user.telegram_id}\n"
-            f"Новый баланс: {format_diamonds(user.balance)}"
+            f"{user_display}\n"
+            f"Новый баланс: {format_diamonds(user.balance)}",
+            parse_mode="HTML",
         )
 
         logger.info(
@@ -291,10 +293,12 @@ async def take_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user.balance = max(0, user.balance - amount)
 
 
+        user_display = f"@{html.escape(user.username)}" if user.username else f"ID {target_id}"
         await update.message.reply_text(
             f"✅ Забрано {format_diamonds(amount)}\n"
-            f"@{user.username or target_id}\n"
-            f"Новый баланс: {format_diamonds(user.balance)}"
+            f"{user_display}\n"
+            f"Новый баланс: {format_diamonds(user.balance)}",
+            parse_mode="HTML",
         )
 
         logger.info("Admin took diamonds", admin_id=update.effective_user.id, target_id=target_id, amount=amount)

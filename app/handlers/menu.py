@@ -101,8 +101,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if marriage:
                 partner_id = MarriageService.get_partner_id(marriage, user_id)
                 partner = db.query(User).filter(User.telegram_id == partner_id).first()
-                partner_name = html.escape(partner.username) if partner and partner.username else f"User{partner_id}"
-                marriage_info = f"@{partner_name}"
+                marriage_info = f"@{html.escape(partner.username)}" if partner and partner.username else f"ID {partner_id}"
             else:
                 marriage_info = "Не в браке"
 

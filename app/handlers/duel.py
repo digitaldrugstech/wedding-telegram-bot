@@ -30,9 +30,11 @@ async def duel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Check if replying to someone
     opponent_id = None
     opponent_username = None
+    opponent_has_username = False
 
     if update.message.reply_to_message and update.message.reply_to_message.from_user:
         opponent_id = update.message.reply_to_message.from_user.id
+        opponent_has_username = bool(update.message.reply_to_message.from_user.username)
         opponent_username = (
             update.message.reply_to_message.from_user.username or update.message.reply_to_message.from_user.first_name
         )
@@ -75,6 +77,7 @@ async def duel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             opponent_id = opponent.telegram_id
             opponent_username = opponent.username
+            opponent_has_username = True
 
     # Validate
     if opponent_id == user_id:
@@ -157,14 +160,14 @@ async def duel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    challenger_name = html.escape(update.effective_user.username or update.effective_user.first_name or "")
-    safe_opponent = html.escape(opponent_username)
+    challenger_display = f"@{html.escape(update.effective_user.username)}" if update.effective_user.username else html.escape(update.effective_user.first_name or "")
+    opponent_display = f"@{html.escape(opponent_username)}" if opponent_has_username else html.escape(str(opponent_username or ""))
     await update.message.reply_text(
         f"⚔️ <b>Вызов на дуэль!</b>\n\n"
-        f"{challenger_name} вызывает @{safe_opponent} на дуэль\n\n"
+        f"{challenger_display} вызывает {opponent_display} на дуэль\n\n"
         f"Ставка: {format_diamonds(bet_amount)}\n"
         f"Победитель забирает всё\n\n"
-        f"@{safe_opponent}, принимаешь вызов?",
+        f"{opponent_display}, принимаешь вызов?",
         reply_markup=reply_markup,
         parse_mode="HTML",
     )
