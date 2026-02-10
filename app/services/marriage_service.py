@@ -24,8 +24,8 @@ DATE_COOLDOWN_HOURS = 12
 LOVE_COOLDOWN_HOURS = 24
 CHEAT_RISK_PERCENTAGE = 30  # 30% шанс поймают
 ANNIVERSARY_COOLDOWN_DAYS = 7  # 1 week
-ANNIVERSARY_REWARD_PER_WEEK = 100  # алмазы за каждую неделю брака
-ANNIVERSARY_MAX_REWARD = 1000  # макс награда
+ANNIVERSARY_REWARD_PER_WEEK = 25  # алмазы за каждую неделю брака
+ANNIVERSARY_MAX_REWARD = 250  # макс награда
 
 class MarriageService:
     """Service for marriage operations."""

@@ -675,6 +675,7 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 promotion_chance = PROMOTION_CHANCES.get(job.job_level, 0.02)
                 guaranteed_works = GUARANTEED_PROMOTION_WORKS.get(job.job_level, 999)
 
+                cooldown_level = job.job_level  # Save BEFORE promotion for correct cooldown
                 if job.job_level < max_level:
                     if random.random() < promotion_chance or job.times_worked >= guaranteed_works:
                         job.job_level += 1
@@ -683,7 +684,7 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
                 # Set cooldown (skip for debug chat)
 
-                cooldown_hours = COOLDOWN_BY_LEVEL.get(job.job_level, 4)
+                cooldown_hours = COOLDOWN_BY_LEVEL.get(cooldown_level, 4)
 
                 set_cooldown(update, user_id, "job", cooldown_hours, db=db)
 
@@ -793,6 +794,9 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 job.job_level = 1  # Сбрасываем на нищий
                 job.times_worked = 0
                 scammed = True
+        cooldown_level = job.job_level  # Save BEFORE promotion for correct cooldown
+        if scammed:
+            pass  # Already handled above
         elif job.job_level < max_level:  # Not max level
             if random.random() < promotion_chance or job.times_worked >= guaranteed_works:
                 job.job_level += 1
@@ -807,7 +811,7 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         else:
 
-            cooldown_hours = COOLDOWN_BY_LEVEL.get(job.job_level, 4)
+            cooldown_hours = COOLDOWN_BY_LEVEL.get(cooldown_level, 4)
 
         set_cooldown(update, user_id, "job", cooldown_hours, db=db)
 

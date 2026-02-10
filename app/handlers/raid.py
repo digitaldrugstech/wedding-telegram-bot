@@ -203,6 +203,12 @@ async def raid_join_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             await query.answer("❌ Ты не в этой банде", show_alert=True)
             return
 
+        # Check raid cooldown
+        raid_cd = db.query(Cooldown).filter(Cooldown.user_id == user_id, Cooldown.action == "raid").first()
+        if raid_cd and raid_cd.expires_at > datetime.utcnow():
+            await query.answer("❌ У тебя кулдаун на рейды", show_alert=True)
+            return
+
     if user_id in raid["raiders"]:
         await query.answer("Ты уже в рейде!", show_alert=True)
         return

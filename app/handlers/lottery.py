@@ -201,7 +201,7 @@ async def lottery_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYP
 
         jackpot = lottery.jackpot
         total_user_tickets = user_tickets + count
-        total_tickets = len(lottery.tickets) + count
+        total_tickets = db.query(LotteryTicket).filter(LotteryTicket.lottery_id == lottery.id).count()
         balance = user.balance
 
     await query.answer(f"Куплено: {count} шт.")

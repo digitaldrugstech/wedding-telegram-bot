@@ -643,6 +643,12 @@ async def cheat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("Не женат — измена невозможна")
             return
 
+        # Block cheating with own spouse
+        partner_id = MarriageService.get_partner_id(marriage, user_id)
+        if target_id == partner_id:
+            await update.message.reply_text("❌ Нельзя изменить с собственным супругом")
+            return
+
         # Check cooldown (6 hours)
         if not IS_DEBUG:
             cheat_cd = db.query(Cooldown).filter(Cooldown.user_id == user_id, Cooldown.action == "cheat").first()

@@ -292,9 +292,18 @@ async def friend_decline_callback(update: Update, context: ContextTypes.DEFAULT_
     query = update.callback_query
     await query.answer()
 
-    friendship_id = int(query.data.split(":")[2])
+    try:
+        friendship_id = int(query.data.split(":")[2])
+    except (ValueError, IndexError):
+        return
 
     with get_db() as db:
+        # Ban check
+        user = db.query(User).filter(User.telegram_id == update.effective_user.id).first()
+        if not user or user.is_banned:
+            await safe_edit_message(query, "❌ Доступ запрещён")
+            return
+
         friendship = db.query(Friendship).filter(Friendship.id == friendship_id).first()
 
         if not friendship:

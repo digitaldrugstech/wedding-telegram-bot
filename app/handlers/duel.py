@@ -124,8 +124,8 @@ async def duel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             .filter(
                 Duel.is_active.is_(True),
                 (
-                    (Duel.challenger_id == user_id) & (Duel.opponent_id == opponent_id)
-                    | (Duel.challenger_id == opponent_id) & (Duel.opponent_id == user_id)
+                    ((Duel.challenger_id == user_id) & (Duel.opponent_id == opponent_id))
+                    | ((Duel.challenger_id == opponent_id) & (Duel.opponent_id == user_id))
                 ),
             )
             .first()
