@@ -246,10 +246,9 @@ async def raid_go_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("❌ Рейд уже завершён", show_alert=True)
         return
 
-    raid = active_raids.pop(key)
-
     db_committed = False
     try:
+        raid = active_raids.pop(key)
         raiders = raid["raiders"]
         count = len(raiders)
 

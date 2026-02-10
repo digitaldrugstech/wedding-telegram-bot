@@ -227,9 +227,8 @@ async def rr_spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("❌ Раунд уже завершён", show_alert=True)
         return
 
-    rnd = active_rounds.pop(chat_id)
-
     try:
+        rnd = active_rounds.pop(chat_id)
         players = rnd["players"]
         bet = rnd["bet"]
         count = len(players)

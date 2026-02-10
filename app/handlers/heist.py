@@ -289,9 +289,8 @@ async def heist_go_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("❌ Ограбление уже завершено", show_alert=True)
         return
 
-    heist = active_heists.pop(chat_id)
-
     try:
+        heist = active_heists.pop(chat_id)
         players = heist["players"]
         tier = heist["tier"]
         count = len(players)
