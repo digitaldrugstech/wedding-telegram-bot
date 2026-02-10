@@ -154,7 +154,10 @@ async def help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Check button owner
     if len(parts) >= 3:
-        owner_id = int(parts[2])
+        try:
+            owner_id = int(parts[2])
+        except ValueError:
+            return
         if user_id != owner_id:
             await query.answer("⚠️ Эта кнопка не для тебя", show_alert=True)
             return

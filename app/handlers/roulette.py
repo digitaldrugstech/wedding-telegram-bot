@@ -3,7 +3,7 @@
 import asyncio
 import html
 import random
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import structlog
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update

@@ -2,8 +2,6 @@
 
 import html
 import random
-from datetime import datetime
-
 import structlog
 from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes

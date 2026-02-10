@@ -166,7 +166,10 @@ async def business_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif action == "sell_confirm":
         # Sell specific business
-        business_id = int(parts[2])
+        try:
+            business_id = int(parts[2])
+        except (ValueError, IndexError):
+            return
 
         with get_db() as db:
             success, message = BusinessService.sell_business(db, business_id, user_id)

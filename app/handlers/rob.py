@@ -10,7 +10,7 @@ from telegram.ext import CommandHandler, ContextTypes
 
 from app.database.connection import get_db
 from app.database.models import Cooldown, User
-from app.handlers.bounty import collect_bounties, get_target_bounties
+from app.handlers.bounty import collect_bounties
 from app.handlers.insurance import has_active_insurance
 from app.handlers.quest import update_quest_progress
 from app.utils.decorators import require_registered

@@ -113,6 +113,14 @@ async def family_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await safe_edit_message(query, "👨‍👩‍👧‍👦 <b>Семья</b>\n\nНужен брак чтобы завести детей")
             return
 
+        # Pre-parse child_id for actions that need it
+        child_id = None
+        if action in ("child", "feed", "age", "school", "work"):
+            try:
+                child_id = int(parts[2])
+            except (ValueError, IndexError):
+                return
+
         # Handle list children
         if action == "list":
             children = ChildrenService.get_marriage_children(db, marriage.id)
@@ -235,7 +243,6 @@ async def family_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Handle child menu
         elif action == "child":
-            child_id = int(parts[2])
 
             from app.database.models import Child
 
@@ -308,7 +315,6 @@ async def family_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Handle feed child
         elif action == "feed":
-            child_id = int(parts[2])
 
             success, error = ChildrenService.feed_child(db, child_id, user_id)
 
@@ -322,7 +328,6 @@ async def family_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Handle age up
         elif action == "age":
-            child_id = int(parts[2])
 
             success, result = ChildrenService.age_up_child(db, child_id, user_id)
 
@@ -343,7 +348,6 @@ async def family_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Handle school enrollment
         elif action == "school":
-            child_id = int(parts[2])
 
             success, error = ChildrenService.enroll_in_school(db, child_id, user_id)
 
@@ -362,7 +366,6 @@ async def family_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Handle teen work
         elif action == "work":
-            child_id = int(parts[2])
 
             success, error, earnings = ChildrenService.work_teen(db, child_id, user_id)
 

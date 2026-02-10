@@ -81,7 +81,7 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.effective_user or not update.message:
         return
 
-    from datetime import datetime, timedelta
+    from datetime import datetime
 
     from app.database.models import CasinoGame
 
@@ -490,17 +490,20 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     parts = query.data.split(":")
     action = parts[1]
 
-    # Check button owner
-    if len(parts) >= 3:
-        owner_id = int(parts[2])
-        if user_id != owner_id:
-            await query.answer("Эта кнопка не для тебя", show_alert=True)
-            return
-
-    # Admin authorization check
+    # Admin authorization check first
     from app.config import config
 
     if user_id != config.admin_user_id:
+        return
+
+    # Check button owner
+    if len(parts) >= 3:
+        try:
+            owner_id = int(parts[2])
+        except ValueError:
+            return
+        if user_id != owner_id:
+            await query.answer("Эта кнопка не для тебя", show_alert=True)
         return
 
     if action == "stats":

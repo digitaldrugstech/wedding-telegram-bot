@@ -5,15 +5,14 @@ import random
 from datetime import datetime, timedelta
 
 import structlog
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
+from telegram import Update
+from telegram.ext import CommandHandler, ContextTypes
 
 from app.database.connection import get_db
-from app.database.models import Child, Cooldown, House, Kidnapping, Marriage, User
+from app.database.models import Child, Cooldown, House, Kidnapping, User
 from app.services.marriage_service import MarriageService
-from app.utils.decorators import button_owner_only, require_registered
+from app.utils.decorators import require_registered
 from app.utils.formatters import format_diamonds
-from app.utils.telegram_helpers import safe_edit_message
 
 logger = structlog.get_logger()
 

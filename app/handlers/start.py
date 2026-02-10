@@ -3,15 +3,14 @@
 import html
 
 import structlog
-from sqlalchemy import func
 from telegram import Update
 from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
 from app.constants import REFERRAL_INVITEE_REWARD
 from app.database.connection import get_db
-from app.database.models import Business, Child, Job, Referral, User, UserAchievement
+from app.database.models import Child, Job, User, UserAchievement
 from app.handlers.work import PROFESSION_EMOJI, PROFESSION_NAMES
-from app.services.business_service import BUSINESS_TYPES, BusinessService
+from app.services.business_service import BusinessService
 from app.services.marriage_service import MarriageService
 from app.utils.decorators import button_owner_only, require_registered
 from app.utils.formatters import format_diamonds, format_word

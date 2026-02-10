@@ -241,17 +241,19 @@ async def gang_accept_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     await query.answer()
 
     parts = query.data.split(":")
-    gang_id = int(parts[2])
-    target_id = int(parts[3])
+    try:
+        gang_id = int(parts[2])
+        target_id = int(parts[3])
+    except (ValueError, IndexError):
+        return
 
-    # Ban check
     with get_db() as db:
+        # Ban check + gang logic in single session
         user_check = db.query(User).filter(User.telegram_id == target_id).first()
         if not user_check or user_check.is_banned:
             await safe_edit_message(query, "❌ Доступ запрещён")
             return
 
-    with get_db() as db:
         # Verify gang exists
         gang = db.query(Gang).filter(Gang.id == gang_id).first()
         if not gang:

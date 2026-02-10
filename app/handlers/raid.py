@@ -10,7 +10,7 @@ from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
 from app.database.connection import get_db
 from app.database.models import Cooldown, Gang, GangMember, User
-from app.utils.decorators import button_owner_only, require_registered
+from app.utils.decorators import require_registered
 from app.utils.formatters import format_diamonds, format_word
 from app.utils.telegram_helpers import safe_edit_message
 

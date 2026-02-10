@@ -18,7 +18,7 @@ WAITING_FOR_TEXT = 1
 
 # Feedback storage file
 FEEDBACK_FILE = os.environ.get("FEEDBACK_FILE", "/app/data/feedback.json")
-ADMIN_CHAT_ID = int(os.environ.get("ADMIN_USER_ID", "710573786"))
+ADMIN_USER_ID = int(os.environ.get("ADMIN_USER_ID", "710573786"))
 
 
 def load_feedback() -> list:
@@ -135,7 +135,7 @@ async def receive_feedback_text(update: Update, context: ContextTypes.DEFAULT_TY
             f"📝 #{entry['id']}\n\n"
             f"{safe_text}"
         )
-        await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=admin_message, parse_mode="HTML")
+        await context.bot.send_message(chat_id=ADMIN_USER_ID, text=admin_message, parse_mode="HTML")
     except Exception as e:
         logger.warning("Failed to notify admin about feedback", error=str(e))
 

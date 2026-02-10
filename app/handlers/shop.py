@@ -127,7 +127,10 @@ async def shop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     title_id = parts[1]
-    owner_id = int(parts[2])
+    try:
+        owner_id = int(parts[2])
+    except (ValueError, IndexError):
+        return
     user_id = update.effective_user.id
 
     if user_id != owner_id:
