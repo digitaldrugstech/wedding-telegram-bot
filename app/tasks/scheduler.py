@@ -271,7 +271,7 @@ async def collect_taxes_task(application: Application):
                 total_collected += tax
                 taxed_count += 1
 
-                db.add(TaxPayment(user_id=user.telegram_id, amount=tax))
+                db.add(TaxPayment(user_id=user.telegram_id, amount=tax, balance_at_time=user.balance + tax))
 
                 try:
                     await application.bot.send_message(

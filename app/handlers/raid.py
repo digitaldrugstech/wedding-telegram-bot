@@ -74,15 +74,10 @@ async def raid_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         cd_action = "raid"
         cooldown = db.query(Cooldown).filter(Cooldown.user_id == user_id, Cooldown.action == cd_action).first()
         if cooldown and cooldown.expires_at > datetime.utcnow():
-            remaining = cooldown.expires_at - datetime.utcnow()
-            hours = int(remaining.total_seconds() // 3600)
-            minutes = int((remaining.total_seconds() % 3600) // 60)
-            time_parts = []
-            if hours > 0:
-                time_parts.append(f"{hours}ч")
-            if minutes > 0:
-                time_parts.append(f"{minutes}м")
-            await update.message.reply_text(f"⏰ Следующий рейд через {' '.join(time_parts)}")
+            remaining = (cooldown.expires_at - datetime.utcnow()).total_seconds()
+            from app.utils.formatters import format_time_remaining
+
+            await update.message.reply_text(f"⏰ Следующий рейд через {format_time_remaining(remaining)}")
             return
 
         # Find target gang
@@ -218,6 +213,43 @@ async def raid_join_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     chance = min(90, RAID_BASE_SUCCESS + (count - 1) * RAID_MEMBER_BONUS)
 
     await query.answer(f"Ты в рейде! ({count} участников, {chance}% шанс)")
+
+    # Update message to show new participant count
+    with get_db() as db:
+        attacker_gang = db.query(Gang).filter(Gang.id == attacker_gang_id).first()
+        target_gang = db.query(Gang).filter(Gang.id == target_gang_id).first()
+        attacker_name = html.escape(attacker_gang.name) if attacker_gang else "?"
+        target_safe_name = html.escape(target_gang.name) if target_gang else "?"
+        target_bank = target_gang.bank if target_gang else 0
+
+    keyboard = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton(
+                    "⚔️ Присоединиться", callback_data=f"raid:join:{attacker_gang_id}:{target_gang_id}"
+                ),
+                InlineKeyboardButton(
+                    "🚀 НАЧАТЬ РЕЙД",
+                    callback_data=f"raid:go:{attacker_gang_id}:{target_gang_id}:{raid['initiator_id']}",
+                ),
+            ]
+        ]
+    )
+
+    try:
+        await query.edit_message_text(
+            f"💥 <b>РЕЙД!</b>\n\n"
+            f"⚔️ «{attacker_name}» нападает на «{target_safe_name}»!\n\n"
+            f"💰 В банке цели: {format_diamonds(target_bank)}\n"
+            f"👥 Рейдеров: {count}\n"
+            f"🎯 Шанс: {chance}%\n\n"
+            f"⏰ Жми «Присоединиться»!\n"
+            f"Нужно минимум {format_word(RAID_MIN_MEMBERS, 'участник', 'участника', 'участников')}",
+            parse_mode="HTML",
+            reply_markup=keyboard,
+        )
+    except Exception:
+        pass
 
     logger.info("Raid member joined", user_id=user_id, raid_key=key, count=count)
 

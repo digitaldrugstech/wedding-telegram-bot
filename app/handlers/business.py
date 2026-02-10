@@ -31,7 +31,7 @@ async def business_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             rate = get_maintenance_rate(count)
             rate_pct = int(rate * 100)
             message = f"<b>💼 Твои бизнесы</b> ({count}/{MAX_BUSINESSES_TOTAL})\n"
-            message += f"🔧 Обслуживание: {rate_pct}%\n\n"
+            message += f"🔧 Обслуживание: {rate_pct}% от дохода\n\n"
 
             total_income = 0
             for business in businesses:
@@ -138,7 +138,7 @@ async def business_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             rate = get_maintenance_rate(count)
             rate_pct = int(rate * 100)
             message = f"<b>💼 Твои бизнесы</b> ({count}/{MAX_BUSINESSES_TOTAL})\n"
-            message += f"🔧 Обслуживание: {rate_pct}%\n\n"
+            message += f"🔧 Обслуживание: {rate_pct}% от дохода\n\n"
             total_income = 0
 
             for business in businesses:
@@ -201,7 +201,7 @@ async def business_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 rate = get_maintenance_rate(count)
                 rate_pct = int(rate * 100)
                 message = f"<b>💼 Твои бизнесы</b> ({count}/{MAX_BUSINESSES_TOTAL})\n"
-                message += f"🔧 Обслуживание: {rate_pct}%\n\n"
+                message += f"🔧 Обслуживание: {rate_pct}% от дохода\n\n"
                 total_income = 0
 
                 for business in businesses:

@@ -116,15 +116,10 @@ async def heist_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Check cooldown
         cooldown = db.query(Cooldown).filter(Cooldown.user_id == user_id, Cooldown.action == "heist").first()
         if cooldown and cooldown.expires_at > datetime.utcnow():
-            remaining = cooldown.expires_at - datetime.utcnow()
-            hours = int(remaining.total_seconds() // 3600)
-            minutes = int((remaining.total_seconds() % 3600) // 60)
-            time_parts = []
-            if hours > 0:
-                time_parts.append(f"{hours}ч")
-            if minutes > 0:
-                time_parts.append(f"{minutes}м")
-            await update.message.reply_text(f"⏰ Следующее ограбление через {' '.join(time_parts)}")
+            remaining = (cooldown.expires_at - datetime.utcnow()).total_seconds()
+            from app.utils.formatters import format_time_remaining
+
+            await update.message.reply_text(f"⏰ Следующее ограбление через {format_time_remaining(remaining)}")
             return
 
         # Check and deduct balance
