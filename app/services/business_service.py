@@ -10,8 +10,8 @@ from app.utils.formatters import format_diamonds
 
 logger = structlog.get_logger()
 
-# Business types and prices (balanced ROI: 12-17% per week, 6-8 weeks to break even)
-# 12 businesses total (3x original 4)
+# Business types and prices (ROI with 10% base maintenance: ~7-8 weeks break-even)
+# 12 business types available; progressive maintenance scales with portfolio size
 BUSINESS_TYPES = {
     # Tier 1: Starter (1,000 - 5,000 💎)
     1: {"name": "🏪 Палатка на рынке", "price": 1000, "weekly_payout": 170},  # 17% ROI, 5.9 weeks
@@ -31,9 +31,20 @@ BUSINESS_TYPES = {
 }
 
 MAX_BUSINESSES_PER_TYPE = 3  # Maximum 3 businesses of each type
-MAX_BUSINESSES_TOTAL = 8  # Maximum 8 businesses total (prevents inflation spiral)
+MAX_BUSINESSES_TOTAL = 5  # Maximum 5 businesses total (prevents inflation spiral)
 SELL_REFUND_PERCENTAGE = 0.70  # 70% refund
-MAINTENANCE_RATE = 0.08  # 8% maintenance costs (deducted from weekly payout)
+
+
+def get_maintenance_rate(business_count: int) -> float:
+    """Progressive maintenance — scales with portfolio size to prevent income spiral."""
+    if business_count <= 2:
+        return 0.10  # 10% for 1-2 businesses
+    elif business_count == 3:
+        return 0.15  # 15% for 3
+    elif business_count == 4:
+        return 0.22  # 22% for 4
+    else:
+        return 0.30  # 30% for 5+
 
 
 class BusinessService:
@@ -87,14 +98,19 @@ class BusinessService:
 
         logger.info("Business purchased", user_id=user_id, business_type=business_type, price=business_price)
 
-        net_payout = business_info["weekly_payout"] - int(business_info["weekly_payout"] * MAINTENANCE_RATE)
+        # Calculate break-even with progressive maintenance (including this new business)
+        new_count = db.query(Business).filter(Business.user_id == user_id).count()
+        rate = get_maintenance_rate(new_count)
+        net_payout = business_info["weekly_payout"] - int(business_info["weekly_payout"] * rate)
         weeks_to_break_even = round(business_price / net_payout, 1) if net_payout > 0 else 99
+        maintenance_pct = int(rate * 100)
 
         message = (
             f"💼 <b>Поздравляем с покупкой!</b>\n\n"
             f"{business_info['name']}\n"
             f"💰 Цена: {format_diamonds(business_price)}\n"
-            f"📈 Доход: {format_diamonds(net_payout)}/неделя (за вычетом обслуживания)\n\n"
+            f"📈 Доход: {format_diamonds(net_payout)}/неделя\n"
+            f"🔧 Обслуживание: {maintenance_pct}% ({new_count} из {MAX_BUSINESSES_TOTAL})\n\n"
             f"💡 Окупаемость: ~{weeks_to_break_even} недель\n\n"
             f"💰 Остаток: {format_diamonds(user.balance)}"
         )
@@ -105,12 +121,13 @@ class BusinessService:
     def get_user_businesses(db: Session, user_id: int) -> list:
         """Get all businesses for a user."""
         businesses = db.query(Business).filter(Business.user_id == user_id).all()
+        rate = get_maintenance_rate(len(businesses))
 
         result = []
         for business in businesses:
             business_info = BUSINESS_TYPES.get(business.business_type, BUSINESS_TYPES[1])
             gross = business_info["weekly_payout"]
-            net = gross - int(gross * MAINTENANCE_RATE)
+            net = gross - int(gross * rate)
             result.append(
                 {
                     "id": business.id,
@@ -164,25 +181,33 @@ class BusinessService:
     @staticmethod
     def payout_all_businesses(db: Session):
         """Weekly payout for all businesses (scheduled task)."""
+        from collections import defaultdict
+
         all_businesses = db.query(Business).all()
+
+        # Group by user for progressive maintenance
+        user_businesses = defaultdict(list)
+        for biz in all_businesses:
+            user_businesses[biz.user_id].append(biz)
 
         payout_count = 0
         total_paid = 0
 
-        for business in all_businesses:
-            business_info = BUSINESS_TYPES.get(business.business_type, BUSINESS_TYPES[1])
-            gross_payout = business_info["weekly_payout"]
-            maintenance = int(gross_payout * MAINTENANCE_RATE)
-            payout = gross_payout - maintenance
+        for user_id, businesses in user_businesses.items():
+            rate = get_maintenance_rate(len(businesses))
+            user = db.query(User).filter(User.telegram_id == user_id).first()
+            if not user:
+                continue
 
-            # Get user and pay
-            user = db.query(User).filter(User.telegram_id == business.user_id).first()
-            if user:
+            for business in businesses:
+                business_info = BUSINESS_TYPES.get(business.business_type, BUSINESS_TYPES[1])
+                gross_payout = business_info["weekly_payout"]
+                maintenance = int(gross_payout * rate)
+                payout = gross_payout - maintenance
+
                 user.balance += payout
                 payout_count += 1
                 total_paid += payout
-
-
 
         logger.info("Business payouts completed", businesses=payout_count, total_paid=total_paid)
 

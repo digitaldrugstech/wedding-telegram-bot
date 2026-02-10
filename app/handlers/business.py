@@ -6,7 +6,7 @@ from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
 from app.database.connection import get_db
 from app.database.models import User
-from app.services.business_service import BusinessService
+from app.services.business_service import MAX_BUSINESSES_TOTAL, BusinessService, get_maintenance_rate
 from app.utils.decorators import require_registered
 from app.utils.formatters import format_diamonds
 from app.utils.keyboards import business_buy_keyboard, business_menu_keyboard
@@ -27,8 +27,11 @@ async def business_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         businesses = BusinessService.get_user_businesses(db, user_id)
 
         if businesses:
-            # Has businesses - show list
-            message = "<b>💼 Твои бизнесы</b>\n\n"
+            count = len(businesses)
+            rate = get_maintenance_rate(count)
+            rate_pct = int(rate * 100)
+            message = f"<b>💼 Твои бизнесы</b> ({count}/{MAX_BUSINESSES_TOTAL})\n"
+            message += f"🔧 Обслуживание: {rate_pct}%\n\n"
 
             total_income = 0
             for business in businesses:
@@ -41,7 +44,6 @@ async def business_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 message, reply_markup=business_menu_keyboard(user_id=user_id), parse_mode="HTML"
             )
         else:
-            # No businesses
             message = (
                 "💼 <b>Бизнесы</b>\n\n" "У тебя нет бизнесов\n\n" "💡 Бизнесы приносят пассивный доход раз в неделю"
             )
@@ -80,7 +82,10 @@ async def business_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Show buy menu (page 1)
         await safe_edit_message(
             query,
-            "💼 <b>Покупка бизнеса</b>\n\n" "Выбери тип бизнеса:\n\n" "💡 Максимум 3 каждого типа",
+            "💼 <b>Покупка бизнеса</b>\n\n"
+            "Выбери тип бизнеса:\n\n"
+            f"💡 Макс {MAX_BUSINESSES_TOTAL} бизнесов, 3 каждого типа\n"
+            "🔧 Обслуживание растёт с числом бизнесов",
             reply_markup=business_buy_keyboard(user_id=user_id, page=1),
         )
 
@@ -92,7 +97,10 @@ async def business_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         await safe_edit_message(
             query,
-            "💼 <b>Покупка бизнеса</b>\n\n" "Выбери тип бизнеса:\n\n" "💡 Максимум 3 каждого типа",
+            "💼 <b>Покупка бизнеса</b>\n\n"
+            "Выбери тип бизнеса:\n\n"
+            f"💡 Макс {MAX_BUSINESSES_TOTAL} бизнесов, 3 каждого типа\n"
+            "🔧 Обслуживание растёт с числом бизнесов",
             reply_markup=business_buy_keyboard(user_id=user_id, page=page),
         )
 
@@ -126,7 +134,11 @@ async def business_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await safe_edit_message(query, "💼 <b>Бизнесы</b>\n\nУ тебя нет бизнесов")
                 return
 
-            message = "<b>💼 Твои бизнесы</b>\n\n"
+            count = len(businesses)
+            rate = get_maintenance_rate(count)
+            rate_pct = int(rate * 100)
+            message = f"<b>💼 Твои бизнесы</b> ({count}/{MAX_BUSINESSES_TOTAL})\n"
+            message += f"🔧 Обслуживание: {rate_pct}%\n\n"
             total_income = 0
 
             for business in businesses:
@@ -185,7 +197,11 @@ async def business_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             businesses = BusinessService.get_user_businesses(db, user_id)
 
             if businesses:
-                message = "<b>💼 Твои бизнесы</b>\n\n"
+                count = len(businesses)
+                rate = get_maintenance_rate(count)
+                rate_pct = int(rate * 100)
+                message = f"<b>💼 Твои бизнесы</b> ({count}/{MAX_BUSINESSES_TOTAL})\n"
+                message += f"🔧 Обслуживание: {rate_pct}%\n\n"
                 total_income = 0
 
                 for business in businesses:

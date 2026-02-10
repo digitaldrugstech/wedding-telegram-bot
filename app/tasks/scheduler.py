@@ -127,12 +127,15 @@ async def business_payout_task(application: Application):
                     user_total = sum(b["weekly_payout"] for b in user_businesses)
 
                     if user_total > 0:
+                        from app.services.business_service import get_maintenance_rate
                         from app.utils.formatters import format_diamonds
 
+                        rate_pct = int(get_maintenance_rate(len(user_businesses)) * 100)
                         message = (
                             f"💼 <b>Еженедельный доход!</b>\n\n"
                             f"Твои бизнесы принесли:\n"
-                            f"💰 +{format_diamonds(user_total)}\n\n"
+                            f"💰 +{format_diamonds(user_total)}\n"
+                            f"🔧 Обслуживание: {rate_pct}%\n\n"
                             f"📊 Баланс: {format_diamonds(user.balance)}"
                         )
 
