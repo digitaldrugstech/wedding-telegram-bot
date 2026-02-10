@@ -82,14 +82,17 @@ async def kidnap_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Find target's children
         children = db.query(Child).filter(Child.marriage_id == target_marriage.id, Child.is_alive.is_(True)).all()
 
-        # Filter out already kidnapped children
-        available_children = []
-        for child in children:
-            existing = (
-                db.query(Kidnapping).filter(Kidnapping.child_id == child.id, Kidnapping.is_active.is_(True)).first()
-            )
-            if not existing:
-                available_children.append(child)
+        # Filter out already kidnapped children (batch query)
+        child_ids = [c.id for c in children]
+        kidnapped_ids = set()
+        if child_ids:
+            kidnapped_ids = {
+                r[0]
+                for r in db.query(Kidnapping.child_id)
+                .filter(Kidnapping.child_id.in_(child_ids), Kidnapping.is_active.is_(True))
+                .all()
+            }
+        available_children = [c for c in children if c.id not in kidnapped_ids]
 
         if not available_children:
             await update.message.reply_text("❌ У жертвы нет доступных детей для похищения")

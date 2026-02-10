@@ -803,9 +803,29 @@ async def familybank_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
         if success:
             balance = MarriageService.get_family_bank_balance(db, user_id)
+            # Get partner ID for notification on withdraw
+            partner_id = None
+            if action == "withdraw":
+                marriage = MarriageService.get_active_marriage(db, user_id)
+                if marriage:
+                    partner_id = MarriageService.get_partner_id(marriage, user_id)
             await update.message.reply_text(
                 f"✅ <b>{message}</b>\n\n" f"🏦 Новый баланс: {format_diamonds(balance)}", parse_mode="HTML"
             )
+            # Notify partner about withdrawal
+            if partner_id:
+                try:
+                    await context.bot.send_message(
+                        chat_id=partner_id,
+                        text=(
+                            f"🏦 <b>Семейный банк</b>\n\n"
+                            f"Твой партнёр снял {format_diamonds(amount)}\n"
+                            f"💰 Остаток: {format_diamonds(balance)}"
+                        ),
+                        parse_mode="HTML",
+                    )
+                except Exception:
+                    pass
         else:
             await update.message.reply_text(f"❌ {message}", parse_mode="HTML")
 

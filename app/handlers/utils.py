@@ -310,7 +310,7 @@ async def help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/friends — список друзей\n"
             "/addfriend @user — добавить в друзья\n"
             "/removefriend @user — удалить из друзей\n"
-            "/friendgift @user [сумма] — подарок другу\n"
+            "/friendgift @user [сумма] — подарок другу (2%)\n"
             "/achievements — достижения\n"
             "/rating — рейтинг игроков\n\n"
             "<b>Рефералы:</b>\n"

@@ -97,34 +97,45 @@ async def friends_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Get pending requests sent
         pending_sent = db.query(Friendship).filter(Friendship.user1_id == user_id, Friendship.status == "pending").all()
 
+        # Batch-load all related user IDs to avoid N+1 queries
+        all_user_ids = set()
+        for f in friendships:
+            all_user_ids.add(f.user2_id if f.user1_id == user_id else f.user1_id)
+        for f in pending_received:
+            all_user_ids.add(f.user1_id)
+        for f in pending_sent:
+            all_user_ids.add(f.user2_id)
+
+        users_map = {}
+        if all_user_ids:
+            users = db.query(User).filter(User.telegram_id.in_(all_user_ids)).all()
+            users_map = {u.telegram_id: u for u in users}
+
+        def _display_name(uid):
+            u = users_map.get(uid)
+            if u and u.username:
+                return f"@{html.escape(u.username)}"
+            return f"ID {uid}"
+
         text = "<b>👥 Друзья</b>\n\n"
 
         if friendships:
             text += "<b>✅ Друзья:</b>\n"
             for friendship in friendships:
                 friend_id = friendship.user2_id if friendship.user1_id == user_id else friendship.user1_id
-                friend = db.query(User).filter(User.telegram_id == friend_id).first()
-                if friend:
-                    username = f"@{html.escape(friend.username)}" if friend.username else f"ID {friend.telegram_id}"
-                    text += f"• {username}\n"
+                text += f"• {_display_name(friend_id)}\n"
             text += "\n"
 
         if pending_received:
             text += "<b>📥 Входящие заявки:</b>\n"
             for friendship in pending_received:
-                sender = db.query(User).filter(User.telegram_id == friendship.user1_id).first()
-                if sender:
-                    username = f"@{html.escape(sender.username)}" if sender.username else f"ID {sender.telegram_id}"
-                    text += f"• {username}\n"
+                text += f"• {_display_name(friendship.user1_id)}\n"
             text += "\n"
 
         if pending_sent:
             text += "<b>📤 Исходящие заявки:</b>\n"
             for friendship in pending_sent:
-                receiver = db.query(User).filter(User.telegram_id == friendship.user2_id).first()
-                if receiver:
-                    username = f"@{html.escape(receiver.username)}" if receiver.username else f"ID {receiver.telegram_id}"
-                    text += f"• {username}\n"
+                text += f"• {_display_name(friendship.user2_id)}\n"
             text += "\n"
 
         if not friendships and not pending_received and not pending_sent:
@@ -134,23 +145,21 @@ async def friends_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text += "/addfriend @user — добавить в друзья\n"
         text += "/removefriend @user — удалить из друзей"
 
-        # Add accept/decline buttons for pending requests (must stay inside session)
+        # Add accept/decline buttons for pending requests
         keyboard = []
         if pending_received:
             for friendship in pending_received:
-                sender = db.query(User).filter(User.telegram_id == friendship.user1_id).first()
-                if sender:
-                    username = f"@{html.escape(sender.username)}" if sender.username else f"ID {sender.telegram_id}"
-                    keyboard.append(
-                        [
-                            InlineKeyboardButton(
-                                f"✅ Принять {username}", callback_data=f"friend:accept:{friendship.id}:{user_id}"
-                            ),
-                            InlineKeyboardButton(
-                                f"❌ Отклонить {username}", callback_data=f"friend:decline:{friendship.id}:{user_id}"
-                            ),
-                        ]
-                    )
+                username = _display_name(friendship.user1_id)
+                keyboard.append(
+                    [
+                        InlineKeyboardButton(
+                            f"✅ Принять {username}", callback_data=f"friend:accept:{friendship.id}:{user_id}"
+                        ),
+                        InlineKeyboardButton(
+                            f"❌ Отклонить {username}", callback_data=f"friend:decline:{friendship.id}:{user_id}"
+                        ),
+                    ]
+                )
 
         reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
 
@@ -320,10 +329,12 @@ async def friend_decline_callback(update: Update, context: ContextTypes.DEFAULT_
 
 # ==================== GIFT (to friends only) ====================
 
+FRIENDGIFT_FEE_RATE = 2  # 2% fee (reduced from 5% for regular /transfer)
+
 
 @require_registered
 async def gift_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /gift @user amount command (only for friends, no commission)."""
+    """Handle /friendgift @user amount command (only for friends, reduced fee)."""
     if not update.effective_user or not update.message:
         return
 
@@ -336,7 +347,7 @@ async def gift_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Использование:\n"
             "/friendgift @username [сумма]\n\n"
             "Минимум: 10 алмазов\n"
-            "Без комиссии (только друзьям)\n\n"
+            f"Комиссия: {FRIENDGIFT_FEE_RATE}% (для друзей)\n\n"
             "Пример: /friendgift @user 100",
             parse_mode="HTML",
         )
@@ -355,14 +366,21 @@ async def gift_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Минимум 10 алмазов")
         return
 
+    fee = max(1, int(amount * FRIENDGIFT_FEE_RATE / 100))
+    total_cost = amount + fee
+
     with get_db() as db:
         # Get sender
         sender = db.query(User).filter(User.telegram_id == sender_id).first()
 
-        # Check balance
-        if sender.balance < amount:
+        # Check balance (amount + fee)
+        if sender.balance < total_cost:
             await update.message.reply_text(
-                f"❌ Недостаточно алмазов\n\n" f"💰 Твой баланс: {format_diamonds(sender.balance)}"
+                f"❌ Недостаточно алмазов\n\n"
+                f"💰 Подарок: {format_diamonds(amount)}\n"
+                f"💸 Комиссия: {format_diamonds(fee)}\n"
+                f"📊 Итого: {format_diamonds(total_cost)}\n\n"
+                f"💰 Твой баланс: {format_diamonds(sender.balance)}"
             )
             return
 
@@ -370,7 +388,7 @@ async def gift_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         recipient = db.query(User).filter(User.username == username).first()
 
         if not recipient:
-            await update.message.reply_text(f"❌ Пользователь @{username} не найден")
+            await update.message.reply_text(f"❌ Пользователь @{html.escape(username)} не найден", parse_mode="HTML")
             return
 
         # Can't gift to self
@@ -390,18 +408,19 @@ async def gift_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         if not friendship:
-            await update.message.reply_text(f"❌ @{username} не в твоих друзьях\n\nДарить можно только друзьям")
+            await update.message.reply_text(f"❌ @{html.escape(username)} не в твоих друзьях\n\nДарить можно только друзьям", parse_mode="HTML")
             return
 
-        # Execute gift
-        sender.balance -= amount
+        # Execute gift (deduct amount + fee from sender, give amount to recipient)
+        sender.balance -= total_cost
         recipient.balance += amount
 
         balance = sender.balance
 
     await update.message.reply_text(
         f"🎁 <b>Подарок отправлен</b>\n\n"
-        f"💰 {format_diamonds(amount)} → @{html.escape(username)}\n\n"
+        f"💰 {format_diamonds(amount)} → @{html.escape(username)}\n"
+        f"💸 Комиссия: {format_diamonds(fee)}\n\n"
         f"💰 Твой баланс: {format_diamonds(balance)}",
         parse_mode="HTML",
     )
