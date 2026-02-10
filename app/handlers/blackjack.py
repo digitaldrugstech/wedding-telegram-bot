@@ -106,11 +106,11 @@ def _finish_game(user_id, bet, payout, result_type):
     """Record game result and set cooldown."""
     with get_db() as db:
         if payout > 0:
-            # Lucky charm bonus (+15%)
+            # Lucky charm bonus (+5%)
             from app.handlers.premium import has_active_boost
 
             if has_active_boost(user_id, "lucky_charm", db=db):
-                payout += int(payout * 0.15)
+                payout += int(payout * 0.05)
 
             user = db.query(User).filter(User.telegram_id == user_id).first()
             user.balance += payout

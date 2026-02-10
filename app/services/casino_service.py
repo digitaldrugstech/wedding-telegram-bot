@@ -130,11 +130,11 @@ class CasinoService:
         multiplier = multipliers.get(dice_value, 0)
         winnings = int(bet_amount * multiplier) if multiplier > 0 else 0
 
-        # Lucky charm bonus (+15%)
+        # Lucky charm bonus (+5%)
         lucky_bonus = 0
         if winnings > 0:
             if has_active_boost(user_id, "lucky_charm", db=db):
-                lucky_bonus = int(winnings * 0.15)
+                lucky_bonus = int(winnings * 0.05)
                 winnings += lucky_bonus
 
         # Add winnings (bet already deducted)

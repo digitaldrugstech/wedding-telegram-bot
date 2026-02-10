@@ -77,11 +77,11 @@ async def coinflip_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         if win:
             payout = int(bet * WIN_MULTIPLIER)
-            # Lucky charm bonus (+15%)
+            # Lucky charm bonus (+5%)
             from app.handlers.premium import has_active_boost
 
             if has_active_boost(user_id, "lucky_charm", db=db):
-                payout += int(payout * 0.15)
+                payout += int(payout * 0.05)
             user.balance += payout
             result_type = "win"
         else:

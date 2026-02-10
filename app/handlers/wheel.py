@@ -116,16 +116,16 @@ async def wheel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             from app.handlers.premium import has_active_boost
 
             if has_active_boost(user_id, "lucky_charm", db=db):
-                lucky_bonus = int(prize * 0.15)
+                lucky_bonus = int(prize * 0.05)
                 prize += lucky_bonus
 
         if is_jackpot:
             actual_prize = WHEEL_COST * 10
             if lucky_bonus > 0:
-                actual_prize += int(WHEEL_COST * 10 * 0.15)
+                actual_prize += int(WHEEL_COST * 10 * 0.05)
             user.balance += actual_prize
 
-            lucky_text = f"\n🍀 Талисман удачи: +{format_diamonds(int(WHEEL_COST * 10 * 0.15))}" if lucky_bonus > 0 else ""
+            lucky_text = f"\n🍀 Талисман удачи: +{format_diamonds(int(WHEEL_COST * 10 * 0.05))}" if lucky_bonus > 0 else ""
             result_text = (
                 f"🎰 <b>ДЖЕКПОТ!</b> 🎉🎉🎉\n\n"
                 f"Невероятная удача!\n"
