@@ -12,6 +12,7 @@ from app.database.connection import get_db
 from app.database.models import Lottery, LotteryTicket, User
 from app.utils.decorators import require_registered
 from app.utils.formatters import format_diamonds, format_word
+from app.utils.telegram_helpers import delete_command_and_reply, safe_edit_message
 
 logger = structlog.get_logger()
 
@@ -66,7 +67,8 @@ async def lottery_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         keyboard.append(row)
     keyboard.append([InlineKeyboardButton("« Меню", callback_data=f"menu:economy:{user_id}")])
 
-    await update.message.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+    reply = await update.message.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+    delete_command_and_reply(update, reply, context, delay=90)
 
 
 @require_registered
@@ -223,8 +225,6 @@ async def lottery_buy_callback(update: Update, context: ContextTypes.DEFAULT_TYP
             row.append(InlineKeyboardButton("🎫 Купить 5", callback_data=f"lottery:buy:5:{user_id}"))
         keyboard.append(row)
     keyboard.append([InlineKeyboardButton("« Меню", callback_data=f"menu:economy:{user_id}")])
-
-    from app.utils.telegram_helpers import safe_edit_message
 
     await safe_edit_message(query, text, reply_markup=InlineKeyboardMarkup(keyboard))
 

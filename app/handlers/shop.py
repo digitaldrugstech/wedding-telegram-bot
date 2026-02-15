@@ -8,7 +8,7 @@ from app.database.connection import get_db
 from app.database.models import User
 from app.utils.decorators import require_registered
 from app.utils.formatters import format_diamonds
-from app.utils.telegram_helpers import safe_edit_message
+from app.utils.telegram_helpers import delete_command_and_reply, safe_edit_message
 
 logger = structlog.get_logger()
 
@@ -113,7 +113,8 @@ async def shop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if owned:
         keyboard.append([InlineKeyboardButton("🚫 Снять титул", callback_data=f"shop:remove:{user_id}")])
 
-    await update.message.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+    reply = await update.message.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
+    delete_command_and_reply(update, reply, context, delay=120)
 
 
 async def shop_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):

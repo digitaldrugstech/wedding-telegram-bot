@@ -11,7 +11,7 @@ from app.database.models import User
 from app.handlers.quest import update_quest_progress
 from app.utils.decorators import require_registered
 from app.utils.formatters import format_diamonds
-from app.utils.telegram_helpers import safe_edit_message
+from app.utils.telegram_helpers import delete_command_and_reply, safe_edit_message
 
 
 @require_registered
@@ -94,8 +94,6 @@ async def transfer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         sender.balance -= amount
         recipient.balance += received
 
-
-
         fee_text = f"\n💸 Комиссия: {format_diamonds(fee)} ({TRANSFER_FEE_RATE}%)" if fee > 0 else ""
 
         await update.message.reply_text(
@@ -138,7 +136,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     help_text = "📖 <b>Справка</b>\n\n" "Выбери категорию:\n\n" "💡 /menu — главное меню с кнопками"
 
-    await update.message.reply_text(help_text, reply_markup=reply_markup, parse_mode="HTML")
+    reply = await update.message.reply_text(help_text, reply_markup=reply_markup, parse_mode="HTML")
+    delete_command_and_reply(update, reply, context, delay=120)
 
 
 async def help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):

@@ -10,7 +10,7 @@ from app.database.connection import get_db
 from app.database.models import Insurance, User
 from app.utils.decorators import require_registered
 from app.utils.formatters import format_diamonds, format_word
-from app.utils.telegram_helpers import safe_edit_message
+from app.utils.telegram_helpers import delete_command_and_reply, safe_edit_message
 
 logger = structlog.get_logger()
 
@@ -93,7 +93,8 @@ async def insurance_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]
         )
 
-    await update.message.reply_text(text, parse_mode="HTML", reply_markup=keyboard)
+    reply = await update.message.reply_text(text, parse_mode="HTML", reply_markup=keyboard)
+    delete_command_and_reply(update, reply, context, delay=90)
 
 
 async def buy_insurance(update: Update, user_id: int):
