@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 
 import structlog
 from telegram import Update
-from telegram.ext import CommandHandler, ContextTypes
+from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
 from app.database.connection import get_db
 from app.database.models import CasinoGame, Cooldown, User
@@ -213,7 +213,7 @@ async def scratch_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Потрачено: {format_diamonds(bet)}{nudge}"
         )
 
-    after_kb = casino_after_game_keyboard("scratch", user_id)
+    after_kb = casino_after_game_keyboard("scratch", user_id, bet=bet)
     try:
         await msg.edit_text(result_text, parse_mode="HTML", reply_markup=after_kb)
     except Exception:
@@ -228,7 +228,172 @@ async def scratch_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info("Scratch card played", user_id=user_id, bet=bet, payout=payout, symbol=prize["symbol"])
 
 
+async def _play_scratch_from_callback(context, chat_id, user_id, bet):
+    """Play scratch card game from callback context."""
+    # Check balance and cooldown, deduct bet
+    with get_db() as db:
+        user = db.query(User).filter(User.telegram_id == user_id).first()
+        if not user or user.is_banned:
+            return "Доступ запрещён"
+
+        if user.balance < bet:
+            return f"Недостаточно алмазов ({format_diamonds(user.balance)})"
+
+        cooldown = db.query(Cooldown).filter(Cooldown.user_id == user_id, Cooldown.action == "scratch").first()
+        if cooldown and cooldown.expires_at > datetime.utcnow():
+            remaining = cooldown.expires_at - datetime.utcnow()
+            return f"Подожди {int(remaining.total_seconds())}с"
+
+        user.balance -= bet
+
+        expires_at = datetime.utcnow() + timedelta(seconds=SCRATCH_COOLDOWN_SECONDS)
+        if cooldown:
+            cooldown.expires_at = expires_at
+        else:
+            db.add(Cooldown(user_id=user_id, action="scratch", expires_at=expires_at))
+
+    # Generate result and animate
+    prize = generate_scratch_result()
+    is_win = prize["multiplier"] > 0
+    winning_symbol = prize["symbol"] if is_win else None
+    grid = generate_grid(winning_symbol, is_win)
+
+    hidden_grid = format_grid(grid, revealed=set())
+    msg = await context.bot.send_message(
+        chat_id=chat_id,
+        text=f"🎫 <b>Скретч-карта</b>\n\n{hidden_grid}\n\nЦарапаю...",
+        parse_mode="HTML",
+    )
+
+    reveal_order = list(range(9))
+    random.shuffle(reveal_order)
+    reveal_steps = [3, 5, 7, 9]
+
+    for step in reveal_steps:
+        await asyncio.sleep(0.6)
+        revealed = set(reveal_order[:step])
+        partial_grid = format_grid(grid, revealed)
+        try:
+            await msg.edit_text(
+                f"🎫 <b>Скретч-карта</b>\n\n{partial_grid}\n\nЦарапаю...",
+                parse_mode="HTML",
+            )
+        except Exception:
+            pass
+
+    await asyncio.sleep(0.4)
+
+    # Calculate payout
+    payout = int(bet * prize["multiplier"])
+
+    with get_db() as db:
+        if payout > 0:
+            from app.handlers.premium import has_active_boost
+
+            if has_active_boost(user_id, "lucky_charm", db=db):
+                payout += int(payout * 0.05)
+
+            user = db.query(User).filter(User.telegram_id == user_id).first()
+            user.balance += payout
+
+        result_type = "win" if payout > 0 else "loss"
+        db.add(CasinoGame(user_id=user_id, bet_amount=bet, result=result_type, payout=payout))
+
+    full_grid = format_grid(grid)
+
+    if prize["multiplier"] == 5.0:
+        result_text = (
+            f"🎫 <b>ДЖЕКПОТ!</b> 🎉🎉🎉\n\n"
+            f"{full_grid}\n\n"
+            f"3x {prize['symbol']} — Множитель x5!\n"
+            f"Выигрыш: {format_diamonds(payout)}"
+        )
+    elif payout > 0:
+        net = payout - bet
+        result_text = (
+            f"🎫 <b>Победа!</b>\n\n"
+            f"{full_grid}\n\n"
+            f"3x {prize['symbol']} — Множитель x{prize['multiplier']}\n"
+            f"Выигрыш: {format_diamonds(payout)}\n"
+            f"Чистая прибыль: {format_diamonds(net)}"
+        )
+    else:
+        from app.handlers.premium import build_premium_nudge, has_active_boost as _sc_has_boost2
+
+        nudge = ""
+        if not _sc_has_boost2(user_id, "lucky_charm"):
+            nudge = build_premium_nudge("casino_loss", user_id)
+        result_text = (
+            f"🎫 <b>Скретч-карта</b>\n\n"
+            f"{full_grid}\n\n"
+            f"Нет совпадений...\n"
+            f"Потрачено: {format_diamonds(bet)}{nudge}"
+        )
+
+    after_kb = casino_after_game_keyboard("scratch", user_id, bet=bet)
+    try:
+        await msg.edit_text(result_text, parse_mode="HTML", reply_markup=after_kb)
+    except Exception:
+        await context.bot.send_message(chat_id=chat_id, text=result_text, parse_mode="HTML", reply_markup=after_kb)
+
+    try:
+        update_quest_progress(user_id, "casino")
+    except Exception:
+        pass
+
+    logger.info("Scratch card played (button)", user_id=user_id, bet=bet, payout=payout, symbol=prize["symbol"])
+    return None  # Success
+
+
+async def scratch_bet_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle scratch bet from button — cbet:scratch:{amount}:{user_id}."""
+    query = update.callback_query
+    if not update.effective_user:
+        return
+
+    parts = query.data.split(":")
+    if len(parts) != 4:
+        return
+
+    amount_str = parts[2]
+    owner_id = int(parts[3])
+
+    if update.effective_user.id != owner_id:
+        await query.answer("Эта кнопка не для тебя", show_alert=True)
+        return
+
+    user_id = update.effective_user.id
+
+    # Parse bet
+    if amount_str == "all":
+        with get_db() as db:
+            user = db.query(User).filter(User.telegram_id == user_id).first()
+            if not user:
+                await query.answer("Доступ запрещён", show_alert=True)
+                return
+            bet = min(user.balance, SCRATCH_MAX_BET)
+            if bet < SCRATCH_MIN_BET:
+                await query.answer(f"Недостаточно алмазов (мин. {SCRATCH_MIN_BET})", show_alert=True)
+                return
+    else:
+        try:
+            bet = int(amount_str)
+        except ValueError:
+            return
+
+    if bet < SCRATCH_MIN_BET or bet > SCRATCH_MAX_BET:
+        await query.answer(f"Ставка: {SCRATCH_MIN_BET}-{SCRATCH_MAX_BET}", show_alert=True)
+        return
+
+    await query.answer()
+
+    error = await _play_scratch_from_callback(context, query.message.chat_id, user_id, bet)
+    if error:
+        await context.bot.send_message(chat_id=query.message.chat_id, text=f"❌ {error}")
+
+
 def register_scratch_handlers(application):
     """Register scratch card handlers."""
     application.add_handler(CommandHandler("scratch", scratch_command))
+    application.add_handler(CallbackQueryHandler(scratch_bet_callback, pattern=r"^cbet:scratch:"))
     logger.info("Scratch card handlers registered")

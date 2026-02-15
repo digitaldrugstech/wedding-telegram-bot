@@ -1,8 +1,9 @@
 """Casino handlers for Wedding Telegram Bot."""
 
+import structlog
 from telegram import Update
 from telegram.constants import ChatAction
-from telegram.ext import CommandHandler, ContextTypes
+from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
 from app.database.connection import get_db
 from app.handlers.quest import update_quest_progress
@@ -21,6 +22,18 @@ from app.utils.decorators import require_registered
 from app.utils.formatters import format_diamonds
 from app.utils.keyboards import casino_after_game_keyboard, casino_menu_keyboard
 
+logger = structlog.get_logger()
+
+# Emoji map for dice-based games
+DICE_GAME_EMOJI = {
+    SLOT_MACHINE: "🎰",
+    DICE: "🎲",
+    DARTS: "🎯",
+    BASKETBALL: "🏀",
+    BOWLING: "🎳",
+    FOOTBALL: "⚽",
+}
+
 
 @require_registered
 async def casino_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -29,11 +42,14 @@ async def casino_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     user_id = update.effective_user.id
-    casino_text = (
-        "🎰 <b>Казино</b>\n\n"
-        f"Ставка: {format_diamonds(MIN_BET)} - {format_diamonds(MAX_BET)}\n\n"
-        "Выбери игру:"
-    )
+
+    with get_db() as db:
+        from app.database.models import User
+
+        user = db.query(User).filter(User.telegram_id == user_id).first()
+        balance = user.balance if user else 0
+
+    casino_text = f"🎰 <b>Казино</b>\n\n💰 Баланс: {format_diamonds(balance)}\n\nВыбери игру:"
 
     await update.message.reply_text(casino_text, parse_mode="HTML", reply_markup=casino_menu_keyboard(user_id))
 
@@ -109,7 +125,7 @@ async def _process_casino_result(context: ContextTypes.DEFAULT_TYPE):
                     text=message,
                     parse_mode="HTML",
                     reply_to_message_id=message_id,
-                    reply_markup=casino_after_game_keyboard(game_type, user_id),
+                    reply_markup=casino_after_game_keyboard(game_type, user_id, bet=bet_amount),
                 )
                 # Track quest progress
                 try:
@@ -194,6 +210,88 @@ async def casinostats_command(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text(message, parse_mode="HTML")
 
 
+async def casino_bet_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle bet selection from buttons — cbet:{game}:{amount}:{user_id}."""
+    query = update.callback_query
+    if not update.effective_user:
+        return
+
+    parts = query.data.split(":")
+    if len(parts) != 4:
+        return
+
+    game = parts[1]
+    amount_str = parts[2]
+    owner_id = int(parts[3])
+
+    if update.effective_user.id != owner_id:
+        await query.answer("Эта кнопка не для тебя", show_alert=True)
+        return
+
+    # Only handle dice-based games here
+    if game not in DICE_GAME_EMOJI:
+        return
+
+    user_id = update.effective_user.id
+    chat_id = query.message.chat_id
+
+    # Parse bet amount
+    from app.database.models import User
+
+    if amount_str == "all":
+        with get_db() as db:
+            user = db.query(User).filter(User.telegram_id == user_id).first()
+            if not user or user.is_banned:
+                await query.answer("Доступ запрещён", show_alert=True)
+                return
+            bet_amount = min(user.balance, MAX_BET)
+            if bet_amount < MIN_BET:
+                await query.answer(f"Недостаточно алмазов (мин. {MIN_BET})", show_alert=True)
+                return
+    else:
+        try:
+            bet_amount = int(amount_str)
+        except ValueError:
+            return
+
+    # Reserve bet (deduct immediately)
+    with get_db() as db:
+        can_bet, error_msg = CasinoService.reserve_bet(db, user_id, bet_amount)
+        if not can_bet:
+            await query.answer(f"❌ {error_msg}", show_alert=True)
+            return
+
+    await query.answer()
+
+    # Update the bet picker message to show "playing"
+    try:
+        await query.edit_message_text(
+            f"🎲 Ставка: {format_diamonds(bet_amount)}...",
+            parse_mode="HTML",
+        )
+    except Exception:
+        pass
+
+    # Send dice
+    emoji = DICE_GAME_EMOJI[game]
+    dice_message = await context.bot.send_dice(chat_id=chat_id, emoji=emoji)
+    dice_value = dice_message.dice.value
+
+    # Schedule result processing after animation
+    context.job_queue.run_once(
+        _process_casino_result,
+        when=4.5,
+        data={
+            "chat_id": chat_id,
+            "message_id": dice_message.message_id,
+            "user_id": user_id,
+            "game_type": game,
+            "dice_value": dice_value,
+            "bet_amount": bet_amount,
+        },
+    )
+
+
 def register_casino_handlers(application):
     """Register casino handlers."""
     application.add_handler(CommandHandler("casino", casino_command))
@@ -204,3 +302,6 @@ def register_casino_handlers(application):
     application.add_handler(CommandHandler("basketball", basketball_command))
     application.add_handler(CommandHandler("bowling", bowling_command))
     application.add_handler(CommandHandler("football", football_command))
+    application.add_handler(
+        CallbackQueryHandler(casino_bet_callback, pattern=r"^cbet:(slots|dice|darts|basketball|bowling|football):")
+    )

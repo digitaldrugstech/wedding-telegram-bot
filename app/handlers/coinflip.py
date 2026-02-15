@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 
 import structlog
 from telegram import Update
-from telegram.ext import CommandHandler, ContextTypes
+from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
 from app.database.connection import get_db
 from app.database.models import CasinoGame, Cooldown, User
@@ -125,7 +125,9 @@ async def coinflip_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"💰 Баланс: {format_diamonds(balance)}{nudge}"
         )
 
-    await update.message.reply_text(text, parse_mode="HTML", reply_markup=casino_after_game_keyboard("coinflip", user_id))
+    await update.message.reply_text(
+        text, parse_mode="HTML", reply_markup=casino_after_game_keyboard("coinflip", user_id, bet=bet)
+    )
 
     try:
         update_quest_progress(user_id, "casino")
@@ -135,7 +137,144 @@ async def coinflip_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info("Coinflip", user_id=user_id, bet=bet, win=win, payout=payout)
 
 
+def _play_coinflip(user_id: int, bet: int):
+    """Core coinflip logic. Returns (text, bet) or (error_text, None)."""
+    with get_db() as db:
+        user = db.query(User).filter(User.telegram_id == user_id).first()
+        if not user or user.is_banned:
+            return "Доступ запрещён", None
+
+        if user.balance < bet:
+            return (
+                f"❌ Недостаточно алмазов\n\nНужно: {format_diamonds(bet)}\nУ тебя: {format_diamonds(user.balance)}",
+                None,
+            )
+
+        cooldown = db.query(Cooldown).filter(Cooldown.user_id == user_id, Cooldown.action == "coinflip").first()
+        if cooldown and cooldown.expires_at > datetime.utcnow():
+            remaining = cooldown.expires_at - datetime.utcnow()
+            return f"⏰ Следующий бросок через {int(remaining.total_seconds())}с", None
+
+        # Deduct bet
+        user.balance -= bet
+
+        # Flip
+        win = random.random() < 0.5
+
+        if win:
+            payout = int(bet * WIN_MULTIPLIER)
+            from app.handlers.premium import has_active_boost
+
+            if has_active_boost(user_id, "lucky_charm", db=db):
+                payout += int(payout * 0.05)
+            user.balance += payout
+            result_type = "win"
+        else:
+            payout = 0
+            result_type = "loss"
+
+        # Set cooldown
+        expires_at = datetime.utcnow() + timedelta(seconds=COINFLIP_COOLDOWN_SECONDS)
+        if cooldown:
+            cooldown.expires_at = expires_at
+        else:
+            db.add(Cooldown(user_id=user_id, action="coinflip", expires_at=expires_at))
+
+        db.add(CasinoGame(user_id=user_id, bet_amount=bet, result=result_type, payout=payout))
+        balance = user.balance
+
+    # Build message
+    side = "🦅 Орёл" if win else "🪙 Решка"
+
+    if win:
+        profit = payout - bet
+        text = (
+            f"🪙 <b>Монетка</b>\n\n"
+            f"{side}!\n\n"
+            f"🎉 Выигрыш: {format_diamonds(payout)} (+{format_diamonds(profit)})\n"
+            f"💰 Баланс: {format_diamonds(balance)}"
+        )
+    else:
+        from app.handlers.premium import build_premium_nudge, has_active_boost as _cf_has_boost
+
+        nudge = ""
+        if not _cf_has_boost(user_id, "lucky_charm"):
+            nudge = build_premium_nudge("casino_loss", user_id)
+        text = (
+            f"🪙 <b>Монетка</b>\n\n"
+            f"{side}!\n\n"
+            f"💸 Проигрыш: {format_diamonds(bet)}\n"
+            f"💰 Баланс: {format_diamonds(balance)}{nudge}"
+        )
+
+    try:
+        update_quest_progress(user_id, "casino")
+    except Exception:
+        pass
+
+    logger.info("Coinflip", user_id=user_id, bet=bet, win=win, payout=payout)
+    return text, bet
+
+
+async def coinflip_bet_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle coinflip bet from button — cbet:coinflip:{amount}:{user_id}."""
+    query = update.callback_query
+    if not update.effective_user:
+        return
+
+    parts = query.data.split(":")
+    if len(parts) != 4:
+        return
+
+    amount_str = parts[2]
+    owner_id = int(parts[3])
+
+    if update.effective_user.id != owner_id:
+        await query.answer("Эта кнопка не для тебя", show_alert=True)
+        return
+
+    user_id = update.effective_user.id
+
+    # Parse bet amount
+    if amount_str == "all":
+        with get_db() as db:
+            user = db.query(User).filter(User.telegram_id == user_id).first()
+            if not user:
+                await query.answer("Доступ запрещён", show_alert=True)
+                return
+            bet = min(user.balance, COINFLIP_MAX_BET)
+            if bet < COINFLIP_MIN_BET:
+                await query.answer(f"Недостаточно алмазов (мин. {COINFLIP_MIN_BET})", show_alert=True)
+                return
+    else:
+        try:
+            bet = int(amount_str)
+        except ValueError:
+            return
+
+    if bet < COINFLIP_MIN_BET or bet > COINFLIP_MAX_BET:
+        await query.answer(f"Ставка: {COINFLIP_MIN_BET}-{COINFLIP_MAX_BET}", show_alert=True)
+        return
+
+    text, actual_bet = _play_coinflip(user_id, bet)
+    if actual_bet is None:
+        # Error — show as alert
+        await query.answer(text, show_alert=True)
+        return
+
+    await query.answer()
+
+    # Send result as new message (can't edit into a game result well)
+    await context.bot.send_message(
+        chat_id=query.message.chat_id,
+        text=text,
+        parse_mode="HTML",
+        reply_markup=casino_after_game_keyboard("coinflip", user_id, bet=actual_bet),
+    )
+
+
 def register_coinflip_handlers(application):
     """Register coinflip handlers."""
     application.add_handler(CommandHandler(["coinflip", "cf"], coinflip_command))
+    application.add_handler(CallbackQueryHandler(coinflip_bet_callback, pattern=r"^cbet:coinflip:"))
     logger.info("Coinflip handlers registered")

@@ -77,9 +77,7 @@ def get_bj_keyboard(user_id):
         [
             [
                 InlineKeyboardButton("🃏 Ещё", callback_data=f"bj:hit:{user_id}"),
-                InlineKeyboardButton(
-                    "✋ Хватит", callback_data=f"bj:stand:{user_id}"
-                ),
+                InlineKeyboardButton("✋ Хватит", callback_data=f"bj:stand:{user_id}"),
             ]
         ]
     )
@@ -136,9 +134,7 @@ async def blackjack_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
 
     if context.user_data.get("bj_active"):
-        await update.message.reply_text(
-            "❌ У тебя уже идёт игра. Доиграй её"
-        )
+        await update.message.reply_text("❌ У тебя уже идёт игра. Доиграй её")
         return
 
     if not context.args:
@@ -157,9 +153,7 @@ async def blackjack_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         bet = int(context.args[0])
     except ValueError:
-        await update.message.reply_text(
-            "❌ Ставка должна быть числом"
-        )
+        await update.message.reply_text("❌ Ставка должна быть числом")
         return
 
     if bet < BLACKJACK_MIN_BET or bet > BLACKJACK_MAX_BET:
@@ -185,9 +179,7 @@ async def blackjack_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if cooldown and cooldown.expires_at > datetime.utcnow():
             remaining = cooldown.expires_at - datetime.utcnow()
             seconds_left = int(remaining.total_seconds())
-            await update.message.reply_text(
-                f"⏰ Следующая игра через {seconds_left}с"
-            )
+            await update.message.reply_text(f"⏰ Следующая игра через {seconds_left}с")
             return
 
         user.balance -= bet
@@ -219,7 +211,9 @@ async def blackjack_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Дилер: {fmt_hand(dealer_cards)} = <b>21</b>\n\n"
             f"🤝 Оба блэкджек! Возврат: {format_diamonds(bet)}"
         )
-        await update.message.reply_text(text, parse_mode="HTML", reply_markup=casino_after_game_keyboard("blackjack", user_id))
+        await update.message.reply_text(
+            text, parse_mode="HTML", reply_markup=casino_after_game_keyboard("blackjack", user_id, bet=bet)
+        )
         logger.info("Blackjack push", user_id=user_id, bet=bet)
         return
 
@@ -235,7 +229,9 @@ async def blackjack_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Дилер: {fmt_hand(dealer_cards)} = <b>{hand_value(dealer_cards)}</b>\n\n"
             f"💰 Выигрыш: {format_diamonds(payout)} (x2.5)"
         )
-        await update.message.reply_text(text, parse_mode="HTML", reply_markup=casino_after_game_keyboard("blackjack", user_id))
+        await update.message.reply_text(
+            text, parse_mode="HTML", reply_markup=casino_after_game_keyboard("blackjack", user_id, bet=bet)
+        )
         logger.info("Blackjack natural", user_id=user_id, bet=bet, payout=payout)
         return
 
@@ -277,9 +273,7 @@ async def blackjack_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     if not context.user_data.get("bj_active"):
         try:
-            await query.edit_message_text(
-                "❌ Игра не найдена. Начни новую: /blackjack"
-            )
+            await query.edit_message_text("❌ Игра не найдена. Начни новую: /blackjack")
         except Exception:
             pass
         return
@@ -312,7 +306,7 @@ async def blackjack_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             )
             try:
                 await query.edit_message_text(
-                    text, parse_mode="HTML", reply_markup=casino_after_game_keyboard("blackjack", user_id)
+                    text, parse_mode="HTML", reply_markup=casino_after_game_keyboard("blackjack", user_id, bet=bet)
                 )
             except Exception:
                 pass
@@ -377,7 +371,7 @@ async def blackjack_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
         try:
             await query.edit_message_text(
-                text, parse_mode="HTML", reply_markup=casino_after_game_keyboard("blackjack", user_id)
+                text, parse_mode="HTML", reply_markup=casino_after_game_keyboard("blackjack", user_id, bet=bet)
             )
         except Exception:
             pass
@@ -392,8 +386,137 @@ async def blackjack_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         )
 
 
+async def blackjack_bet_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle blackjack bet from button — cbet:blackjack:{amount}:{user_id}."""
+    query = update.callback_query
+    if not update.effective_user:
+        return
+
+    parts = query.data.split(":")
+    if len(parts) != 4:
+        return
+
+    amount_str = parts[2]
+    owner_id = int(parts[3])
+
+    if update.effective_user.id != owner_id:
+        await query.answer("Эта кнопка не для тебя", show_alert=True)
+        return
+
+    user_id = update.effective_user.id
+
+    if context.user_data.get("bj_active"):
+        await query.answer("У тебя уже идёт игра", show_alert=True)
+        return
+
+    # Parse bet
+    if amount_str == "all":
+        with get_db() as db:
+            user = db.query(User).filter(User.telegram_id == user_id).first()
+            if not user:
+                await query.answer("Доступ запрещён", show_alert=True)
+                return
+            bet = min(user.balance, BLACKJACK_MAX_BET)
+            if bet < BLACKJACK_MIN_BET:
+                await query.answer(f"Недостаточно алмазов (мин. {BLACKJACK_MIN_BET})", show_alert=True)
+                return
+    else:
+        try:
+            bet = int(amount_str)
+        except ValueError:
+            return
+
+    if bet < BLACKJACK_MIN_BET or bet > BLACKJACK_MAX_BET:
+        await query.answer(f"Ставка: {BLACKJACK_MIN_BET}-{BLACKJACK_MAX_BET}", show_alert=True)
+        return
+
+    # Check balance and cooldown, deduct bet
+    with get_db() as db:
+        user = db.query(User).filter(User.telegram_id == user_id).first()
+        if not user or user.is_banned:
+            await query.answer("Доступ запрещён", show_alert=True)
+            return
+
+        if user.balance < bet:
+            await query.answer(f"Недостаточно алмазов ({format_diamonds(user.balance)})", show_alert=True)
+            return
+
+        cooldown = db.query(Cooldown).filter(Cooldown.user_id == user_id, Cooldown.action == "blackjack").first()
+        if cooldown and cooldown.expires_at > datetime.utcnow():
+            remaining = cooldown.expires_at - datetime.utcnow()
+            await query.answer(f"Подожди {int(remaining.total_seconds())}с", show_alert=True)
+            return
+
+        user.balance -= bet
+
+    await query.answer()
+
+    # Deal cards
+    deck = create_deck()
+    player_cards = [deck.pop(), deck.pop()]
+    dealer_cards = [deck.pop(), deck.pop()]
+
+    # Store game state
+    context.user_data["bj_active"] = True
+    context.user_data["bj_deck"] = deck
+    context.user_data["bj_player"] = player_cards
+    context.user_data["bj_dealer"] = dealer_cards
+    context.user_data["bj_bet"] = bet
+
+    # Check for natural blackjack
+    player_bj = is_blackjack(player_cards)
+    dealer_bj = is_blackjack(dealer_cards)
+
+    if player_bj and dealer_bj:
+        context.user_data["bj_active"] = False
+        _finish_game(user_id, bet, bet, "win")
+        text = (
+            f"🃏 <b>Ничья!</b>\n\n"
+            f"Ставка: {format_diamonds(bet)}\n\n"
+            f"Ты: {fmt_hand(player_cards)} = <b>21</b>\n"
+            f"Дилер: {fmt_hand(dealer_cards)} = <b>21</b>\n\n"
+            f"🤝 Оба блэкджек! Возврат: {format_diamonds(bet)}"
+        )
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text=text,
+            parse_mode="HTML",
+            reply_markup=casino_after_game_keyboard("blackjack", user_id, bet=bet),
+        )
+        return
+
+    if player_bj:
+        context.user_data["bj_active"] = False
+        payout = int(bet * 2.5)
+        _finish_game(user_id, bet, payout, "win")
+        text = (
+            f"🃏 <b>БЛЭКДЖЕК!</b> 🎉\n\n"
+            f"Ставка: {format_diamonds(bet)}\n\n"
+            f"Ты: {fmt_hand(player_cards)} = <b>21</b>\n"
+            f"Дилер: {fmt_hand(dealer_cards)} = <b>{hand_value(dealer_cards)}</b>\n\n"
+            f"💰 Выигрыш: {format_diamonds(payout)} (x2.5)"
+        )
+        await context.bot.send_message(
+            chat_id=query.message.chat_id,
+            text=text,
+            parse_mode="HTML",
+            reply_markup=casino_after_game_keyboard("blackjack", user_id, bet=bet),
+        )
+        return
+
+    # Normal game — show hand with buttons
+    text = build_game_text(player_cards, dealer_cards, bet)
+    await context.bot.send_message(
+        chat_id=query.message.chat_id,
+        text=text,
+        parse_mode="HTML",
+        reply_markup=get_bj_keyboard(user_id),
+    )
+
+
 def register_blackjack_handlers(application):
     """Register blackjack handlers."""
     application.add_handler(CommandHandler(["blackjack", "bj"], blackjack_command))
     application.add_handler(CallbackQueryHandler(blackjack_callback, pattern=r"^bj:"))
+    application.add_handler(CallbackQueryHandler(blackjack_bet_callback, pattern=r"^cbet:blackjack:"))
     logger.info("Blackjack handlers registered")

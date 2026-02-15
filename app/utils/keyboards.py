@@ -290,13 +290,35 @@ def casino_menu_keyboard(user_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(keyboard)
 
 
-def casino_after_game_keyboard(game_type: str, user_id: int) -> InlineKeyboardMarkup:
-    """Buttons after casino game: play again + back to casino."""
+def casino_after_game_keyboard(game_type: str, user_id: int, bet: int = None) -> InlineKeyboardMarkup:
+    """Buttons after casino game: play again (same bet) + change bet + casino menu."""
+    row = []
+    if bet:
+        row.append(InlineKeyboardButton(f"🔄 Ещё ({bet})", callback_data=f"cbet:{game_type}:{bet}:{user_id}"))
+        row.append(InlineKeyboardButton("💰 Ставка", callback_data=f"casino_info:{game_type}:{user_id}"))
+    else:
+        row.append(InlineKeyboardButton("🔄 Ещё раз", callback_data=f"casino_info:{game_type}:{user_id}"))
+    keyboard = [
+        row,
+        [InlineKeyboardButton("🎰 Казино", callback_data=f"menu:casino:{user_id}")],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def bet_picker_keyboard(game: str, user_id: int) -> InlineKeyboardMarkup:
+    """Universal bet picker for casino games."""
     keyboard = [
         [
-            InlineKeyboardButton("🔄 Ещё раз", callback_data=f"casino_info:{game_type}:{user_id}"),
-            InlineKeyboardButton("🎰 Казино", callback_data=f"menu:casino:{user_id}"),
+            InlineKeyboardButton("50", callback_data=f"cbet:{game}:50:{user_id}"),
+            InlineKeyboardButton("100", callback_data=f"cbet:{game}:100:{user_id}"),
+            InlineKeyboardButton("250", callback_data=f"cbet:{game}:250:{user_id}"),
         ],
+        [
+            InlineKeyboardButton("500", callback_data=f"cbet:{game}:500:{user_id}"),
+            InlineKeyboardButton("1000", callback_data=f"cbet:{game}:1000:{user_id}"),
+            InlineKeyboardButton("All-in", callback_data=f"cbet:{game}:all:{user_id}"),
+        ],
+        [InlineKeyboardButton("« Казино", callback_data=f"menu:casino:{user_id}")],
     ]
     return InlineKeyboardMarkup(keyboard)
 

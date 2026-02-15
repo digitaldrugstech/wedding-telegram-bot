@@ -101,7 +101,9 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if marriage:
                 partner_id = MarriageService.get_partner_id(marriage, user_id)
                 partner = db.query(User).filter(User.telegram_id == partner_id).first()
-                marriage_info = f"@{html.escape(partner.username)}" if partner and partner.username else f"ID {partner_id}"
+                marriage_info = (
+                    f"@{html.escape(partner.username)}" if partner and partner.username else f"ID {partner_id}"
+                )
             else:
                 marriage_info = "Не в браке"
 
@@ -308,9 +310,16 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Casino menu — with game buttons
     if menu_type == "casino":
+        from app.database.connection import get_db
+        from app.database.models import User
+        from app.utils.formatters import format_diamonds
         from app.utils.keyboards import casino_menu_keyboard
 
-        message = "🎰 <b>Казино</b>\n\n" "Выбери игру и напиши команду со ставкой\n\n" "Пример: /slots 100"
+        with get_db() as db:
+            user = db.query(User).filter(User.telegram_id == user_id).first()
+            balance = user.balance if user else 0
+
+        message = f"🎰 <b>Казино</b>\n\n💰 Баланс: {format_diamonds(balance)}\n\nВыбери игру:"
         await safe_edit_message(query, message, reply_markup=casino_menu_keyboard(user_id))
         return
 
@@ -388,9 +397,8 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def econ_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle economy/games/social shortcut buttons — show command hints."""
+    """Handle economy/games/social shortcut buttons — show info or command hints."""
     query = update.callback_query
-    await query.answer()
 
     if not update.effective_user:
         return
@@ -406,6 +414,7 @@ async def econ_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("Эта кнопка не для тебя", show_alert=True)
         return
 
+    await query.answer()
     user_id = update.effective_user.id
 
     # Ban check
@@ -418,76 +427,200 @@ async def econ_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer("Доступ запрещён", show_alert=True)
             return
 
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+    from app.utils.formatters import format_diamonds
+
+    # --- DATA-DRIVEN ITEMS (show real info instead of hints) ---
+
+    if action == "tax":
+        with get_db() as db:
+            user = db.query(User).filter(User.telegram_id == user_id).first()
+            balance = user.balance
+        if balance > 50000:
+            tax = int((balance - 50000) * 0.05)
+            text = f"🏛 <b>Налоги</b>\n\n💰 Баланс: {format_diamonds(balance)}\n💸 Налог: ~{format_diamonds(tax)}/нед\n\n5% от суммы свыше 50,000"
+        else:
+            text = f"🏛 <b>Налоги</b>\n\n💰 Баланс: {format_diamonds(balance)}\n✅ Налогов нет (до 50,000)"
+        keyboard = [[InlineKeyboardButton("« Экономика", callback_data=f"menu:economy:{user_id}")]]
+        await safe_edit_message(query, text, reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
+    if action == "prestige":
+        with get_db() as db:
+            user = db.query(User).filter(User.telegram_id == user_id).first()
+            prestige = user.prestige_level or 0
+            balance = user.balance
+        bonus = prestige * 5
+        cost = 50000
+        can_prestige = balance >= cost
+        text = (
+            f"🔄 <b>Престиж</b>\n\n"
+            f"Уровень: {prestige} (+{bonus}% к доходу)\n"
+            f"Стоимость: {format_diamonds(cost)}\n"
+            f"💰 Баланс: {format_diamonds(balance)}\n\n"
+        )
+        if can_prestige:
+            text += "✅ Доступно! Баланс обнулится"
+        else:
+            text += f"❌ Нужно ещё {format_diamonds(cost - balance)}"
+        keyboard = [[InlineKeyboardButton("« Экономика", callback_data=f"menu:economy:{user_id}")]]
+        await safe_edit_message(query, text, reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
+    if action == "insurance":
+        from app.database.models import Cooldown
+
+        with get_db() as db:
+            user = db.query(User).filter(User.telegram_id == user_id).first()
+            balance = user.balance
+            ins = db.query(Cooldown).filter(Cooldown.user_id == user_id, Cooldown.action == "insurance").first()
+            is_insured = ins and ins.expires_at > datetime.utcnow()
+            if is_insured:
+                remaining = ins.expires_at - datetime.utcnow()
+                hours = int(remaining.total_seconds() // 3600)
+                text = f"🛡 <b>Страховка</b>\n\n✅ Активна ({hours}ч осталось)\n\nЗащита от /rob"
+            else:
+                text = f"🛡 <b>Страховка</b>\n\n❌ Нет страховки\n💰 Стоимость: 500💎/нед\n💰 Баланс: {format_diamonds(balance)}\n\nНапиши /insurance buy"
+        keyboard = [[InlineKeyboardButton("« Игры", callback_data=f"menu:games:{user_id}")]]
+        await safe_edit_message(query, text, reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
+    if action == "lottery":
+        from app.database.models import Lottery, LotteryTicket
+
+        with get_db() as db:
+            lottery = db.query(Lottery).filter(Lottery.is_active.is_(True)).first()
+            if lottery:
+                jackpot = lottery.jackpot
+                total_tickets = db.query(LotteryTicket).filter(LotteryTicket.lottery_id == lottery.id).count()
+                user_tickets = (
+                    db.query(LotteryTicket)
+                    .filter(LotteryTicket.lottery_id == lottery.id, LotteryTicket.user_id == user_id)
+                    .count()
+                )
+                text = (
+                    f"🎟 <b>Лотерея</b>\n\n"
+                    f"💰 Джекпот: {format_diamonds(jackpot)}\n"
+                    f"🎫 Всего билетов: {total_tickets}\n"
+                    f"🎫 Твоих билетов: {user_tickets}/10\n"
+                    f"💵 Цена: 100💎/билет\n\n"
+                    f"/buyticket [кол-во] — купить билеты"
+                )
+            else:
+                text = "🎟 <b>Лотерея</b>\n\nСейчас нет активного розыгрыша"
+        keyboard = [[InlineKeyboardButton("« Экономика", callback_data=f"menu:economy:{user_id}")]]
+        await safe_edit_message(query, text, reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
+    if action == "quest":
+        from app.database.models import Quest, UserQuest
+        from app.handlers.quest import assign_daily_quests
+
+        with get_db() as db:
+            assign_daily_quests(user_id, db=db)
+            db.flush()
+            today = datetime.utcnow().date()
+            user_quests = (
+                db.query(UserQuest, Quest)
+                .join(Quest)
+                .filter(
+                    UserQuest.user_id == user_id,
+                    UserQuest.assigned_at >= datetime.combine(today, datetime.min.time()),
+                )
+                .order_by(UserQuest.is_completed, UserQuest.assigned_at)
+                .all()
+            )
+            if user_quests:
+                text = "📋 <b>Квесты</b>\n\n"
+                for uq, quest in user_quests:
+                    status = "✅" if uq.is_completed else "⏳"
+                    text += f"{status} {quest.description}\n   {uq.progress}/{quest.target_count} | {format_diamonds(quest.reward)}\n"
+            else:
+                text = "📋 <b>Квесты</b>\n\nОбновятся завтра"
+        keyboard = [[InlineKeyboardButton("« Игры", callback_data=f"menu:games:{user_id}")]]
+        await safe_edit_message(query, text, reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
+    if action == "achievements":
+        from app.database.models import Achievement, UserAchievement
+        from app.services.achievement_service import AchievementService
+
+        with get_db() as db:
+            try:
+                AchievementService.check_all_achievements(user_id, db=db)
+                db.flush()
+            except Exception:
+                pass
+            all_achievements = db.query(Achievement).all()
+            earned_ids = set(
+                row[0]
+                for row in db.query(UserAchievement.achievement_id).filter(UserAchievement.user_id == user_id).all()
+            )
+            text = f"🏆 <b>Достижения</b> ({len(earned_ids)}/{len(all_achievements)})\n\n"
+            for ach in all_achievements:
+                mark = "✅" if ach.id in earned_ids else "⬜"
+                text += f"{mark} {ach.name}\n"
+        keyboard = [[InlineKeyboardButton("« Социальное", callback_data=f"menu:social:{user_id}")]]
+        await safe_edit_message(query, text, reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
+    # --- SIMPLE HINTS (for reply-based actions and complex features) ---
+
     HINTS = {
-        "daily": ("🎁 <b>Ежедневный бонус</b>\n\nНапиши /daily чтобы получить", f"menu:economy:{user_id}"),
-        "lottery": (
-            "🎟 <b>Лотерея</b>\n\n/lottery — джекпот\n/buyticket [кол-во] — купить билет",
+        "daily": ("🎁 <b>Ежедневный бонус</b>\n\nНапиши /daily в чат", f"menu:economy:{user_id}"),
+        "shop": ("🏪 <b>Магазин титулов</b>\n\nНапиши /shop в чат", f"menu:economy:{user_id}"),
+        "premium": (
+            "⭐ <b>Премиум</b>\n\nНапиши /premium в чат\n\nАлмазы, бусты и VIP за Telegram Stars",
             f"menu:economy:{user_id}",
         ),
-        "shop": ("🏪 <b>Магазин</b>\n\nНапиши /shop чтобы открыть", f"menu:economy:{user_id}"),
-        "tax": (
-            "🏛 <b>Налоги</b>\n\n/tax — узнать налоговую информацию\n\n5% от баланса свыше 50k/нед",
-            f"menu:economy:{user_id}",
-        ),
-        "prestige": ("🔄 <b>Престиж</b>\n\n/prestige — сбросить баланс за +5% к доходу", f"menu:economy:{user_id}"),
-        "pet": ("🐾 <b>Питомец</b>\n\nНапиши /pet чтобы открыть меню питомца", f"menu:games:{user_id}"),
-        "fish": ("🎣 <b>Рыбалка</b>\n\n/fish — закинуть удочку\n/fishlist — виды рыб", f"menu:games:{user_id}"),
-        "mine": ("⛏️ <b>Шахта</b>\n\nНапиши /mine чтобы копать", f"menu:games:{user_id}"),
-        "wheel": ("🎡 <b>Колесо фортуны</b>\n\nНапиши /wheel чтобы крутить (50💎)", f"menu:games:{user_id}"),
-        "quest": ("🎯 <b>Квесты</b>\n\nНапиши /quest чтобы получить задание", f"menu:games:{user_id}"),
-        "duel": ("⚔️ <b>Дуэль</b>\n\n/duel @user [ставка] — вызвать на дуэль", f"menu:games:{user_id}"),
-        "rob": ("🔫 <b>Ограбление</b>\n\nОтветь на сообщение жертвы и напиши /rob", f"menu:games:{user_id}"),
-        "insurance": (
-            "🛡 <b>Страховка</b>\n\n/insurance buy — защита от ограблений (500💎/нед)",
+        "pet": ("🐾 <b>Питомец</b>\n\nНапиши /pet в чат", f"menu:games:{user_id}"),
+        "fish": ("🎣 <b>Рыбалка</b>\n\nНапиши /fish в чат (20💎 наживка)", f"menu:games:{user_id}"),
+        "mine": ("⛏️ <b>Шахта</b>\n\nНапиши /mine в чат (2ч кулдаун)", f"menu:games:{user_id}"),
+        "wheel": ("🎡 <b>Колесо фортуны</b>\n\nНапиши /wheel в чат (50💎)", f"menu:games:{user_id}"),
+        "duel": (
+            "⚔️ <b>Дуэль</b>\n\nОтветь на сообщение соперника:\n/duel [ставка]",
             f"menu:games:{user_id}",
         ),
-        "friends": ("👥 <b>Друзья</b>\n\n/friends — список\n/addfriend @user — добавить", f"menu:social:{user_id}"),
-        "gang": ("🔫 <b>Банды</b>\n\n/gang — меню банды\n/gangs — топ банд", f"menu:social:{user_id}"),
-        "bounties": (
-            "🎯 <b>Награды</b>\n\n/bounties — доска разыскиваемых\n/bounty @user [сумма] — назначить",
+        "rob": ("🔫 <b>Ограбление</b>\n\nОтветь на сообщение жертвы:\n/rob", f"menu:games:{user_id}"),
+        "friends": (
+            "👥 <b>Друзья</b>\n\n/friends — список\nОтветь на сообщение: /addfriend",
             f"menu:social:{user_id}",
         ),
-        "achievements": ("🏆 <b>Достижения</b>\n\nНапиши /achievements чтобы посмотреть", f"menu:social:{user_id}"),
-        "rating": ("⭐ <b>Рейтинг</b>\n\nНапиши /rating чтобы посмотреть", f"menu:social:{user_id}"),
-        "top": ("🏆 <b>Топ</b>\n\nНапиши /top чтобы посмотреть лидерборд", f"menu:social:{user_id}"),
-        "premium": (
-            "⭐ <b>Премиум</b>\n\nНапиши /premium чтобы открыть магазин\n\nАлмазы, бусты и спец. предложения за Telegram Stars",
-            f"menu:economy:{user_id}",
+        "gang": ("🔫 <b>Банды</b>\n\nНапиши /gang в чат", f"menu:social:{user_id}"),
+        "bounties": (
+            "🎯 <b>Награды</b>\n\n/bounties — доска разыскиваемых\nОтветь на сообщение: /bounty [сумма]",
+            f"menu:social:{user_id}",
         ),
+        "rating": ("⭐ <b>Рейтинг</b>\n\nНапиши /rating в чат", f"menu:social:{user_id}"),
+        "top": ("🏆 <b>Топ</b>\n\nНапиши /top в чат", f"menu:social:{user_id}"),
         "roulette": (
-            "🔫 <b>Русская рулетка</b>\n\n/rr [ставка] — начать раунд\n\n2-6 игроков, один проигрывает, остальные делят банк",
+            "🔫 <b>Русская рулетка</b>\n\nНапиши /rr [ставка] в чат\n\n2-6 игроков, один проигрывает",
             f"menu:games:{user_id}",
         ),
         "heist": (
-            "🏦 <b>Ограбление банка</b>\n\n/heist [easy|medium|hard] — начать\n\n2-8 игроков, совместное ограбление!",
+            "🏦 <b>Ограбление банка</b>\n\nНапиши /heist [easy|medium|hard] в чат\n\n2-8 игроков",
             f"menu:games:{user_id}",
         ),
-        "crate": (
-            "🎁 <b>Сундуки</b>\n\n/crate — посмотреть доступные сундуки\n\nПолучай за серию /daily — не пропускай дни!",
-            f"menu:games:{user_id}",
-        ),
+        "crate": ("🎁 <b>Сундуки</b>\n\nНапиши /crate в чат\n\nПолучай за серию /daily!", f"menu:games:{user_id}"),
         "raid": (
-            "💥 <b>Рейд</b>\n\n/raid [название банды] — напасть на чужую банду\n\nСобери 2+ участника и ограбь вражеский банк!",
+            "💥 <b>Рейд</b>\n\nНапиши /raid [название банды] в чат\n\n2+ участника",
             f"menu:social:{user_id}",
         ),
         "clanwar": (
-            "⚔️ <b>Война кланов</b>\n\n/clanwar — недельный рейтинг банд\n\nЗарабатывай очки работой, казино, дуэлями",
+            "⚔️ <b>Война кланов</b>\n\nНапиши /clanwar в чат\n\nНедельный рейтинг банд",
             f"menu:social:{user_id}",
         ),
     }
 
     if action in HINTS:
         hint_text, back_data = HINTS[action]
-        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-
         keyboard = [[InlineKeyboardButton("« Назад", callback_data=back_data)]]
         await safe_edit_message(query, hint_text, reply_markup=InlineKeyboardMarkup(keyboard))
 
 
 async def casino_info_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle casino game info buttons — show how to play."""
+    """Handle casino game buttons — show bet picker or stats."""
     query = update.callback_query
-    await query.answer()
 
     if not update.effective_user:
         return
@@ -503,27 +636,73 @@ async def casino_info_callback(update: Update, context: ContextTypes.DEFAULT_TYP
         await query.answer("Эта кнопка не для тебя", show_alert=True)
         return
 
+    await query.answer()
     user_id = update.effective_user.id
 
-    GAME_INFO = {
-        "slots": ("🎰 <b>Слот-машина</b>\n\n/slots [ставка]\n\nТри одинаковых = джекпот!\nМакс: x30", "🎰"),
-        "dice": ("🎲 <b>Кости</b>\n\n/dice [ставка]\n\n⚅ = x3, ⚄ = x2, ⚃ = x1.5", "🎲"),
-        "darts": ("🎯 <b>Дартс</b>\n\n/darts [ставка]\n\nБуллсай = x5, кольцо = x2", "🎯"),
-        "basketball": ("🏀 <b>Баскетбол</b>\n\n/basketball [ставка]\n\nПопал = x3, почти = x1.5", "🏀"),
-        "bowling": ("🎳 <b>Боулинг</b>\n\n/bowling [ставка]\n\nСтрайк = x4, 5+ кеглей = x2", "🎳"),
-        "football": ("⚽ <b>Футбол</b>\n\n/football [ставка]\n\nГол = x3, штанга = x1.5", "⚽"),
-        "blackjack": ("🃏 <b>Блэкджек</b>\n\n/blackjack [ставка] или /bj [ставка]\n\nСобери 21 и получи x2.5", "🃏"),
-        "scratch": ("🎫 <b>Скретч-карта</b>\n\n/scratch [ставка]\n\n3 💎 = x5, 3 ⭐ = x2.5", "🎫"),
-        "coinflip": ("🪙 <b>Монетка</b>\n\n/coinflip [ставка] или /cf [ставка]\n\nОрёл = x1.9", "🪙"),
-        "stats": ("📊 <b>Статистика</b>\n\nНапиши /casinostats чтобы посмотреть", "📊"),
-    }
+    # Stats — show inline
+    if game == "stats":
+        from app.database.connection import get_db
+        from app.database.models import User
+        from app.services.casino_service import CasinoService
+        from app.utils.formatters import format_diamonds
 
-    if game in GAME_INFO:
-        text, _ = GAME_INFO[game]
+        with get_db() as db:
+            user = db.query(User).filter(User.telegram_id == user_id).first()
+            if not user or user.is_banned:
+                await query.answer("Доступ запрещён", show_alert=True)
+                return
+            stats = CasinoService.get_user_stats(db, user_id)
+
+        if stats["total_games"] == 0:
+            text = "📊 <b>Статистика казино</b>\n\nТы ещё не играл в казино"
+        else:
+            profit = stats["total_profit"]
+            profit_text = f"+{format_diamonds(profit)}" if profit >= 0 else f"-{format_diamonds(abs(profit))}"
+            profit_emoji = "📈" if profit >= 0 else "📉"
+            text = (
+                "📊 <b>Статистика казино</b>\n\n"
+                f"🎮 Игр: {stats['total_games']}\n"
+                f"💰 Поставлено: {format_diamonds(stats['total_bet'])}\n"
+                f"🏆 Выиграно: {format_diamonds(stats['total_winnings'])}\n"
+                f"{profit_emoji} Профит: {profit_text}\n"
+                f"📊 Винрейт: {stats['win_rate']:.1f}%"
+            )
+
         from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
         keyboard = [[InlineKeyboardButton("« Казино", callback_data=f"menu:casino:{user_id}")]]
         await safe_edit_message(query, text, reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
+    # All other games — show bet picker
+    GAME_NAMES = {
+        "slots": ("🎰 Слоты", "x30 джекпот"),
+        "dice": ("🎲 Кости", "⚅ x3, ⚄ x2"),
+        "darts": ("🎯 Дартс", "буллсай x5"),
+        "basketball": ("🏀 Баскетбол", "попал x3"),
+        "bowling": ("🎳 Боулинг", "страйк x4"),
+        "football": ("⚽ Футбол", "гол x3"),
+        "blackjack": ("🃏 Блэкджек", "21 = x2.5"),
+        "scratch": ("🎫 Скретч", "3💎 = x5"),
+        "coinflip": ("🪙 Монетка", "орёл = x1.9"),
+    }
+
+    if game in GAME_NAMES:
+        from app.database.connection import get_db
+        from app.database.models import User
+        from app.utils.formatters import format_diamonds
+        from app.utils.keyboards import bet_picker_keyboard
+
+        with get_db() as db:
+            user = db.query(User).filter(User.telegram_id == user_id).first()
+            if not user or user.is_banned:
+                await query.answer("Доступ запрещён", show_alert=True)
+                return
+            balance = user.balance
+
+        name, desc = GAME_NAMES[game]
+        text = f"{name}\n{desc}\n\n💰 Баланс: {format_diamonds(balance)}\n\nВыбери ставку:"
+        await safe_edit_message(query, text, reply_markup=bet_picker_keyboard(game, user_id))
 
 
 def register_menu_handlers(application):
