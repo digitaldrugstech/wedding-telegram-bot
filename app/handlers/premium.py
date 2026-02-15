@@ -6,7 +6,14 @@ from typing import Dict
 
 import structlog
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, LabeledPrice, Update
-from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, PreCheckoutQueryHandler, filters
+from telegram.ext import (
+    CallbackQueryHandler,
+    CommandHandler,
+    ContextTypes,
+    MessageHandler,
+    PreCheckoutQueryHandler,
+    filters,
+)
 
 from app.database.connection import get_db
 from app.database.models import ActiveBoost, Cooldown, Pet, StarPurchase, User
@@ -75,7 +82,7 @@ PRODUCTS = {
     },
     "double_income": {
         "name": "Двойной доход (24ч)",
-        "description": "x2 к зарплате, бизнесу, рыбалке и шахте на 24 часа\nНа 10 уровне это 1300-2000 за /job вместо 650-1000",
+        "description": "x2 к зарплате, бизнесу, рыбалке и шахте + кулдаун /job в 2 раза короче\nНа 10 уровне: 1300-2000 за /job каждые 2ч вместо 4ч",
         "stars": 50,
         "diamonds": 0,
         "emoji": "💰",
@@ -83,7 +90,7 @@ PRODUCTS = {
     },
     "lucky_charm": {
         "name": "Талисман удачи (24ч)",
-        "description": "+5% к каждому выигрышу в казино, колесе и скретчах\nДжекпот слотов: 31,500 вместо 30,000",
+        "description": "+10% к каждому выигрышу в казино, колесе и скретчах\nДжекпот слотов: 33,000 вместо 30,000",
         "stars": 35,
         "diamonds": 0,
         "emoji": "🍀",
@@ -135,7 +142,7 @@ PRODUCTS = {
     },
     "vip_week": {
         "name": "VIP Неделя",
-        "description": "x2 доход + талисман удачи + щит на 7 дней\n+ значок 👑 в профиле и топах — экономия 55%",
+        "description": "x2 доход + быстрый кулдаун + удача +10% + щит на 7 дней\n+ макс. ставка 2000 + значок 👑 — экономия 55%",
         "stars": 200,
         "diamonds": 0,
         "emoji": "👑",
@@ -577,7 +584,9 @@ def _apply_boost(db, user_id: int, boost_type: str, hours: int):
     """Apply or extend a boost."""
     expires_at = datetime.utcnow() + timedelta(hours=hours)
 
-    existing = db.query(ActiveBoost).filter(ActiveBoost.user_id == user_id, ActiveBoost.boost_type == boost_type).first()
+    existing = (
+        db.query(ActiveBoost).filter(ActiveBoost.user_id == user_id, ActiveBoost.boost_type == boost_type).first()
+    )
 
     if existing:
         # Extend if still active, otherwise replace
@@ -704,7 +713,7 @@ def build_premium_nudge(nudge_type: str, user_id: int) -> str:
 
     # Each nudge is phrased as a benefit, not a loss
     nudges = {
-        "casino_loss": "\n\n🍀 <i>С талисманом удачи ты бы выиграл на 5% больше — /premium</i>",
+        "casino_loss": "\n\n🍀 <i>С талисманом удачи ты бы выиграл на 10% больше — /premium</i>",
         "robbed": "\n\n🛡 <i>Со щитом это ограбление бы не прошло — /premium</i>",
         "cooldown": "\n\n⏭ <i>Можно сбросить кулдаун и работать прямо сейчас — /premium</i>",
         "daily": "\n\n👑 <i>С VIP ты бы получил x2 за этот бонус — /premium</i>",

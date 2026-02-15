@@ -305,21 +305,36 @@ def casino_after_game_keyboard(game_type: str, user_id: int, bet: int = None) ->
     return InlineKeyboardMarkup(keyboard)
 
 
-def bet_picker_keyboard(game: str, user_id: int) -> InlineKeyboardMarkup:
-    """Universal bet picker for casino games."""
-    keyboard = [
-        [
-            InlineKeyboardButton("50", callback_data=f"cbet:{game}:50:{user_id}"),
-            InlineKeyboardButton("100", callback_data=f"cbet:{game}:100:{user_id}"),
-            InlineKeyboardButton("250", callback_data=f"cbet:{game}:250:{user_id}"),
-        ],
-        [
-            InlineKeyboardButton("500", callback_data=f"cbet:{game}:500:{user_id}"),
-            InlineKeyboardButton("1000", callback_data=f"cbet:{game}:1000:{user_id}"),
-            InlineKeyboardButton("All-in", callback_data=f"cbet:{game}:all:{user_id}"),
-        ],
-        [InlineKeyboardButton("« Казино", callback_data=f"menu:casino:{user_id}")],
-    ]
+def bet_picker_keyboard(game: str, user_id: int, vip: bool = False) -> InlineKeyboardMarkup:
+    """Universal bet picker for casino games. VIP users see higher bet options."""
+    if vip:
+        keyboard = [
+            [
+                InlineKeyboardButton("100", callback_data=f"cbet:{game}:100:{user_id}"),
+                InlineKeyboardButton("250", callback_data=f"cbet:{game}:250:{user_id}"),
+                InlineKeyboardButton("500", callback_data=f"cbet:{game}:500:{user_id}"),
+            ],
+            [
+                InlineKeyboardButton("1000", callback_data=f"cbet:{game}:1000:{user_id}"),
+                InlineKeyboardButton("2000", callback_data=f"cbet:{game}:2000:{user_id}"),
+                InlineKeyboardButton("All-in", callback_data=f"cbet:{game}:all:{user_id}"),
+            ],
+            [InlineKeyboardButton("« Казино", callback_data=f"menu:casino:{user_id}")],
+        ]
+    else:
+        keyboard = [
+            [
+                InlineKeyboardButton("50", callback_data=f"cbet:{game}:50:{user_id}"),
+                InlineKeyboardButton("100", callback_data=f"cbet:{game}:100:{user_id}"),
+                InlineKeyboardButton("250", callback_data=f"cbet:{game}:250:{user_id}"),
+            ],
+            [
+                InlineKeyboardButton("500", callback_data=f"cbet:{game}:500:{user_id}"),
+                InlineKeyboardButton("1000", callback_data=f"cbet:{game}:1000:{user_id}"),
+                InlineKeyboardButton("All-in", callback_data=f"cbet:{game}:all:{user_id}"),
+            ],
+            [InlineKeyboardButton("« Казино", callback_data=f"menu:casino:{user_id}")],
+        ]
     return InlineKeyboardMarkup(keyboard)
 
 

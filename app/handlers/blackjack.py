@@ -108,7 +108,7 @@ def _finish_game(user_id, bet, payout, result_type):
             from app.handlers.premium import has_active_boost
 
             if has_active_boost(user_id, "lucky_charm", db=db):
-                payout += int(payout * 0.05)
+                payout += int(payout * 0.10)
 
             user = db.query(User).filter(User.telegram_id == user_id).first()
             user.balance += payout

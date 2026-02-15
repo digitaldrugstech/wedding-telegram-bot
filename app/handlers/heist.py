@@ -82,27 +82,41 @@ async def heist_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for key, tier in HEIST_TIERS.items():
             chance = f"{tier['base_success']}%-{tier['max_success']}%"
             tiers_text += (
-                f"{tier['emoji']} <b>{tier['name']}</b> ({key})\n"
-                f"   Вход: {format_diamonds(tier['entry_fee'])}\n"
-                f"   Выигрыш: {format_diamonds(tier['payout_min'])}-{format_diamonds(tier['payout_max'])}\n"
-                f"   Шанс: {chance}\n\n"
+                f"{tier['emoji']} <b>{tier['name']}</b>\n"
+                f"   Вход: {format_diamonds(tier['entry_fee'])} • Шанс: {chance}\n"
+                f"   Выигрыш: {format_diamonds(tier['payout_min'])}-{format_diamonds(tier['payout_max'])}\n\n"
             )
+
+        keyboard = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        f"{tier['emoji']} {tier['name']} ({format_diamonds(tier['entry_fee'])})",
+                        callback_data=f"heist:start:{key}:{user_id}",
+                    )
+                ]
+                for key, tier in HEIST_TIERS.items()
+            ]
+        )
 
         await update.message.reply_text(
             f"🏦 <b>Ограбление банка</b>\n\n"
-            f"/heist [easy|medium|hard] — начать\n\n"
-            f"• Кооперативная игра на {HEIST_MIN_PLAYERS}-{HEIST_MAX_PLAYERS} человек\n"
-            f"• Чем больше участников, тем выше шанс\n"
+            f"• Кооп на {HEIST_MIN_PLAYERS}-{HEIST_MAX_PLAYERS} человек\n"
+            f"• Больше участников = выше шанс\n"
             f"• Провал = все теряют вход\n"
             f"• Кулдаун: {HEIST_COOLDOWN_HOURS}ч\n\n"
-            f"<b>Уровни:</b>\n\n{tiers_text}",
+            f"{tiers_text}"
+            f"Выбери уровень:",
             parse_mode="HTML",
+            reply_markup=keyboard,
         )
         return
 
     tier_key = context.args[0].lower()
     if tier_key not in HEIST_TIERS:
-        await update.message.reply_text("❌ Неизвестный уровень\n\nДоступные: easy (лёгкое), medium (среднее), hard (сложное)")
+        await update.message.reply_text(
+            "❌ Неизвестный уровень\n\nДоступные: easy (лёгкое), medium (среднее), hard (сложное)"
+        )
         return
 
     tier = HEIST_TIERS[tier_key]
@@ -421,9 +435,105 @@ def _refund_all(heist: dict):
                 user.balance += entry_fee
 
 
+async def heist_start_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle heist tier selection button — heist:start:{tier}:{user_id}."""
+    query = update.callback_query
+    if not query or not update.effective_user:
+        return
+
+    parts = query.data.split(":")
+    if len(parts) != 4:
+        return
+
+    tier_key = parts[2]
+    owner_id = int(parts[3])
+    user_id = update.effective_user.id
+
+    if user_id != owner_id:
+        await query.answer("Эта кнопка не для тебя", show_alert=True)
+        return
+
+    if tier_key not in HEIST_TIERS:
+        await query.answer("Неизвестный уровень", show_alert=True)
+        return
+
+    tier = HEIST_TIERS[tier_key]
+    entry_fee = tier["entry_fee"]
+    chat_id = query.message.chat_id
+
+    if chat_id in active_heists:
+        await query.answer("В этом чате уже идёт ограбление", show_alert=True)
+        return
+
+    with get_db() as db:
+        cooldown = db.query(Cooldown).filter(Cooldown.user_id == user_id, Cooldown.action == "heist").first()
+        if cooldown and cooldown.expires_at > datetime.utcnow():
+            remaining = (cooldown.expires_at - datetime.utcnow()).total_seconds()
+            from app.utils.formatters import format_time_remaining
+
+            await query.answer(f"Кулдаун: ещё {format_time_remaining(remaining)}", show_alert=True)
+            return
+
+        user = db.query(User).filter(User.telegram_id == user_id).first()
+        if not user or user.is_banned:
+            await query.answer("Доступ запрещён", show_alert=True)
+            return
+        if user.balance < entry_fee:
+            await query.answer(
+                f"Нужно {format_diamonds(entry_fee)}, у тебя {format_diamonds(user.balance)}", show_alert=True
+            )
+            return
+
+        user.balance -= entry_fee
+
+    await query.answer()
+
+    if update.effective_user.username:
+        display_name = f"@{html.escape(update.effective_user.username)}"
+    else:
+        display_name = html.escape(update.effective_user.first_name or f"User{user_id}")
+
+    active_heists[chat_id] = {
+        "tier_key": tier_key,
+        "tier": tier,
+        "players": {user_id: display_name},
+        "host_id": user_id,
+        "created_at": datetime.utcnow(),
+    }
+
+    chance = tier["base_success"]
+    keyboard = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton(f"🏦 Войти ({format_diamonds(entry_fee)})", callback_data=f"heist:join:{chat_id}")],
+            [InlineKeyboardButton("🚀 НАЧАТЬ!", callback_data=f"heist:go:{chat_id}:{user_id}")],
+        ]
+    )
+
+    # Edit the tier picker into the heist lobby
+    try:
+        await query.edit_message_text(
+            f"🏦 <b>ОГРАБЛЕНИЕ!</b>\n\n"
+            f"{tier['emoji']} Уровень: <b>{tier['name']}</b>\n"
+            f"💰 Вход: {format_diamonds(entry_fee)}\n"
+            f"🎯 Шанс: {chance}%\n\n"
+            f"👥 Участники (1/{HEIST_MAX_PLAYERS}):\n"
+            f"• {display_name}\n\n"
+            f"⏰ {HEIST_JOIN_TIMEOUT_SECONDS // 60} мин на сбор\n"
+            f"Нужно минимум {format_word(HEIST_MIN_PLAYERS, 'участник', 'участника', 'участников')}\n\n"
+            f"<i>Организатор жмёт «НАЧАТЬ!» когда все готовы</i>",
+            parse_mode="HTML",
+            reply_markup=keyboard,
+        )
+    except BadRequest:
+        pass
+
+    logger.info("Heist started via button", user_id=user_id, chat_id=chat_id, tier=tier_key)
+
+
 def register_heist_handlers(application):
     """Register heist handlers."""
     application.add_handler(CommandHandler("heist", heist_command))
+    application.add_handler(CallbackQueryHandler(heist_start_callback, pattern=r"^heist:start:"))
     application.add_handler(CallbackQueryHandler(heist_join_callback, pattern=r"^heist:join:"))
     application.add_handler(CallbackQueryHandler(heist_go_callback, pattern=r"^heist:go:"))
     logger.info("Heist handlers registered")

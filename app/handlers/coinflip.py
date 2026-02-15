@@ -20,6 +20,7 @@ COINFLIP_COOLDOWN_SECONDS = 15
 COINFLIP_MIN_BET = 10
 COINFLIP_MAX_BET = 2000
 WIN_MULTIPLIER = 1.9  # 50% chance * 1.9 = 0.95 EV → 5% house edge
+VIP_COINFLIP_MAX_BET = 4000  # Premium users get higher limit
 
 
 @require_registered
@@ -48,9 +49,13 @@ async def coinflip_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Ставка должна быть числом")
         return
 
-    if bet < COINFLIP_MIN_BET or bet > COINFLIP_MAX_BET:
+    # VIP players get higher max bet
+    from app.handlers.premium import is_vip
+
+    effective_max = VIP_COINFLIP_MAX_BET if is_vip(user_id) else COINFLIP_MAX_BET
+    if bet < COINFLIP_MIN_BET or bet > effective_max:
         await update.message.reply_text(
-            f"❌ Ставка: {format_diamonds(COINFLIP_MIN_BET)} - {format_diamonds(COINFLIP_MAX_BET)}"
+            f"❌ Ставка: {format_diamonds(COINFLIP_MIN_BET)} - {format_diamonds(effective_max)}"
         )
         return
 
@@ -81,7 +86,7 @@ async def coinflip_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             from app.handlers.premium import has_active_boost
 
             if has_active_boost(user_id, "lucky_charm", db=db):
-                payout += int(payout * 0.05)
+                payout += int(payout * 0.10)
             user.balance += payout
             result_type = "win"
         else:
@@ -144,6 +149,13 @@ def _play_coinflip(user_id: int, bet: int):
         if not user or user.is_banned:
             return "Доступ запрещён", None
 
+        # VIP max bet check
+        from app.handlers.premium import is_vip
+
+        effective_max = VIP_COINFLIP_MAX_BET if is_vip(user_id, db=db) else COINFLIP_MAX_BET
+        if bet > effective_max:
+            return f"❌ Макс. ставка: {format_diamonds(effective_max)}", None
+
         if user.balance < bet:
             return (
                 f"❌ Недостаточно алмазов\n\nНужно: {format_diamonds(bet)}\nУ тебя: {format_diamonds(user.balance)}",
@@ -166,7 +178,7 @@ def _play_coinflip(user_id: int, bet: int):
             from app.handlers.premium import has_active_boost
 
             if has_active_boost(user_id, "lucky_charm", db=db):
-                payout += int(payout * 0.05)
+                payout += int(payout * 0.10)
             user.balance += payout
             result_type = "win"
         else:
@@ -242,7 +254,10 @@ async def coinflip_bet_callback(update: Update, context: ContextTypes.DEFAULT_TY
             if not user:
                 await query.answer("Доступ запрещён", show_alert=True)
                 return
-            bet = min(user.balance, COINFLIP_MAX_BET)
+            from app.handlers.premium import is_vip
+
+            effective_max = VIP_COINFLIP_MAX_BET if is_vip(user_id, db=db) else COINFLIP_MAX_BET
+            bet = min(user.balance, effective_max)
             if bet < COINFLIP_MIN_BET:
                 await query.answer(f"Недостаточно алмазов (мин. {COINFLIP_MIN_BET})", show_alert=True)
                 return

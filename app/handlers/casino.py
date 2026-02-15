@@ -244,7 +244,11 @@ async def casino_bet_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
             if not user or user.is_banned:
                 await query.answer("Доступ запрещён", show_alert=True)
                 return
-            bet_amount = min(user.balance, MAX_BET)
+            from app.handlers.premium import is_vip
+            from app.services.casino_service import VIP_MAX_BET
+
+            effective_max = VIP_MAX_BET if is_vip(user_id, db=db) else MAX_BET
+            bet_amount = min(user.balance, effective_max)
             if bet_amount < MIN_BET:
                 await query.answer(f"Недостаточно алмазов (мин. {MIN_BET})", show_alert=True)
                 return

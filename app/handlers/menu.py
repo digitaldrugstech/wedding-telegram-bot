@@ -700,9 +700,14 @@ async def casino_info_callback(update: Update, context: ContextTypes.DEFAULT_TYP
                 return
             balance = user.balance
 
+            from app.handlers.premium import is_vip
+
+            user_is_vip = is_vip(user_id, db=db)
+
         name, desc = GAME_NAMES[game]
-        text = f"{name}\n{desc}\n\n💰 Баланс: {format_diamonds(balance)}\n\nВыбери ставку:"
-        await safe_edit_message(query, text, reply_markup=bet_picker_keyboard(game, user_id))
+        vip_tag = " 👑" if user_is_vip else ""
+        text = f"{name}\n{desc}\n\n💰 Баланс: {format_diamonds(balance)}{vip_tag}\n\nВыбери ставку:"
+        await safe_edit_message(query, text, reply_markup=bet_picker_keyboard(game, user_id, vip=user_is_vip))
 
 
 def register_menu_handlers(application):

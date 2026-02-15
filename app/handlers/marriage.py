@@ -756,7 +756,7 @@ async def familybank_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
     # Check if has arguments
     if not context.args or len(context.args) == 0:
-        # Show balance
+        # Show balance with action buttons
         with get_db() as db:
             balance = MarriageService.get_family_bank_balance(db, user_id)
 
@@ -764,14 +764,26 @@ async def familybank_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 await update.message.reply_text("💔 Ты не женат/замужем")
                 return
 
-            await update.message.reply_text(
-                f"🏦 <b>Семейный банк</b>\n\n"
-                f"💰 Баланс: {format_diamonds(balance)}\n\n"
-                f"Команды:\n"
-                f"• /familybank deposit [сумма]\n"
-                f"• /familybank withdraw [сумма]",
-                parse_mode="HTML",
-            )
+        keyboard = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton("💰 Внести 100", callback_data=f"fbank:dep:100:{user_id}"),
+                    InlineKeyboardButton("💰 500", callback_data=f"fbank:dep:500:{user_id}"),
+                    InlineKeyboardButton("💰 1000", callback_data=f"fbank:dep:1000:{user_id}"),
+                ],
+                [
+                    InlineKeyboardButton("💸 Снять 100", callback_data=f"fbank:wdr:100:{user_id}"),
+                    InlineKeyboardButton("💸 500", callback_data=f"fbank:wdr:500:{user_id}"),
+                    InlineKeyboardButton("💸 Всё", callback_data=f"fbank:wdr:all:{user_id}"),
+                ],
+            ]
+        )
+
+        await update.message.reply_text(
+            f"🏦 <b>Семейный банк</b>\n\n" f"💰 Баланс: {format_diamonds(balance)}",
+            parse_mode="HTML",
+            reply_markup=keyboard,
+        )
         return
 
     # Parse action and amount
@@ -930,6 +942,105 @@ async def childwork_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info("Child work toggled", user_id=user_id, child_id=child_id, is_working=new_status)
 
 
+async def familybank_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle family bank buttons — fbank:dep|wdr:{amount}:{user_id}."""
+    query = update.callback_query
+    if not query or not update.effective_user:
+        return
+
+    parts = query.data.split(":")
+    if len(parts) != 4:
+        return
+
+    action = parts[1]  # dep or wdr
+    amount_str = parts[2]
+    owner_id = int(parts[3])
+    user_id = update.effective_user.id
+
+    if user_id != owner_id:
+        await query.answer("Эта кнопка не для тебя", show_alert=True)
+        return
+
+    with get_db() as db:
+        user = db.query(User).filter(User.telegram_id == user_id).first()
+        if not user or user.is_banned:
+            await query.answer("Доступ запрещён", show_alert=True)
+            return
+
+        if action == "dep":
+            try:
+                amount = int(amount_str)
+            except ValueError:
+                return
+            success, message = MarriageService.deposit_to_family_bank(db, user_id, amount)
+        elif action == "wdr":
+            if amount_str == "all":
+                bank_balance = MarriageService.get_family_bank_balance(db, user_id)
+                if not bank_balance or bank_balance <= 0:
+                    await query.answer("Банк пуст", show_alert=True)
+                    return
+                amount = bank_balance
+            else:
+                try:
+                    amount = int(amount_str)
+                except ValueError:
+                    return
+            success, message = MarriageService.withdraw_from_family_bank(db, user_id, amount)
+
+            # Notify partner about withdrawal
+            if success:
+                marriage = MarriageService.get_active_marriage(db, user_id)
+                if marriage:
+                    partner_id = MarriageService.get_partner_id(marriage, user_id)
+                    new_balance = MarriageService.get_family_bank_balance(db, user_id)
+                    try:
+                        await context.bot.send_message(
+                            chat_id=partner_id,
+                            text=(
+                                f"🏦 <b>Семейный банк</b>\n\n"
+                                f"Твой партнёр снял {format_diamonds(amount)}\n"
+                                f"💰 Остаток: {format_diamonds(new_balance or 0)}"
+                            ),
+                            parse_mode="HTML",
+                        )
+                    except Exception:
+                        pass
+        else:
+            return
+
+        if not success:
+            await query.answer(message, show_alert=True)
+            return
+
+        new_balance = MarriageService.get_family_bank_balance(db, user_id) or 0
+
+    await query.answer()
+
+    action_text = "Внесено" if action == "dep" else "Снято"
+    keyboard = InlineKeyboardMarkup(
+        [
+            [
+                InlineKeyboardButton("💰 Внести 100", callback_data=f"fbank:dep:100:{user_id}"),
+                InlineKeyboardButton("💰 500", callback_data=f"fbank:dep:500:{user_id}"),
+                InlineKeyboardButton("💰 1000", callback_data=f"fbank:dep:1000:{user_id}"),
+            ],
+            [
+                InlineKeyboardButton("💸 Снять 100", callback_data=f"fbank:wdr:100:{user_id}"),
+                InlineKeyboardButton("💸 500", callback_data=f"fbank:wdr:500:{user_id}"),
+                InlineKeyboardButton("💸 Всё", callback_data=f"fbank:wdr:all:{user_id}"),
+            ],
+        ]
+    )
+
+    await safe_edit_message(
+        query,
+        f"🏦 <b>Семейный банк</b>\n\n"
+        f"✅ {action_text}: {format_diamonds(amount)}\n"
+        f"💰 Баланс банка: {format_diamonds(new_balance)}",
+        reply_markup=keyboard,
+    )
+
+
 def register_marriage_handlers(application):
     """Register marriage handlers."""
     application.add_handler(CommandHandler("propose", propose_command))
@@ -944,3 +1055,4 @@ def register_marriage_handlers(application):
     application.add_handler(CommandHandler("childwork", childwork_command))
     application.add_handler(CallbackQueryHandler(propose_callback, pattern="^propose_"))
     application.add_handler(CallbackQueryHandler(marriage_callback, pattern="^(marriage_|divorce_)"))
+    application.add_handler(CallbackQueryHandler(familybank_callback, pattern=r"^fbank:"))

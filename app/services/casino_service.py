@@ -18,6 +18,7 @@ IS_DEBUG = os.environ.get("LOG_LEVEL", "INFO").upper() == "DEBUG"
 # Constants
 MIN_BET = 10
 MAX_BET = 1000
+VIP_MAX_BET = 2000  # Premium users get higher limit
 CASINO_COOLDOWN_SECONDS = 60  # 1 minute
 
 # Game types
@@ -89,8 +90,12 @@ class CasinoService:
         if bet_amount < MIN_BET:
             return False, f"Минимальная ставка: {format_diamonds(MIN_BET)}"
 
-        if bet_amount > MAX_BET:
-            return False, f"Максимальная ставка: {format_diamonds(MAX_BET)}"
+        # VIP players get higher max bet (2000 instead of 1000)
+        from app.handlers.premium import is_vip
+
+        effective_max = VIP_MAX_BET if is_vip(user_id, db=db) else MAX_BET
+        if bet_amount > effective_max:
+            return False, f"Максимальная ставка: {format_diamonds(effective_max)}"
 
         # Check balance
         user = db.query(User).filter(User.telegram_id == user_id).first()
@@ -130,11 +135,11 @@ class CasinoService:
         multiplier = multipliers.get(dice_value, 0)
         winnings = int(bet_amount * multiplier) if multiplier > 0 else 0
 
-        # Lucky charm bonus (+5%)
+        # Lucky charm bonus (+10%)
         lucky_bonus = 0
         if winnings > 0:
             if has_active_boost(user_id, "lucky_charm", db=db):
-                lucky_bonus = int(winnings * 0.05)
+                lucky_bonus = int(winnings * 0.10)
                 winnings += lucky_bonus
 
         # Add winnings (bet already deducted)

@@ -171,7 +171,7 @@ async def scratch_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             from app.handlers.premium import has_active_boost
 
             if has_active_boost(user_id, "lucky_charm", db=db):
-                payout += int(payout * 0.05)
+                payout += int(payout * 0.10)
 
             user = db.query(User).filter(User.telegram_id == user_id).first()
             user.balance += payout
@@ -291,7 +291,7 @@ async def _play_scratch_from_callback(context, chat_id, user_id, bet):
             from app.handlers.premium import has_active_boost
 
             if has_active_boost(user_id, "lucky_charm", db=db):
-                payout += int(payout * 0.05)
+                payout += int(payout * 0.10)
 
             user = db.query(User).filter(User.telegram_id == user_id).first()
             user.balance += payout

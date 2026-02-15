@@ -686,6 +686,12 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
                 cooldown_hours = COOLDOWN_BY_LEVEL.get(cooldown_level, 4)
 
+                # Double income boost also halves cooldowns
+                from app.handlers.premium import has_active_boost as _has_boost
+
+                if _has_boost(user_id, "double_income", db=db):
+                    cooldown_hours *= 0.5
+
                 set_cooldown(update, user_id, "job", cooldown_hours, db=db)
 
                 # Response
@@ -738,9 +744,7 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 from app.handlers.premium import build_premium_nudge
 
                 nudge = build_premium_nudge("cooldown", user_id)
-                await update.message.reply_text(
-                    f"Можешь работать через {' '.join(time_str)}{nudge}", parse_mode="HTML"
-                )
+                await update.message.reply_text(f"Можешь работать через {' '.join(time_str)}{nudge}", parse_mode="HTML")
                 return
 
         # Calculate salary based on profession
@@ -812,6 +816,10 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
 
             cooldown_hours = COOLDOWN_BY_LEVEL.get(cooldown_level, 4)
+
+        # Double income boost also halves cooldowns
+        if double_income:
+            cooldown_hours *= 0.5
 
         set_cooldown(update, user_id, "job", cooldown_hours, db=db)
 
@@ -1011,6 +1019,10 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
 
                 cooldown_hours = COOLDOWN_BY_LEVEL.get(job.job_level, 4)
+
+            # Double income boost also halves cooldowns
+            if has_active_boost(user_id, "double_income", db=db):
+                cooldown_hours *= 0.5
 
             set_cooldown(update, user_id, "job", cooldown_hours, db=db)
 
