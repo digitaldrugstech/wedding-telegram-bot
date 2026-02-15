@@ -127,7 +127,11 @@ async def raid_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "initiator_id": user_id,
     }
 
-    username_display = f"@{html.escape(update.effective_user.username)}" if update.effective_user.username else html.escape(update.effective_user.first_name)
+    username_display = (
+        f"@{html.escape(update.effective_user.username)}"
+        if update.effective_user.username
+        else html.escape(update.effective_user.first_name)
+    )
 
     keyboard = InlineKeyboardMarkup(
         [
@@ -367,7 +371,9 @@ async def raid_go_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             expires_at = datetime.utcnow() + timedelta(hours=RAID_COOLDOWN_HOURS)
             cd_action = "raid"
             for raider_id in raiders:
-                cooldown = db.query(Cooldown).filter(Cooldown.user_id == raider_id, Cooldown.action == cd_action).first()
+                cooldown = (
+                    db.query(Cooldown).filter(Cooldown.user_id == raider_id, Cooldown.action == cd_action).first()
+                )
                 if cooldown:
                     cooldown.expires_at = expires_at
                 else:

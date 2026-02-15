@@ -273,11 +273,6 @@ def casino_menu_keyboard(user_id: int) -> InlineKeyboardMarkup:
             InlineKeyboardButton("🎯 Дартс", callback_data=f"casino_info:darts:{user_id}"),
         ],
         [
-            InlineKeyboardButton("🏀 Баскет", callback_data=f"casino_info:basketball:{user_id}"),
-            InlineKeyboardButton("🎳 Боулинг", callback_data=f"casino_info:bowling:{user_id}"),
-            InlineKeyboardButton("⚽ Футбол", callback_data=f"casino_info:football:{user_id}"),
-        ],
-        [
             InlineKeyboardButton("🃏 Блэкджек", callback_data=f"casino_info:blackjack:{user_id}"),
             InlineKeyboardButton("🎫 Скретч", callback_data=f"casino_info:scratch:{user_id}"),
         ],

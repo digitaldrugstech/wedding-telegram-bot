@@ -27,6 +27,7 @@ ANNIVERSARY_COOLDOWN_DAYS = 7  # 1 week
 ANNIVERSARY_REWARD_PER_WEEK = 25  # алмазы за каждую неделю брака
 ANNIVERSARY_MAX_REWARD = 250  # макс награда
 
+
 class MarriageService:
     """Service for marriage operations."""
 
@@ -397,8 +398,6 @@ class MarriageService:
             # End marriage
             marriage.is_active = False
             marriage.ended_at = datetime.utcnow()
-
-    
 
             logger.info("Cheat caught", cheater_id=cheater_id, partner_id=partner_id, fine=fine)
             return True, True, fine

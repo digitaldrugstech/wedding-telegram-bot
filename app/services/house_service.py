@@ -22,6 +22,7 @@ HOUSE_TYPES = {
 
 SELL_REFUND_PERCENTAGE = 0.70  # 70% refund
 
+
 class HouseService:
     """Service for managing houses."""
 

@@ -160,8 +160,14 @@ async def duel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    challenger_display = f"@{html.escape(update.effective_user.username)}" if update.effective_user.username else html.escape(update.effective_user.first_name or "")
-    opponent_display = f"@{html.escape(opponent_username)}" if opponent_has_username else html.escape(str(opponent_username or ""))
+    challenger_display = (
+        f"@{html.escape(update.effective_user.username)}"
+        if update.effective_user.username
+        else html.escape(update.effective_user.first_name or "")
+    )
+    opponent_display = (
+        f"@{html.escape(opponent_username)}" if opponent_has_username else html.escape(str(opponent_username or ""))
+    )
     await update.message.reply_text(
         f"⚔️ <b>Вызов на дуэль!</b>\n\n"
         f"{challenger_display} вызывает {opponent_display} на дуэль\n\n"

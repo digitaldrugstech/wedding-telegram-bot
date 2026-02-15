@@ -40,7 +40,6 @@ async def reset_cooldown_command(update: Update, context: ContextTypes.DEFAULT_T
         # Delete all cooldowns for the user
         deleted_count = db.query(Cooldown).filter(Cooldown.user_id == target_user_id).delete()
 
-
         if deleted_count > 0:
             await update.message.reply_text(
                 f"✅ Сброшено {deleted_count} кулдаунов\n{target_username} (ID: {target_user_id})"
@@ -239,7 +238,6 @@ async def give_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         user.balance += amount
 
-
         user_display = f"@{html.escape(user.username)}" if user.username else f"ID {user.telegram_id}"
         await update.message.reply_text(
             f"✅ Выдано {format_diamonds(amount)}\n"
@@ -291,7 +289,6 @@ async def take_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         user.balance = max(0, user.balance - amount)
-
 
         user_display = f"@{html.escape(user.username)}" if user.username else f"ID {target_id}"
         await update.message.reply_text(
@@ -347,7 +344,6 @@ async def ban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         user.is_banned = True
 
-
         await update.message.reply_text(
             f"✅ Пользователь @{user.username or user.telegram_id} забанен\n\n" f"Причина: {reason}"
         )
@@ -400,7 +396,6 @@ async def unban_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         user.is_banned = False
-
 
         await update.message.reply_text(f"✅ Пользователь @{user.username or user.telegram_id} разбанен")
 
@@ -680,14 +675,13 @@ async def announce_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     pin_status = "📌 Закреплено в проде" if pinned else "⚠️ Не закреплено в проде"
     await update.message.reply_text(
-        f"📢 <b>Анонс отправлен</b>\n\n"
-        f"✅ Чатов: {sent_count}\n"
-        f"❌ Ошибок: {failed_count}\n"
-        f"{pin_status}",
+        f"📢 <b>Анонс отправлен</b>\n\n" f"✅ Чатов: {sent_count}\n" f"❌ Ошибок: {failed_count}\n" f"{pin_status}",
         parse_mode="HTML",
     )
 
-    logger.info("Announcement sent", admin_id=update.effective_user.id, sent=sent_count, failed=failed_count, pinned=pinned)
+    logger.info(
+        "Announcement sent", admin_id=update.effective_user.id, sent=sent_count, failed=failed_count, pinned=pinned
+    )
 
 
 def register_admin_handlers(application):

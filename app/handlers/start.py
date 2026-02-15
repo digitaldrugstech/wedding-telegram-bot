@@ -134,11 +134,77 @@ async def gender_selection_callback(update: Update, context: ContextTypes.DEFAUL
     if referral_bonus > 0:
         bonus_text = f"\n🎁 Бонус за приглашение: {format_diamonds(referral_bonus)}\n"
 
+    from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+    onboarding_keyboard = InlineKeyboardMarkup(
+        [
+            [InlineKeyboardButton("💼 Выбрать работу", callback_data=f"onboard:work:{user_id}")],
+            [
+                InlineKeyboardButton("🎰 Казино", callback_data=f"onboard:casino:{user_id}"),
+                InlineKeyboardButton("🎁 Бонус", callback_data=f"onboard:daily:{user_id}"),
+            ],
+        ]
+    )
+
     await safe_edit_message(
         query,
-        f"✅ {gender_emoji} Регистрация завершена{bonus_text}\n\n" f"/profile — профиль\n" f"/work — работа",
-        reply_markup=profile_keyboard(user_id),
+        f"✅ {gender_emoji} <b>Добро пожаловать!</b>{bonus_text}\n\n"
+        f"С чего начать:\n"
+        f"1. Выбери профессию — зарабатывай алмазы\n"
+        f"2. Забирай /daily бонус каждый день\n"
+        f"3. Предложи кому-то /propose 💍\n\n"
+        f"Жми кнопку:",
+        reply_markup=onboarding_keyboard,
     )
+
+
+@button_owner_only
+async def onboarding_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle onboarding button clicks after registration."""
+    query = update.callback_query
+    await query.answer()
+
+    if not update.effective_user:
+        return
+
+    user_id = update.effective_user.id
+    action = query.data.split(":")[1]  # "onboard:work:user_id" -> "work"
+
+    if action == "work":
+        # Show profession selection for new user
+        from app.utils.keyboards import work_menu_keyboard
+
+        await safe_edit_message(
+            query,
+            "💼 <b>Выбери профессию</b>\n\n"
+            "Каждая профессия приносит алмазы.\n"
+            "Работай /job → повышай уровень → больше зарплата!",
+            reply_markup=work_menu_keyboard(has_job=False, user_id=user_id),
+        )
+
+    elif action == "casino":
+        # Show casino menu
+        from app.utils.keyboards import casino_menu_keyboard
+
+        await safe_edit_message(
+            query,
+            "🎰 <b>Казино</b>\n\n"
+            "Выбери игру и сделай ставку.\n"
+            "Чем выше ставка — тем больше выигрыш (или проигрыш)!\n\n"
+            "💡 Начни с /daily чтобы получить стартовые алмазы",
+            reply_markup=casino_menu_keyboard(user_id),
+        )
+
+    elif action == "daily":
+        # Tell user to use /daily command (can't trigger command from callback)
+        await safe_edit_message(
+            query,
+            "🎁 <b>Ежедневный бонус</b>\n\n"
+            "Напиши /daily чтобы забрать бонус!\n\n"
+            "📅 Бонус растёт с каждым днём серии:\n"
+            "День 1: 10💎 → День 7: 100💎\n"
+            "🏆 Бонусы за серию: 7д (+50💎), 14д (+150💎), 30д (+500💎)",
+        )
 
 
 @require_registered
@@ -225,6 +291,14 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not has_ever_purchased(user_id, db=db) and not boosts_text:
             starter_nudge = "\n\n🎁 <i>Стартовый набор: 5000 алмазов + бусты за 50 ⭐ — /premium</i>"
 
+        # Tax info one-liner
+        from app.constants import TAX_RATE, TAX_THRESHOLD
+
+        tax_line = ""
+        if user.balance > TAX_THRESHOLD:
+            weekly_tax = int((user.balance - TAX_THRESHOLD) * TAX_RATE)
+            tax_line = f"\n🏛 Налог: ~{format_diamonds(weekly_tax)}/нед"
+
         profile_text = (
             f"👤 <b>{html.escape(user.username or str(user_id))}</b> {gender_emoji}{title_display}{vip_badge}\n\n"
             f"💰 {format_diamonds(user.balance)}\n"
@@ -233,7 +307,7 @@ async def profile_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"💍 {marriage_info}\n"
             f"👶 Детей: {children_count}\n"
             f"{rep_emoji} Репутация: {user.reputation:+d}\n"
-            f"🏆 Достижений: {achievements_count}{prestige_display}{boosts_display}{starter_nudge}"
+            f"🏆 Достижений: {achievements_count}{tax_line}{prestige_display}{boosts_display}{starter_nudge}"
         )
 
         await update.message.reply_text(profile_text, reply_markup=profile_keyboard(user_id), parse_mode="HTML")
@@ -366,4 +440,5 @@ def register_start_handlers(application):
     application.add_handler(CommandHandler("profile", profile_command))
     application.add_handler(CommandHandler("top", top_command))
     application.add_handler(CallbackQueryHandler(gender_selection_callback, pattern="^gender:"))
+    application.add_handler(CallbackQueryHandler(onboarding_callback, pattern="^onboard:"))
     application.add_handler(CallbackQueryHandler(top_callback, pattern="^top:"))

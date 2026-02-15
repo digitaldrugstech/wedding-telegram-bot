@@ -146,7 +146,9 @@ async def daily_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     if milestone > 0:
-        text += f"\n🏆 <b>Бонус за {format_word(new_streak, 'день', 'дня', 'дней')}!</b> +{format_diamonds(milestone)}\n"
+        text += (
+            f"\n🏆 <b>Бонус за {format_word(new_streak, 'день', 'дня', 'дней')}!</b> +{format_diamonds(milestone)}\n"
+        )
 
     text += f"\n💰 Баланс: {format_diamonds(balance)}"
 
@@ -175,6 +177,31 @@ async def daily_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         nudge = build_premium_nudge("daily", user_id)
         if nudge:
             text += nudge
+
+    # Show today's quests (compact)
+    try:
+        from app.handlers.quest import assign_daily_quests
+
+        with get_db() as db:
+            assign_daily_quests(user_id, db=db)
+            db.flush()
+            from app.database.models import Quest, UserQuest
+
+            today_start = datetime.combine(datetime.utcnow().date(), datetime.min.time())
+            user_quests = (
+                db.query(UserQuest, Quest)
+                .join(Quest)
+                .filter(UserQuest.user_id == user_id, UserQuest.assigned_at >= today_start)
+                .order_by(UserQuest.is_completed, UserQuest.assigned_at)
+                .all()
+            )
+            if user_quests:
+                text += "\n\n📋 <b>Квесты:</b>"
+                for uq, q in user_quests:
+                    icon = "✅" if uq.is_completed else "⏳"
+                    text += f"\n{icon} {q.description} ({uq.progress}/{q.target_count})"
+    except Exception:
+        pass
 
     # Tip of the day — rotate through tips based on streak
     tip = DAILY_TIPS[new_streak % len(DAILY_TIPS)]

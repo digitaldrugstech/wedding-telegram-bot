@@ -25,9 +25,6 @@ CASINO_COOLDOWN_SECONDS = 60  # 1 minute
 SLOT_MACHINE = "slots"
 DICE = "dice"
 DARTS = "darts"
-BASKETBALL = "basketball"
-BOWLING = "bowling"
-FOOTBALL = "football"
 
 # Payout multipliers based on dice value
 PAYOUT_MULTIPLIERS = {
@@ -55,27 +52,6 @@ PAYOUT_MULTIPLIERS = {
         # EV: 5/6 = 0.833 (17% house edge)
         6: 5,  # Bullseye x5
         # 1-5: 0x (loss)
-    },
-    BASKETBALL: {
-        # Basketball (1-5, each 1/5)
-        # EV: 3/5 + 1.5/5 = 0.900 (10% house edge)
-        5: 3,  # Perfect shot x3
-        4: 1.5,  # Good shot x1.5
-        # 1-3: 0x (loss)
-    },
-    BOWLING: {
-        # Bowling (1-6, each 1/6)
-        # EV: 4/6 + 1.5/6 = 0.917 (8% house edge)
-        6: 4,  # Strike x4
-        5: 1.5,  # Spare x1.5
-        # 1-4: 0x (loss)
-    },
-    FOOTBALL: {
-        # Football (1-5, each 1/5)
-        # EV: 3/5 + 1.5/5 = 0.900 (10% house edge)
-        5: 3,  # Perfect goal x3
-        4: 1.5,  # Good goal x1.5
-        # 1-3: 0x (loss)
     },
 }
 

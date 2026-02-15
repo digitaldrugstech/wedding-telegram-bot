@@ -158,10 +158,7 @@ async def rob_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             from app.handlers.premium import build_premium_nudge
 
             shield_nudge = build_premium_nudge("robbed", target_id)
-            victim_text = (
-                f"🚨 <b>Тебя ограбили!</b>\n\n"
-                f"💸 Украдено: {format_diamonds(steal_amount)}{shield_nudge}"
-            )
+            victim_text = f"🚨 <b>Тебя ограбили!</b>\n\n" f"💸 Украдено: {format_diamonds(steal_amount)}{shield_nudge}"
             await context.bot.send_message(chat_id=target_id, text=victim_text, parse_mode="HTML")
         except Exception:
             pass

@@ -264,7 +264,9 @@ async def removefriend_command(update: Update, context: ContextTypes.DEFAULT_TYP
 
         db.delete(friendship)
 
-        await update.message.reply_text(f"✅ <b>Удалено из друзей</b>\n\n" f"👤 @{html.escape(username)}", parse_mode="HTML")
+        await update.message.reply_text(
+            f"✅ <b>Удалено из друзей</b>\n\n" f"👤 @{html.escape(username)}", parse_mode="HTML"
+        )
 
 
 @button_owner_only
@@ -408,7 +410,9 @@ async def gift_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         if not friendship:
-            await update.message.reply_text(f"❌ @{html.escape(username)} не в твоих друзьях\n\nДарить можно только друзьям", parse_mode="HTML")
+            await update.message.reply_text(
+                f"❌ @{html.escape(username)} не в твоих друзьях\n\nДарить можно только друзьям", parse_mode="HTML"
+            )
             return
 
         # Execute gift (deduct amount + fee from sender, give amount to recipient)
@@ -496,12 +500,16 @@ def rating_keyboard(user_id: int, category: str = "balance") -> InlineKeyboardMa
 
 @require_registered
 async def rating_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /rating command."""
+    """Handle /rating command — redirect to /top."""
     if not update.effective_user or not update.message:
         return
 
     user_id = update.effective_user.id
-    await show_rating(update.message, user_id, "balance")
+
+    from app.handlers.start import build_top_message
+
+    text, reply_markup = build_top_message("balance", user_id)
+    await update.message.reply_text(text, parse_mode="HTML", reply_markup=reply_markup)
 
 
 async def show_rating(message, user_id: int, category: str):

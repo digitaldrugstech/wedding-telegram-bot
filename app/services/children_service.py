@@ -39,6 +39,7 @@ TEEN_AUTO_WORK_MIN = 20
 TEEN_AUTO_WORK_MAX = 50
 TEEN_AUTO_WORK_INTERVAL = 14400  # 4 hours in seconds
 
+
 class ChildrenService:
     """Service for managing children."""
 
@@ -116,7 +117,6 @@ class ChildrenService:
                 return False, None
 
             child = ChildrenService.create_child(db, marriage_id)
-    
 
             logger.info("Natural birth successful", child_id=child.id, marriage_id=marriage_id)
             return True, child

@@ -8,11 +8,8 @@ from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 from app.database.connection import get_db
 from app.handlers.quest import update_quest_progress
 from app.services.casino_service import (
-    BASKETBALL,
-    BOWLING,
     DARTS,
     DICE,
-    FOOTBALL,
     MAX_BET,
     MIN_BET,
     SLOT_MACHINE,
@@ -29,9 +26,6 @@ DICE_GAME_EMOJI = {
     SLOT_MACHINE: "🎰",
     DICE: "🎲",
     DARTS: "🎯",
-    BASKETBALL: "🏀",
-    BOWLING: "🎳",
-    FOOTBALL: "⚽",
 }
 
 
@@ -155,24 +149,6 @@ async def dice_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def darts_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle /darts command - darts game."""
     await _play_casino_game(update, context, DARTS, "🎯")
-
-
-@require_registered
-async def basketball_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /basketball command - basketball game."""
-    await _play_casino_game(update, context, BASKETBALL, "🏀")
-
-
-@require_registered
-async def bowling_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /bowling command - bowling game."""
-    await _play_casino_game(update, context, BOWLING, "🎳")
-
-
-@require_registered
-async def football_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handle /football command - football game."""
-    await _play_casino_game(update, context, FOOTBALL, "⚽")
 
 
 @require_registered
@@ -303,9 +279,4 @@ def register_casino_handlers(application):
     application.add_handler(CommandHandler("slots", slots_command))
     application.add_handler(CommandHandler("dice", dice_command))
     application.add_handler(CommandHandler("darts", darts_command))
-    application.add_handler(CommandHandler("basketball", basketball_command))
-    application.add_handler(CommandHandler("bowling", bowling_command))
-    application.add_handler(CommandHandler("football", football_command))
-    application.add_handler(
-        CallbackQueryHandler(casino_bet_callback, pattern=r"^cbet:(slots|dice|darts|basketball|bowling|football):")
-    )
+    application.add_handler(CallbackQueryHandler(casino_bet_callback, pattern=r"^cbet:(slots|dice|darts):"))

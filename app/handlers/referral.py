@@ -161,9 +161,7 @@ async def invite_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Count referrals
         total_refs = db.query(Referral).filter(Referral.referrer_id == user_id).count()
         completed_refs = (
-            db.query(Referral)
-            .filter(Referral.referrer_id == user_id, Referral.reward_given.is_(True))
-            .count()
+            db.query(Referral).filter(Referral.referrer_id == user_id, Referral.reward_given.is_(True)).count()
         )
         pending_refs = total_refs - completed_refs
 
@@ -231,7 +229,11 @@ async def myrefs_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = "📨 <b>Мои рефералы</b>\n\n"
         for ref in referrals:
             referred_user = db.query(User).filter(User.telegram_id == ref.referred_id).first()
-            name = f"@{html.escape(referred_user.username)}" if referred_user and referred_user.username else f"ID {ref.referred_id}"
+            name = (
+                f"@{html.escape(referred_user.username)}"
+                if referred_user and referred_user.username
+                else f"ID {ref.referred_id}"
+            )
 
             if ref.reward_given:
                 status = f"✅ Готово (+{format_diamonds(REFERRAL_INVITER_REWARD)})"
@@ -287,11 +289,7 @@ async def ref_top_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 text += f"{medal} {name} — {format_word(ref_count, 'реферал', 'реферала', 'рефералов')} ({format_diamonds(earned)})\n"
 
         # Show current user's rank
-        user_refs = (
-            db.query(Referral)
-            .filter(Referral.referrer_id == user_id, Referral.reward_given.is_(True))
-            .count()
-        )
+        user_refs = db.query(Referral).filter(Referral.referrer_id == user_id, Referral.reward_given.is_(True)).count()
         text += f"\n\nТвои рефералы: {user_refs}"
 
     keyboard = [[InlineKeyboardButton("📨 Моя ссылка", callback_data=f"ref:mylink:{user_id}")]]
@@ -320,9 +318,7 @@ async def ref_mylink_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         total_refs = db.query(Referral).filter(Referral.referrer_id == user_id).count()
         completed_refs = (
-            db.query(Referral)
-            .filter(Referral.referrer_id == user_id, Referral.reward_given.is_(True))
-            .count()
+            db.query(Referral).filter(Referral.referrer_id == user_id, Referral.reward_given.is_(True)).count()
         )
 
     text = (

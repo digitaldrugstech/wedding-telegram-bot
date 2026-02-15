@@ -246,7 +246,9 @@ async def rr_spin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             _refund_all(rnd)
             try:
                 await query.edit_message_text(
-                    f"❌ <b>Раунд отменён</b>\n\n" f"Недостаточно игроков: {count}/{RR_MIN_PLAYERS}\n" f"Ставки возвращены",
+                    f"❌ <b>Раунд отменён</b>\n\n"
+                    f"Недостаточно игроков: {count}/{RR_MIN_PLAYERS}\n"
+                    f"Ставки возвращены",
                     parse_mode="HTML",
                 )
             except BadRequest:

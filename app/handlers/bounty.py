@@ -124,9 +124,7 @@ async def bounty_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         # Check active bounty limit
-        active_count = (
-            db.query(Bounty).filter(Bounty.placer_id == user_id, Bounty.is_active.is_(True)).count()
-        )
+        active_count = db.query(Bounty).filter(Bounty.placer_id == user_id, Bounty.is_active.is_(True)).count()
         if active_count >= MAX_ACTIVE_BOUNTIES_PER_USER:
             await update.message.reply_text(
                 f"❌ Максимум {MAX_ACTIVE_BOUNTIES_PER_USER} активных наград\n\n/bounty cancel — отменить одну"

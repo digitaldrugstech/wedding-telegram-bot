@@ -16,7 +16,7 @@ logger = structlog.get_logger()
 
 @require_registered
 async def tax_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Show tax information."""
+    """Show tax information (compact — details merged into /profile)."""
     if not update.effective_user or not update.message:
         return
     user_id = update.effective_user.id
@@ -27,18 +27,16 @@ async def tax_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         taxable_amount = max(0, user.balance - TAX_THRESHOLD)
         weekly_tax = int(taxable_amount * TAX_RATE)
 
-        # Get total taxes paid
-        total_taxes = db.query(TaxPayment).filter(TaxPayment.user_id == user_id).count()
-        total_paid = db.query(func.coalesce(func.sum(TaxPayment.amount), 0)).filter(TaxPayment.user_id == user_id).scalar()
+        total_paid = (
+            db.query(func.coalesce(func.sum(TaxPayment.amount), 0)).filter(TaxPayment.user_id == user_id).scalar()
+        )
 
         text = (
-            f"🏛 <b>Налоговая система</b>\n\n"
-            f"Баланс: {format_diamonds(user.balance)}\n"
-            f"Налогооблагаемая база: {format_diamonds(taxable_amount)}\n\n"
+            f"🏛 <b>Налоги</b>\n\n"
+            f"Ставка: {int(TAX_RATE * 100)}% от суммы свыше {format_diamonds(TAX_THRESHOLD)}\n"
             f"Еженедельный налог: {format_diamonds(weekly_tax)}\n"
-            f"Ставка: {int(TAX_RATE * 100)}% от суммы свыше {format_diamonds(TAX_THRESHOLD)}\n\n"
-            f"Всего выплачено налогов: {format_diamonds(total_paid)}\n"
-            f"{format_word(total_taxes, 'Выплата', 'Выплаты', 'Выплат')}"
+            f"Всего выплачено: {format_diamonds(total_paid)}\n\n"
+            f"💡 Налог также виден в /profile"
         )
 
         await update.message.reply_text(text, parse_mode="HTML")

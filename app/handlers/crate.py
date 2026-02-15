@@ -88,6 +88,7 @@ CRATE_INFO = {
     },
 }
 
+
 def roll_crate(crate_type: str) -> dict:
     """Roll for loot from a crate."""
     info = CRATE_INFO[crate_type]

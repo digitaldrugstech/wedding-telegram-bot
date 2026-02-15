@@ -337,7 +337,12 @@ async def cleanup_stale_games_task(application: Application):
 
         total = len(stale_heist_chats) + len(stale_rr_chats) + len(stale_raid_keys)
         if total > 0:
-            logger.info("Stale games cleanup done", heists=len(stale_heist_chats), roulette=len(stale_rr_chats), raids=len(stale_raid_keys))
+            logger.info(
+                "Stale games cleanup done",
+                heists=len(stale_heist_chats),
+                roulette=len(stale_rr_chats),
+                raids=len(stale_raid_keys),
+            )
     except Exception as e:
         logger.error("Error in stale games cleanup", error=str(e), exc_info=True)
 
