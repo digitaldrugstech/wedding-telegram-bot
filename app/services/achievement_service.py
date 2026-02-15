@@ -94,7 +94,7 @@ class AchievementService:
             business_count = session.query(Business).filter(Business.user_id == user_id).count()
             if business_count >= 1:
                 AchievementService.check_and_award(user_id, "businessman", db=session)
-            if business_count >= 10:
+            if business_count >= 5:
                 AchievementService.check_and_award(user_id, "empire", db=session)
 
         if db is not None:

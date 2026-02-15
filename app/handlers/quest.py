@@ -81,17 +81,31 @@ def assign_daily_quests(user_id: int, db=None):
 
     def _assign(session):
         today = datetime.utcnow().date()
+        today_start = datetime.combine(today, datetime.min.time())
+
         existing_quests = (
             session.query(UserQuest)
             .filter(
                 UserQuest.user_id == user_id,
-                UserQuest.assigned_at >= datetime.combine(today, datetime.min.time()),
+                UserQuest.assigned_at >= today_start,
             )
             .count()
         )
 
         if existing_quests > 0:
             return  # Already assigned today
+
+        # Delete old quests from previous days to avoid UniqueConstraint violation
+        deleted = (
+            session.query(UserQuest)
+            .filter(
+                UserQuest.user_id == user_id,
+                UserQuest.assigned_at < today_start,
+            )
+            .delete()
+        )
+        if deleted:
+            logger.info("Cleaned up old quests", user_id=user_id, deleted=deleted)
 
         all_quests = session.query(Quest).all()
         if len(all_quests) < 3:
@@ -178,6 +192,8 @@ async def quest_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     with get_db() as db:
         # Assign daily quests if needed (same session)
         assign_daily_quests(user_id, db=db)
+        # Flush so newly assigned quests are visible to the query below
+        db.flush()
         # Get user's active quests for today
         today = datetime.utcnow().date()
         user_quests = (

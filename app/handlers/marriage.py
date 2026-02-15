@@ -18,6 +18,15 @@ from app.utils.telegram_helpers import safe_edit_message
 
 logger = structlog.get_logger()
 
+
+class _FakeUser:
+    """Minimal user object for username-based lookups."""
+
+    def __init__(self, user_id):
+        self.id = user_id
+        self.is_bot = False
+
+
 # Check if DEBUG mode (DEV environment)
 IS_DEBUG = os.environ.get("LOG_LEVEL", "INFO").upper() == "DEBUG"
 
@@ -47,14 +56,7 @@ async def propose_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 return
             target_id = target_user.telegram_id
 
-            # Create simple target object
-            class FakeUser:
-                def __init__(self, user_id, username, first_name):
-                    self.id = user_id
-                    self.first_name = first_name
-                    self.is_bot = False
-
-            target = FakeUser(target_id, username, username)
+            target = _FakeUser(target_id)
     else:
         await update.message.reply_text(
             "💍 <b>Предложение руки и сердца</b>\n\n"
@@ -615,13 +617,7 @@ async def cheat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 return
             target_id = target_user.telegram_id
 
-            # Simple target object
-            class FakeUser:
-                def __init__(self, user_id):
-                    self.id = user_id
-                    self.is_bot = False
-
-            target = FakeUser(target_id)
+            target = _FakeUser(target_id)
     else:
         await update.message.reply_text(
             "⚠️ <b>Измена</b>\n\n"

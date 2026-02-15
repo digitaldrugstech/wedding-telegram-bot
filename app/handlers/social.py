@@ -438,6 +438,15 @@ async def achievements_command(update: Update, context: ContextTypes.DEFAULT_TYP
     user_id = update.effective_user.id
 
     with get_db() as db:
+        # Check and award any new achievements before displaying
+        from app.services.achievement_service import AchievementService
+
+        try:
+            AchievementService.check_all_achievements(user_id, db=db)
+            db.flush()
+        except Exception:
+            pass
+
         # Get all achievements
         all_achievements = db.query(Achievement).all()
 
