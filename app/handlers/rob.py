@@ -9,7 +9,7 @@ from telegram import Update
 from telegram.ext import CommandHandler, ContextTypes
 
 from app.database.connection import get_db
-from app.database.models import Cooldown, User
+from app.database.models import Cooldown, House, Marriage, User
 from app.handlers.bounty import collect_bounties
 from app.handlers.insurance import has_active_insurance
 from app.handlers.quest import update_quest_progress
@@ -97,12 +97,33 @@ async def rob_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("🛡 У этого игрока есть страховка\n\nОграбление невозможно")
             return
 
+        # Check house protection — reduces rob success chance
+        house_protection = 0
+        house_name = ""
+        target_marriage = (
+            db.query(Marriage)
+            .filter(
+                ((Marriage.partner1_id == target_id) | (Marriage.partner2_id == target_id)),
+                Marriage.is_active.is_(True),
+            )
+            .first()
+        )
+        if target_marriage:
+            house = db.query(House).filter(House.marriage_id == target_marriage.id).first()
+            if house:
+                from app.services.house_service import HOUSE_TYPES
+
+                house_info = HOUSE_TYPES.get(house.house_type, HOUSE_TYPES[1])
+                house_protection = house_info["protection"]
+                house_name = house_info["name"]
+
         # Calculate steal amount
         steal_percent = random.randint(ROB_MIN_STEAL_PERCENT, ROB_MAX_STEAL_PERCENT)
         steal_amount = max(1, int(target.balance * steal_percent / 100))
 
-        # Roll for success
-        success = random.random() < ROB_SUCCESS_CHANCE
+        # Roll for success (house reduces chance)
+        effective_chance = ROB_SUCCESS_CHANCE * (1 - house_protection / 100)
+        success = random.random() < effective_chance
 
         bounty_collected = 0
         fine = 0
@@ -143,9 +164,10 @@ async def rob_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text += f"🎯 Награда собрана: {format_diamonds(bounty_collected)}\n"
         text += f"\nБаланс: {format_diamonds(result_balance)}"
     else:
+        house_line = f"\n🏠 {house_name} защитил жертву!" if house_protection > 0 else ""
         text = (
             f"🚨 <b>Провал!</b>\n\n"
-            f"Тебя поймали при попытке ограбить @{target_name}!\n"
+            f"Тебя поймали при попытке ограбить @{target_name}!{house_line}\n"
             f"💸 Штраф: {format_diamonds(fine)}\n\n"
             f"Баланс: {format_diamonds(result_balance)}"
         )

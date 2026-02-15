@@ -280,7 +280,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
                 await safe_edit_message(
                     query,
-                    "🏠 <b>Дом</b>\n\nНет дома\n\n💡 Дом защищает от похищения детей",
+                    "🏠 <b>Дом</b>\n\nНет дома\n\n💡 Защита от похищений и ограблений",
                     reply_markup=house_menu_keyboard(has_house=False, user_id=user_id),
                 )
         return
@@ -564,52 +564,148 @@ async def econ_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await safe_edit_message(query, text, reply_markup=InlineKeyboardMarkup(keyboard))
         return
 
-    # --- SIMPLE HINTS (for reply-based actions and complex features) ---
+    # --- MORE DATA-DRIVEN ITEMS ---
+
+    if action == "shop":
+        from app.handlers.shop import SHOP_TITLES, get_user_titles
+
+        with get_db() as db:
+            user = db.query(User).filter(User.telegram_id == user_id).first()
+            owned = get_user_titles(user)
+            active = user.active_title
+
+        text = "🏪 <b>Магазин титулов</b>\n\n"
+        if active and active in SHOP_TITLES:
+            text += f"Текущий: {SHOP_TITLES[active]['display']}\n\n"
+        for tid, td in SHOP_TITLES.items():
+            mark = "✅" if tid in owned else f"{format_diamonds(td['price'])}"
+            text += f"{td['display']} — {mark}\n"
+        text += "\n/shop — купить или сменить"
+        keyboard = [[InlineKeyboardButton("« Экономика", callback_data=f"menu:economy:{user_id}")]]
+        await safe_edit_message(query, text, reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
+    if action == "friends":
+        from app.database.models import Friendship
+
+        with get_db() as db:
+            friendships = (
+                db.query(Friendship).filter((Friendship.user1_id == user_id) | (Friendship.user2_id == user_id)).all()
+            )
+            friend_ids = []
+            for f in friendships:
+                fid = f.user2_id if f.user1_id == user_id else f.user1_id
+                friend_ids.append(fid)
+
+            if friend_ids:
+                friends = db.query(User).filter(User.telegram_id.in_(friend_ids)).all()
+                friend_map = {u.telegram_id: u for u in friends}
+                text = f"👥 <b>Друзья</b> ({len(friend_ids)})\n\n"
+                for fid in friend_ids[:10]:
+                    u = friend_map.get(fid)
+                    name = html.escape(u.username) if u and u.username else f"ID {fid}"
+                    text += f"• @{name}\n"
+                if len(friend_ids) > 10:
+                    text += f"\n...и ещё {len(friend_ids) - 10}"
+            else:
+                text = "👥 <b>Друзья</b>\n\nПока нет друзей\n\nОтветь на сообщение: /addfriend"
+        keyboard = [[InlineKeyboardButton("« Социальное", callback_data=f"menu:social:{user_id}")]]
+        await safe_edit_message(query, text, reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
+    if action in ("top", "rating"):
+        from app.handlers.start import build_top_message
+
+        text, top_markup = build_top_message("balance", user_id)
+        await safe_edit_message(query, text, reply_markup=top_markup)
+        return
+
+    if action == "mine":
+        from app.database.models import Cooldown
+
+        with get_db() as db:
+            cd = db.query(Cooldown).filter(Cooldown.user_id == user_id, Cooldown.action == "mine").first()
+            if cd and cd.expires_at > datetime.utcnow():
+                remaining = cd.expires_at - datetime.utcnow()
+                mins = int(remaining.total_seconds() // 60)
+                text = f"⛏️ <b>Шахта</b>\n\n⏰ Кулдаун: {mins}м\n\nНаграда: 5-75💎 (шанс x3 редкой жилы)"
+            else:
+                text = "⛏️ <b>Шахта</b>\n\n✅ Можно копать!\n\nНапиши /mine в чат\nНаграда: 5-75💎"
+        keyboard = [[InlineKeyboardButton("« Игры", callback_data=f"menu:games:{user_id}")]]
+        await safe_edit_message(query, text, reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
+    if action == "fish":
+        from app.database.models import Cooldown
+
+        with get_db() as db:
+            cd = db.query(Cooldown).filter(Cooldown.user_id == user_id, Cooldown.action == "fish").first()
+            if cd and cd.expires_at > datetime.utcnow():
+                remaining = cd.expires_at - datetime.utcnow()
+                mins = int(remaining.total_seconds() // 60)
+                text = f"🎣 <b>Рыбалка</b>\n\n⏰ Кулдаун: {mins}м\n\nНаживка: 20💎, улов до 100💎"
+            else:
+                text = "🎣 <b>Рыбалка</b>\n\n✅ Можно рыбачить!\n\nНапиши /fish в чат\nНаживка: 20💎"
+        keyboard = [[InlineKeyboardButton("« Игры", callback_data=f"menu:games:{user_id}")]]
+        await safe_edit_message(query, text, reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
+    if action == "crate":
+        from app.handlers.crate import CRATE_MILESTONES
+        from app.utils.formatters import format_word
+
+        with get_db() as db:
+            user = db.query(User).filter(User.telegram_id == user_id).first()
+            streak = user.daily_streak or 0
+
+        next_crates = [(d, t) for d, t in sorted(CRATE_MILESTONES.items()) if d > streak]
+        crate_names = {
+            "bronze": "🟤 Бронзовый",
+            "silver": "⚪ Серебряный",
+            "gold": "🟡 Золотой",
+            "diamond": "💎 Алмазный",
+            "legendary": "🌟 Легендарный",
+        }
+
+        text = f"🎁 <b>Сундуки</b>\n\n📅 Серия /daily: {format_word(streak, 'день', 'дня', 'дней')}\n\n"
+        if next_crates:
+            for day, ctype in next_crates:
+                days_left = day - streak
+                name = crate_names.get(ctype, ctype)
+                text += f"{name} — через {format_word(days_left, 'день', 'дня', 'дней')}\n"
+        else:
+            text += "🏆 Все сундуки получены!"
+        keyboard = [[InlineKeyboardButton("« Игры", callback_data=f"menu:games:{user_id}")]]
+        await safe_edit_message(query, text, reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
+    # --- SIMPLE HINTS (reply-based / multiplayer only) ---
 
     HINTS = {
         "daily": ("🎁 <b>Ежедневный бонус</b>\n\nНапиши /daily в чат", f"menu:economy:{user_id}"),
-        "shop": ("🏪 <b>Магазин титулов</b>\n\nНапиши /shop в чат", f"menu:economy:{user_id}"),
         "premium": (
             "⭐ <b>Премиум</b>\n\nНапиши /premium в чат\n\nАлмазы, бусты и VIP за Telegram Stars",
             f"menu:economy:{user_id}",
         ),
         "pet": ("🐾 <b>Питомец</b>\n\nНапиши /pet в чат", f"menu:games:{user_id}"),
-        "fish": ("🎣 <b>Рыбалка</b>\n\nНапиши /fish в чат (20💎 наживка)", f"menu:games:{user_id}"),
-        "mine": ("⛏️ <b>Шахта</b>\n\nНапиши /mine в чат (2ч кулдаун)", f"menu:games:{user_id}"),
         "wheel": ("🎡 <b>Колесо фортуны</b>\n\nНапиши /wheel в чат (50💎)", f"menu:games:{user_id}"),
-        "duel": (
-            "⚔️ <b>Дуэль</b>\n\nОтветь на сообщение соперника:\n/duel [ставка]",
-            f"menu:games:{user_id}",
-        ),
+        "duel": ("⚔️ <b>Дуэль</b>\n\nОтветь на сообщение соперника:\n/duel [ставка]", f"menu:games:{user_id}"),
         "rob": ("🔫 <b>Ограбление</b>\n\nОтветь на сообщение жертвы:\n/rob", f"menu:games:{user_id}"),
-        "friends": (
-            "👥 <b>Друзья</b>\n\n/friends — список\nОтветь на сообщение: /addfriend",
-            f"menu:social:{user_id}",
-        ),
         "gang": ("🔫 <b>Банды</b>\n\nНапиши /gang в чат", f"menu:social:{user_id}"),
         "bounties": (
-            "🎯 <b>Награды</b>\n\n/bounties — доска разыскиваемых\nОтветь на сообщение: /bounty [сумма]",
+            "🎯 <b>Награды</b>\n\n/bounties — доска\nОтветь на сообщение: /bounty [сумма]",
             f"menu:social:{user_id}",
         ),
-        "rating": ("⭐ <b>Рейтинг</b>\n\nНапиши /rating в чат", f"menu:social:{user_id}"),
-        "top": ("🏆 <b>Топ</b>\n\nНапиши /top в чат", f"menu:social:{user_id}"),
         "roulette": (
-            "🔫 <b>Русская рулетка</b>\n\nНапиши /rr [ставка] в чат\n\n2-6 игроков, один проигрывает",
+            "🔫 <b>Русская рулетка</b>\n\nНапиши /rr [ставка] в чат\n\n2-6 игроков",
             f"menu:games:{user_id}",
         ),
         "heist": (
             "🏦 <b>Ограбление банка</b>\n\nНапиши /heist [easy|medium|hard] в чат\n\n2-8 игроков",
             f"menu:games:{user_id}",
         ),
-        "crate": ("🎁 <b>Сундуки</b>\n\nНапиши /crate в чат\n\nПолучай за серию /daily!", f"menu:games:{user_id}"),
-        "raid": (
-            "💥 <b>Рейд</b>\n\nНапиши /raid [название банды] в чат\n\n2+ участника",
-            f"menu:social:{user_id}",
-        ),
-        "clanwar": (
-            "⚔️ <b>Война кланов</b>\n\nНапиши /clanwar в чат\n\nНедельный рейтинг банд",
-            f"menu:social:{user_id}",
-        ),
+        "raid": ("💥 <b>Рейд</b>\n\nНапиши /raid [банда] в чат\n\n2+ участника", f"menu:social:{user_id}"),
+        "clanwar": ("⚔️ <b>Война кланов</b>\n\nНапиши /clanwar в чат", f"menu:social:{user_id}"),
     }
 
     if action in HINTS:

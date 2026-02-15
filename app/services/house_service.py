@@ -101,7 +101,7 @@ class HouseService:
             f"{house_info['name']}\n"
             f"💰 Цена: {format_diamonds(house_price)}\n"
             f"🛡️ Защита: {house_info['protection']}%\n\n"
-            f"💡 Дом защищает детей от похищения\n\n"
+            f"💡 Защита от похищений и ограблений\n\n"
             f"💰 Остаток: {format_diamonds(user.balance)}"
         )
 

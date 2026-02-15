@@ -35,7 +35,7 @@ async def house_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"{house_info['name']}\n"
                 f"💰 Куплен за: {format_diamonds(house_info['price'])}\n"
                 f"🛡️ Защита: {house_info['protection']}%\n\n"
-                f"💡 Защита от похищения детей"
+                f"💡 Защита от похищений и ограблений"
             )
 
             await update.message.reply_text(
@@ -43,7 +43,7 @@ async def house_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
         else:
             # No house - show buy menu
-            message = "🏠 <b>Покупка дома</b>\n\n" "Выбери дом:\n\n" "💡 Дом защищает детей от похищения"
+            message = "🏠 <b>Покупка дома</b>\n\n" "Выбери дом:\n\n" "💡 Дом защищает от похищений и ограблений"
 
             await update.message.reply_text(
                 message, reply_markup=house_menu_keyboard(has_house=False, user_id=user_id), parse_mode="HTML"
@@ -133,7 +133,7 @@ async def house_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"{house_info['name']}\n"
                 f"💰 Куплен за: {format_diamonds(house_info['price'])}\n"
                 f"🛡️ Защита: {house_info['protection']}%\n\n"
-                f"💡 Дом защищает от похищения детей"
+                f"💡 Защита от похищений и ограблений"
             )
 
             await safe_edit_message(query, message, reply_markup=house_menu_keyboard(has_house=True, user_id=user_id))

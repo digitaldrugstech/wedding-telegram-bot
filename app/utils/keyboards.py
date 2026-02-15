@@ -403,10 +403,7 @@ def social_menu_keyboard(user_id: int) -> InlineKeyboardMarkup:
             InlineKeyboardButton("🎯 Награды", callback_data=f"econ:bounties:{user_id}"),
             InlineKeyboardButton("🏆 Достижения", callback_data=f"econ:achievements:{user_id}"),
         ],
-        [
-            InlineKeyboardButton("⭐ Рейтинг", callback_data=f"econ:rating:{user_id}"),
-            InlineKeyboardButton("🏆 Топ", callback_data=f"econ:top:{user_id}"),
-        ],
+        [InlineKeyboardButton("🏆 Топ игроков", callback_data=f"econ:top:{user_id}")],
         [InlineKeyboardButton("« Меню", callback_data=f"menu:main:{user_id}")],
     ]
     return InlineKeyboardMarkup(keyboard)
