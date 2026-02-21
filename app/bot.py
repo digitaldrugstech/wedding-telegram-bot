@@ -30,6 +30,7 @@ from app.handlers.house import register_house_handlers
 from app.handlers.insurance import register_insurance_handlers
 from app.handlers.kidnap import register_kidnap_handlers
 from app.handlers.lottery import register_lottery_handlers
+from app.handlers.market import register_market_handlers
 from app.handlers.marriage import register_marriage_handlers
 from app.handlers.menu import register_menu_handlers
 from app.handlers.mine import register_mine_handlers
@@ -45,6 +46,7 @@ from app.handlers.scratch import register_scratch_handlers
 from app.handlers.shop import register_shop_handlers
 from app.handlers.social import register_social_handlers
 from app.handlers.start import register_start_handlers
+from app.handlers.toto import register_toto_handlers
 from app.handlers.utils import register_utils_handlers
 from app.handlers.wheel import register_wheel_handlers
 from app.handlers.work import register_work_handlers
@@ -138,6 +140,8 @@ def create_bot() -> Application:
     register_heist_handlers(application)
     register_fishing_handlers(application)
     register_kidnap_handlers(application)
+    register_toto_handlers(application)
+    register_market_handlers(application)
     register_feedback_handlers(application)
     register_admin_handlers(application)
 
@@ -180,6 +184,15 @@ async def post_shutdown(application: Application):
         active_heists.clear()
     except Exception as e:
         logger.error("Failed to refund heists", error=str(e))
+
+    # Refund active toto round
+    try:
+        from app.handlers.toto import refund_active_toto
+
+        refund_active_toto()
+        logger.info("Refunded toto bets on shutdown")
+    except Exception as e:
+        logger.error("Failed to refund toto", error=str(e))
 
     # Clear stale raids (no fees to refund, just cleanup)
     try:

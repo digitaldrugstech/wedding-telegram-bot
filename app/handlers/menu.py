@@ -702,6 +702,34 @@ async def econ_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await safe_edit_message(query, text, reply_markup=InlineKeyboardMarkup(keyboard))
         return
 
+    if action == "toto":
+        from app.handlers.toto import _active_round
+
+        r = _active_round
+        if r and not r.get("resolved"):
+            total_pool = r["pool_a"] + r["pool_b"]
+            text = (
+                f"🎰 <b>Тотализатор</b>\n\n"
+                f"Сейчас идёт раунд!\n"
+                f"{r['question']}\n\n"
+                f"💰 Пул: {format_diamonds(total_pool)}\n\n"
+                f"Жми кнопки на сообщении в чате"
+            )
+        else:
+            text = "🎰 <b>Тотализатор</b>\n\nСейчас нет раунда\n\nРаунды каждые 3 часа\nСтавка: 100 — 5000💎\nКомиссия: 10%"
+        keyboard = [[InlineKeyboardButton("« Игры", callback_data=f"menu:games:{user_id}")]]
+        await safe_edit_message(query, text, reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
+    if action == "market":
+        from app.handlers.market import _get_stock, _build_market_text, _build_market_keyboard
+
+        stock = _get_stock()
+        text = _build_market_text(stock)
+        keyboard = _build_market_keyboard(user_id, stock)
+        await safe_edit_message(query, text, reply_markup=keyboard)
+        return
+
     # --- SIMPLE HINTS (reply-based / multiplayer only) ---
 
     HINTS = {

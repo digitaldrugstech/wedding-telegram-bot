@@ -380,6 +380,10 @@ def games_menu_keyboard(user_id: int) -> InlineKeyboardMarkup:
             InlineKeyboardButton("🎁 Сундуки", callback_data=f"econ:crate:{user_id}"),
             InlineKeyboardButton("🛡 Страховка", callback_data=f"econ:insurance:{user_id}"),
         ],
+        [
+            InlineKeyboardButton("🎰 Тотализатор", callback_data=f"econ:toto:{user_id}"),
+            InlineKeyboardButton("🏴 Чёрный рынок", callback_data=f"econ:market:{user_id}"),
+        ],
         [InlineKeyboardButton("« Меню", callback_data=f"menu:main:{user_id}")],
     ]
     return InlineKeyboardMarkup(keyboard)

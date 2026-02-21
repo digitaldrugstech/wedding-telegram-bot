@@ -217,6 +217,18 @@ def start_scheduler(application: Application):
         replace_existing=True,
     )
 
+    # Тотализатор — community betting round every 3 hours
+    from app.handlers.toto import start_toto_round
+
+    scheduler.add_job(
+        start_toto_round,
+        trigger=IntervalTrigger(hours=3),
+        args=[application],
+        id="toto_round",
+        name="Toto betting round",
+        replace_existing=True,
+    )
+
     # Clean up stale heists and roulette rounds every 5 minutes
     scheduler.add_job(
         cleanup_stale_games_task,
