@@ -724,8 +724,8 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 # Continue to normal work flow below, but will add hint at the end
                 pass
 
-        # Check cooldown AFTER verifying user has a job (skip in DEBUG mode)
-        if not IS_DEBUG:
+        # Check cooldown AFTER verifying user has a job (skip in DEBUG mode and first-ever work)
+        if not IS_DEBUG and job.times_worked > 0:
             cooldown_entry = db.query(Cooldown).filter(Cooldown.user_id == user_id, Cooldown.action == "job").first()
 
             if cooldown_entry and cooldown_entry.expires_at > datetime.utcnow():
@@ -997,6 +997,7 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 promotion_chance = 0.50  # 50% instead of normal 2-5%
 
             # Selfmade trap: при попытке апа с максимального уровня
+            cooldown_level = job.job_level  # Save BEFORE promotion for correct cooldown
             if job.job_type == "selfmade" and job.job_level == SELFMADE_TRAP_LEVEL:
                 if random.random() < promotion_chance or job.times_worked >= guaranteed_works:
                     # НАЕБАЛИ!
@@ -1018,7 +1019,7 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             else:
 
-                cooldown_hours = COOLDOWN_BY_LEVEL.get(job.job_level, 4)
+                cooldown_hours = COOLDOWN_BY_LEVEL.get(cooldown_level, 4)
 
             # Double income boost also halves cooldowns
             if has_active_boost(user_id, "double_income", db=db):

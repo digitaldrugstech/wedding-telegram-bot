@@ -101,7 +101,45 @@ async def mine_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(text, parse_mode="HTML")
 
 
+@require_registered
+async def explore_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Handle /explore — hub for mine + fish with cooldown status."""
+    if not update.effective_user or not update.message:
+        return
+
+    user_id = update.effective_user.id
+
+    with get_db() as db:
+        mine_cd = db.query(Cooldown).filter(Cooldown.user_id == user_id, Cooldown.action == "mine").first()
+        fish_cd = db.query(Cooldown).filter(Cooldown.user_id == user_id, Cooldown.action == "fishing").first()
+
+        now = datetime.utcnow()
+
+        if mine_cd and mine_cd.expires_at > now:
+            mine_mins = int((mine_cd.expires_at - now).total_seconds() // 60)
+            mine_status = f"⏰ {mine_mins}м"
+        else:
+            mine_status = "✅ /mine"
+
+        if fish_cd and fish_cd.expires_at > now:
+            fish_mins = int((fish_cd.expires_at - now).total_seconds() // 60)
+            fish_status = f"⏰ {fish_mins}м"
+        else:
+            fish_status = "✅ /fish"
+
+    text = (
+        "🗺 <b>Исследование</b>\n\n"
+        f"⛏️ Шахта — {mine_status}\n"
+        f"   5-75💎, шанс x3 редкой жилы\n\n"
+        f"🎣 Рыбалка — {fish_status}\n"
+        f"   Наживка 20💎, улов до 100💎"
+    )
+
+    await update.message.reply_text(text, parse_mode="HTML")
+
+
 def register_mine_handlers(application):
     """Register mine handlers."""
     application.add_handler(CommandHandler("mine", mine_command))
+    application.add_handler(CommandHandler("explore", explore_command))
     logger.info("Mine handlers registered")

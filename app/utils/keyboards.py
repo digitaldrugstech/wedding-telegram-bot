@@ -362,26 +362,23 @@ def games_menu_keyboard(user_id: int) -> InlineKeyboardMarkup:
     keyboard = [
         [
             InlineKeyboardButton("🐾 Питомец", callback_data=f"econ:pet:{user_id}"),
-            InlineKeyboardButton("🎣 Рыбалка", callback_data=f"econ:fish:{user_id}"),
+            InlineKeyboardButton("🗺 Шахта/Рыбалка", callback_data=f"econ:explore:{user_id}"),
         ],
         [
-            InlineKeyboardButton("⛏️ Шахта", callback_data=f"econ:mine:{user_id}"),
             InlineKeyboardButton("🎡 Колесо", callback_data=f"econ:wheel:{user_id}"),
+            InlineKeyboardButton("🎯 Квест", callback_data=f"econ:quest:{user_id}"),
         ],
         [
-            InlineKeyboardButton("🎯 Квест", callback_data=f"econ:quest:{user_id}"),
             InlineKeyboardButton("⚔️ Дуэль", callback_data=f"econ:duel:{user_id}"),
+            InlineKeyboardButton("🔫 Рулетка", callback_data=f"econ:roulette:{user_id}"),
         ],
         [
             InlineKeyboardButton("🔫 Ограбление", callback_data=f"econ:rob:{user_id}"),
-            InlineKeyboardButton("🔫 Рулетка", callback_data=f"econ:roulette:{user_id}"),
+            InlineKeyboardButton("🏦 Ограб. банка", callback_data=f"econ:heist:{user_id}"),
         ],
         [
             InlineKeyboardButton("🎁 Сундуки", callback_data=f"econ:crate:{user_id}"),
             InlineKeyboardButton("🛡 Страховка", callback_data=f"econ:insurance:{user_id}"),
-        ],
-        [
-            InlineKeyboardButton("🏦 Ограбление банка", callback_data=f"econ:heist:{user_id}"),
         ],
         [InlineKeyboardButton("« Меню", callback_data=f"menu:main:{user_id}")],
     ]

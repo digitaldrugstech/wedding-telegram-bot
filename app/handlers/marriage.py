@@ -446,6 +446,12 @@ async def marriage_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             await safe_edit_message(query, message_text)
 
+            # Track quest progress
+            try:
+                update_quest_progress(owner_id, "marriage", db=db)
+            except Exception:
+                pass
+
             logger.info("Date completed", user_id=owner_id, earned=earned, location=location)
 
 

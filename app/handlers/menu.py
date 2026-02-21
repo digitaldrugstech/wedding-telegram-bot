@@ -150,6 +150,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         from app.database.connection import get_db
         from app.database.models import Job
         from app.handlers.work import JOB_TITLES, PROFESSION_EMOJI, PROFESSION_NAMES
+        from app.utils.formatters import format_word
         from app.utils.keyboards import work_menu_keyboard
 
         with get_db() as db:
@@ -620,6 +621,28 @@ async def econ_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await safe_edit_message(query, text, reply_markup=top_markup)
         return
 
+    if action == "explore":
+        from app.database.models import Cooldown
+
+        with get_db() as db:
+            mine_cd = db.query(Cooldown).filter(Cooldown.user_id == user_id, Cooldown.action == "mine").first()
+            fish_cd = db.query(Cooldown).filter(Cooldown.user_id == user_id, Cooldown.action == "fishing").first()
+            now = datetime.utcnow()
+            mine_status = (
+                f"⏰ {int((mine_cd.expires_at - now).total_seconds() // 60)}м"
+                if mine_cd and mine_cd.expires_at > now
+                else "✅ /mine"
+            )
+            fish_status = (
+                f"⏰ {int((fish_cd.expires_at - now).total_seconds() // 60)}м"
+                if fish_cd and fish_cd.expires_at > now
+                else "✅ /fish"
+            )
+        text = f"🗺 <b>Исследование</b>\n\n⛏️ Шахта — {mine_status}\n   5-75💎, шанс x3 редкой жилы\n\n🎣 Рыбалка — {fish_status}\n   Наживка 20💎, улов до 100💎"
+        keyboard = [[InlineKeyboardButton("« Игры", callback_data=f"menu:games:{user_id}")]]
+        await safe_edit_message(query, text, reply_markup=InlineKeyboardMarkup(keyboard))
+        return
+
     if action == "mine":
         from app.database.models import Cooldown
 
@@ -639,7 +662,7 @@ async def econ_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         from app.database.models import Cooldown
 
         with get_db() as db:
-            cd = db.query(Cooldown).filter(Cooldown.user_id == user_id, Cooldown.action == "fish").first()
+            cd = db.query(Cooldown).filter(Cooldown.user_id == user_id, Cooldown.action == "fishing").first()
             if cd and cd.expires_at > datetime.utcnow():
                 remaining = cd.expires_at - datetime.utcnow()
                 mins = int(remaining.total_seconds() // 60)

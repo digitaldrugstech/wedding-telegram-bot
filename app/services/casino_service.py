@@ -147,9 +147,6 @@ class CasinoService:
             SLOT_MACHINE: "Слот-машина",
             DICE: "Кости",
             DARTS: "Дартс",
-            BASKETBALL: "Баскетбол",
-            BOWLING: "Боулинг",
-            FOOTBALL: "Футбол",
         }
         game_name = game_names.get(game_type, "Казино")
 
