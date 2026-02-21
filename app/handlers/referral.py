@@ -8,11 +8,7 @@ from sqlalchemy import desc, func
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
-from app.constants import (
-    REFERRAL_ACTIVE_DAYS_REQUIRED,
-    REFERRAL_INVITEE_REWARD,
-    REFERRAL_INVITER_REWARD,
-)
+from app.constants import REFERRAL_ACTIVE_DAYS_REQUIRED, REFERRAL_INVITEE_REWARD, REFERRAL_INVITER_REWARD
 from app.database.connection import get_db
 from app.database.models import Referral, User
 from app.utils.decorators import button_owner_only, require_registered

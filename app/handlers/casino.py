@@ -7,14 +7,7 @@ from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
 from app.database.connection import get_db
 from app.handlers.quest import update_quest_progress
-from app.services.casino_service import (
-    DARTS,
-    DICE,
-    MAX_BET,
-    MIN_BET,
-    SLOT_MACHINE,
-    CasinoService,
-)
+from app.services.casino_service import DARTS, DICE, MAX_BET, MIN_BET, SLOT_MACHINE, CasinoService
 from app.utils.decorators import require_registered
 from app.utils.formatters import format_diamonds
 from app.utils.keyboards import casino_after_game_keyboard, casino_menu_keyboard
