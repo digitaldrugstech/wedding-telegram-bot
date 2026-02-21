@@ -327,9 +327,7 @@ async def market_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             result = _process_purchase(db, user, item)
 
         # Update message
-        keyboard = InlineKeyboardMarkup(
-            [[InlineKeyboardButton("« Рынок", callback_data=f"market:list:{user_id}")]]
-        )
+        keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("« Рынок", callback_data=f"market:list:{user_id}")]])
         await safe_edit_message(query, result, reply_markup=keyboard)
 
         logger.info("Market purchase", user_id=user_id, item=item_id)

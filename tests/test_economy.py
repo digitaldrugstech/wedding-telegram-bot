@@ -204,7 +204,7 @@ class TestEconomyBalance:
         transfer_amount = 1000
         fee = int(transfer_amount * TRANSFER_FEE_RATE / 100)
 
-        user1.balance -= (transfer_amount + fee)
+        user1.balance -= transfer_amount + fee
         user2.balance += transfer_amount
         db_session.commit()
 
@@ -215,6 +215,7 @@ class TestEconomyBalance:
 
         # Total wealth should decrease by fee
         assert final_total == initial_total - fee
+
 
 class TestEdgeCases:
     """Test edge cases in economy."""
