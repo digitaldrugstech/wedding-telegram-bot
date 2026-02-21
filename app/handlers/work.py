@@ -794,6 +794,7 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if job.job_type == "selfmade" and job.job_level == SELFMADE_TRAP_LEVEL:
             if random.random() < promotion_chance or job.times_worked >= guaranteed_works:
                 # НАЕБАЛИ!
+                pre_scam_balance = user.balance
                 user.balance = 0  # Обнуляем баланс
                 job.job_level = 1  # Сбрасываем на нищий
                 job.times_worked = 0
@@ -835,7 +836,7 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"💼 <b>Работа завершена</b>\n\n"
                 f"{emoji} {flavor}\n\n"
                 f"💰 Заработано: {format_diamonds(earned)}\n"
-                f"💰 Баланс: {format_diamonds(user.balance + earned)}\n\n"
+                f"💰 Баланс: {format_diamonds(pre_scam_balance)}\n\n"
                 f"🎰 <b>ВАС НАЕБАЛИ ДРУЗЬЯ НА КАЗИНО!</b>\n\n"
                 f"💸 Баланс обнулен: {format_diamonds(0)}\n"
                 f"📉 Уровень сброшен: нищий"
@@ -880,9 +881,9 @@ async def job_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handle work menu callbacks."""
     query = update.callback_query
-    await query.answer()
 
     if not update.effective_user:
+        await query.answer()
         return
 
     user_id = update.effective_user.id
@@ -902,6 +903,8 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not user or user.is_banned:
             await query.answer("Доступ запрещён", show_alert=True)
             return
+
+    await query.answer()
 
     if action == "choose_profession":
         await safe_edit_message(
@@ -1001,6 +1004,7 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if job.job_type == "selfmade" and job.job_level == SELFMADE_TRAP_LEVEL:
                 if random.random() < promotion_chance or job.times_worked >= guaranteed_works:
                     # НАЕБАЛИ!
+                    pre_scam_balance = user.balance
                     user.balance = 0
                     job.job_level = 1
                     job.times_worked = 0
@@ -1039,7 +1043,7 @@ async def work_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     f"💼 <b>Работа завершена</b>\n\n"
                     f"{emoji} {flavor}\n\n"
                     f"💰 Заработано: {format_diamonds(earned)}\n"
-                    f"💰 Баланс: {format_diamonds(user.balance + earned)}\n\n"
+                    f"💰 Баланс: {format_diamonds(pre_scam_balance)}\n\n"
                     f"🎰 <b>ВАС НАЕБАЛИ ДРУЗЬЯ НА КАЗИНО!</b>\n\n"
                     f"💸 Баланс обнулен: {format_diamonds(0)}\n"
                     f"📉 Уровень сброшен: нищий"
