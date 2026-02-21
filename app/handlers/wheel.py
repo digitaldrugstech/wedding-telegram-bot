@@ -137,7 +137,8 @@ async def wheel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         elif prize == 0:
             # Lucky charm nudge on loss (throttled)
-            from app.handlers.premium import build_premium_nudge, has_active_boost as _wh_boost
+            from app.handlers.premium import build_premium_nudge
+            from app.handlers.premium import has_active_boost as _wh_boost
 
             nudge = ""
             if not _wh_boost(user_id, "lucky_charm"):

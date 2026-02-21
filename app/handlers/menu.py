@@ -429,6 +429,7 @@ async def econ_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
     from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
     from app.utils.formatters import format_diamonds
 
     # --- DATA-DRIVEN ITEMS (show real info instead of hints) ---
@@ -722,7 +723,7 @@ async def econ_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if action == "market":
-        from app.handlers.market import _get_stock, _build_market_text, _build_market_keyboard
+        from app.handlers.market import _build_market_keyboard, _build_market_text, _get_stock
 
         stock = _get_stock()
         text = _build_market_text(stock)

@@ -2,7 +2,6 @@
 
 import asyncio
 import random
-
 from datetime import datetime, timedelta
 
 import structlog
@@ -201,7 +200,8 @@ async def scratch_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     else:
         # Lucky charm nudge on loss (throttled)
-        from app.handlers.premium import build_premium_nudge, has_active_boost as _sc_has_boost
+        from app.handlers.premium import build_premium_nudge
+        from app.handlers.premium import has_active_boost as _sc_has_boost
 
         nudge = ""
         if not _sc_has_boost(user_id, "lucky_charm"):
@@ -318,7 +318,8 @@ async def _play_scratch_from_callback(context, chat_id, user_id, bet):
             f"Чистая прибыль: {format_diamonds(net)}"
         )
     else:
-        from app.handlers.premium import build_premium_nudge, has_active_boost as _sc_has_boost2
+        from app.handlers.premium import build_premium_nudge
+        from app.handlers.premium import has_active_boost as _sc_has_boost2
 
         nudge = ""
         if not _sc_has_boost2(user_id, "lucky_charm"):

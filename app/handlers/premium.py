@@ -484,8 +484,8 @@ async def successful_payment_handler(update: Update, context: ContextTypes.DEFAU
                 boost_applied.append("У тебя нет умершего питомца (возврат невозможен)")
 
         elif product_id == "extra_lottery":
-            from app.database.models import Lottery, LotteryTicket
             from app.constants import MAX_TICKETS_PER_USER
+            from app.database.models import Lottery, LotteryTicket
 
             lottery = db.query(Lottery).filter(Lottery.is_active.is_(True)).first()
             if lottery:

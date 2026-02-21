@@ -292,7 +292,8 @@ async def blackjack_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
             context.user_data["bj_active"] = False
             _finish_game(user_id, bet, 0, "loss")
             # Lucky charm nudge on loss (throttled)
-            from app.handlers.premium import build_premium_nudge, has_active_boost as _bj_has_boost
+            from app.handlers.premium import build_premium_nudge
+            from app.handlers.premium import has_active_boost as _bj_has_boost
 
             nudge = ""
             if not _bj_has_boost(user_id, "lucky_charm"):
@@ -356,7 +357,8 @@ async def blackjack_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
         # Lucky charm nudge on loss (throttled)
         loss_nudge = ""
         if result_type == "loss":
-            from app.handlers.premium import build_premium_nudge, has_active_boost as _bj_stand_boost
+            from app.handlers.premium import build_premium_nudge
+            from app.handlers.premium import has_active_boost as _bj_stand_boost
 
             if not _bj_stand_boost(user_id, "lucky_charm"):
                 loss_nudge = build_premium_nudge("casino_loss", user_id)

@@ -118,7 +118,8 @@ async def coinflip_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     else:
         # Lucky charm nudge on loss (throttled)
-        from app.handlers.premium import build_premium_nudge, has_active_boost as _cf_has_boost
+        from app.handlers.premium import build_premium_nudge
+        from app.handlers.premium import has_active_boost as _cf_has_boost
 
         nudge = ""
         if not _cf_has_boost(user_id, "lucky_charm"):
@@ -207,7 +208,8 @@ def _play_coinflip(user_id: int, bet: int):
             f"💰 Баланс: {format_diamonds(balance)}"
         )
     else:
-        from app.handlers.premium import build_premium_nudge, has_active_boost as _cf_has_boost
+        from app.handlers.premium import build_premium_nudge
+        from app.handlers.premium import has_active_boost as _cf_has_boost
 
         nudge = ""
         if not _cf_has_boost(user_id, "lucky_charm"):

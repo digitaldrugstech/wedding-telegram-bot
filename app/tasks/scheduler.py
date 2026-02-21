@@ -307,9 +307,13 @@ async def collect_taxes_task(application: Application):
 async def cleanup_stale_games_task(application: Application):
     """Clean up expired heists and roulette rounds, refunding players."""
     try:
-        from app.handlers.heist import HEIST_JOIN_TIMEOUT_SECONDS, _refund_all as heist_refund, active_heists
+        from app.handlers.heist import HEIST_JOIN_TIMEOUT_SECONDS
+        from app.handlers.heist import _refund_all as heist_refund
+        from app.handlers.heist import active_heists
         from app.handlers.raid import RAID_JOIN_TIMEOUT_SECONDS, active_raids
-        from app.handlers.roulette import RR_JOIN_TIMEOUT_SECONDS, _refund_all as rr_refund, active_rounds
+        from app.handlers.roulette import RR_JOIN_TIMEOUT_SECONDS
+        from app.handlers.roulette import _refund_all as rr_refund
+        from app.handlers.roulette import active_rounds
 
         now = datetime.utcnow()
         stale_heist_chats = []

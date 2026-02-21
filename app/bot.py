@@ -165,7 +165,8 @@ async def post_shutdown(application: Application):
     """Post-shutdown hook — refund in-memory bets before exit."""
     # Refund active roulette rounds
     try:
-        from app.handlers.roulette import active_rounds as rr_rounds, _refund_all as rr_refund
+        from app.handlers.roulette import _refund_all as rr_refund
+        from app.handlers.roulette import active_rounds as rr_rounds
 
         for chat_id, rnd in list(rr_rounds.items()):
             rr_refund(rnd)
@@ -176,7 +177,8 @@ async def post_shutdown(application: Application):
 
     # Refund active heist entries
     try:
-        from app.handlers.heist import active_heists, _refund_all as heist_refund
+        from app.handlers.heist import _refund_all as heist_refund
+        from app.handlers.heist import active_heists
 
         for chat_id, h in list(active_heists.items()):
             heist_refund(h)
