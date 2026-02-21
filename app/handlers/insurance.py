@@ -94,7 +94,7 @@ async def insurance_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     reply = await update.message.reply_text(text, parse_mode="HTML", reply_markup=keyboard)
-    delete_command_and_reply(update, reply, context, delay=90)
+    await delete_command_and_reply(update, reply, context, delay=90)
 
 
 async def buy_insurance(update: Update, user_id: int):

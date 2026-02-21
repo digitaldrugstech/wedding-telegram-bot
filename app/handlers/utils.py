@@ -137,7 +137,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     help_text = "📖 <b>Справка</b>\n\n" "Выбери категорию:\n\n" "💡 /menu — главное меню с кнопками"
 
     reply = await update.message.reply_text(help_text, reply_markup=reply_markup, parse_mode="HTML")
-    delete_command_and_reply(update, reply, context, delay=120)
+    await delete_command_and_reply(update, reply, context, delay=120)
 
 
 async def help_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):

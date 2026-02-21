@@ -1,17 +1,15 @@
 """Telegram-specific helper utilities."""
 
+import asyncio
+
 import structlog
-from telegram.error import BadRequest
+from telegram.error import BadRequest, RetryAfter
 
 logger = structlog.get_logger()
 
 
 async def safe_edit_message(query, text: str, reply_markup=None, parse_mode="HTML"):
-    """Safely edit message, ignoring 'message is not modified' error.
-
-    This helper catches the common BadRequest error that occurs when trying to edit
-    a message to the exact same content. This often happens with inline keyboards
-    when the user clicks a button that refreshes the same state.
+    """Safely edit message, handling 'message is not modified' and flood control.
 
     Args:
         query: The CallbackQuery object from telegram.
@@ -24,6 +22,12 @@ async def safe_edit_message(query, text: str, reply_markup=None, parse_mode="HTM
     """
     try:
         await query.edit_message_text(text, reply_markup=reply_markup, parse_mode=parse_mode)
+    except RetryAfter as e:
+        await asyncio.sleep(e.retry_after)
+        try:
+            await query.edit_message_text(text, reply_markup=reply_markup, parse_mode=parse_mode)
+        except Exception:
+            pass
     except BadRequest as e:
         if "Message is not modified" not in str(e):
             raise

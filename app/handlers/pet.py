@@ -200,7 +200,7 @@ async def pet_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text, keyboard, _ = _build_pet_status(db, user_id)
 
     reply = await update.message.reply_text(text, parse_mode="HTML", reply_markup=keyboard)
-    delete_command_and_reply(update, reply, context, delay=90)
+    await delete_command_and_reply(update, reply, context, delay=90)
 
 
 # ==================== CALLBACK HANDLERS ====================

@@ -158,7 +158,7 @@ async def gang_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text, keyboard = _build_gang_info(db, user_id)
 
     reply = await update.message.reply_text(text, parse_mode="HTML", reply_markup=keyboard)
-    delete_command_and_reply(update, reply, context, delay=90)
+    await delete_command_and_reply(update, reply, context, delay=90)
 
 
 # ==================== CALLBACK ROUTER ====================
@@ -750,7 +750,7 @@ async def gangs_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
 
     reply = await update.message.reply_text(text, parse_mode="HTML")
-    delete_command_and_reply(update, reply, context, delay=90)
+    await delete_command_and_reply(update, reply, context, delay=90)
 
 
 def register_gang_handlers(application):

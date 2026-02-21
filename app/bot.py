@@ -54,6 +54,13 @@ logger = structlog.get_logger()
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
     """Log errors and notify admin."""
+    # Silently ignore flood control — handled by safe_edit_message retry
+    from telegram.error import RetryAfter
+
+    if isinstance(context.error, RetryAfter):
+        logger.warning("Flood control", retry_after=context.error.retry_after)
+        return
+
     logger.error("Exception while handling an update", exc_info=context.error)
 
     # Get traceback

@@ -68,7 +68,7 @@ async def lottery_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard.append([InlineKeyboardButton("« Меню", callback_data=f"menu:economy:{user_id}")])
 
     reply = await update.message.reply_text(text, parse_mode="HTML", reply_markup=InlineKeyboardMarkup(keyboard))
-    delete_command_and_reply(update, reply, context, delay=90)
+    await delete_command_and_reply(update, reply, context, delay=90)
 
 
 @require_registered
