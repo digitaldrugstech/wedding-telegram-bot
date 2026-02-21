@@ -171,7 +171,8 @@ async def invite_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"<code>{link}</code>\n\n"
         f"<b>Награды:</b>\n"
         f"👤 Друг регистрируется → он получает {format_diamonds(REFERRAL_INVITEE_REWARD)}\n"
-        f"🎯 Друг играет {format_word(REFERRAL_ACTIVE_DAYS_REQUIRED, 'день', 'дня', 'дней')} → ты получаешь {format_diamonds(REFERRAL_INVITER_REWARD)}\n\n"
+        f"🎯 Друг играет {format_word(REFERRAL_ACTIVE_DAYS_REQUIRED, 'день', 'дня', 'дней')} → "
+        f"ты получаешь {format_diamonds(REFERRAL_INVITER_REWARD)}\n\n"
         f"<b>Твоя статистика:</b>\n"
         f"✅ Завершённые: {completed_refs}\n"
         f"⏳ В процессе: {pending_refs}\n"
@@ -239,7 +240,10 @@ async def myrefs_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 status = f"✅ Готово (+{format_diamonds(REFERRAL_INVITER_REWARD)})"
             else:
                 days_left = REFERRAL_ACTIVE_DAYS_REQUIRED - ref.active_days
-                status = f"⏳ {ref.active_days}/{REFERRAL_ACTIVE_DAYS_REQUIRED} (осталось {format_word(days_left, 'день', 'дня', 'дней')})"
+                status = (
+                    f"⏳ {ref.active_days}/{REFERRAL_ACTIVE_DAYS_REQUIRED} (осталось "
+                    f"{format_word(days_left, 'день', 'дня', 'дней')})"
+                )
 
             text += f"• {name} — {status}\n"
 
@@ -286,7 +290,10 @@ async def ref_top_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 name = f"@{html.escape(referrer.username)}" if referrer and referrer.username else f"ID {referrer_id}"
                 medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
                 earned = ref_count * REFERRAL_INVITER_REWARD
-                text += f"{medal} {name} — {format_word(ref_count, 'реферал', 'реферала', 'рефералов')} ({format_diamonds(earned)})\n"
+                text += (
+                    f"{medal} {name} — {format_word(ref_count, 'реферал', 'реферала', 'рефералов')}"
+                    f" ({format_diamonds(earned)})\n"
+                )
 
         # Show current user's rank
         user_refs = db.query(Referral).filter(Referral.referrer_id == user_id, Referral.reward_given.is_(True)).count()

@@ -410,7 +410,8 @@ class Quest(Base):
     quest_type = Column(
         String(50),
         CheckConstraint(
-            "quest_type IN ('work', 'casino', 'transfer', 'marriage', 'pet', 'fish', 'duel', 'rob', 'bounty', 'gang', 'daily')"
+            "quest_type IN ('work', 'casino', 'transfer', 'marriage', 'pet', 'fish', 'duel', 'rob', 'bounty',"
+            " 'gang', 'daily')"
         ),
         nullable=False,
     )

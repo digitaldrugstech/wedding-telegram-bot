@@ -301,7 +301,7 @@ async def marriage_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     try:
                         await context.bot.send_message(
                             chat_id=partner_id,
-                            text=f"💔 <b>Развод</b>\n\nТвой супруг развелся с тобой",
+                            text="💔 <b>Развод</b>\n\nТвой супруг развелся с тобой",
                             parse_mode="HTML",
                         )
                     except Exception as e:
@@ -365,7 +365,10 @@ async def marriage_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if not can_love:
                 if cooldown:
                     time_remaining = format_time_remaining(cooldown)
-                    await safe_edit_message(query, f"❤️ <b>Брачная ночь</b>\n\nСледующая попытка через {time_remaining}")
+                    await safe_edit_message(
+                        query,
+                        f"❤️ <b>Брачная ночь</b>\n\nСледующая попытка через {time_remaining}",
+                    )
                 else:
                     await safe_edit_message(query, error)
                 return

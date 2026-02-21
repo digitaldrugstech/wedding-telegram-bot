@@ -79,7 +79,6 @@ async def rr_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Reserve bet
         user.balance -= bet
-        balance = user.balance
 
     if update.effective_user.username:
         display_name = f"@{html.escape(update.effective_user.username)}"

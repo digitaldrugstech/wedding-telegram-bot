@@ -380,7 +380,8 @@ class ChildrenService:
         if user.balance < total_cost:
             return (
                 False,
-                f"Недостаточно алмазов (нужно {format_diamonds(total_cost)}: няня {format_diamonds(BABYSITTER_COST)} + кормление {format_diamonds(hungry_count * FEEDING_COST)})",
+                f"Недостаточно алмазов (нужно {format_diamonds(total_cost)}:"
+                f" няня {format_diamonds(BABYSITTER_COST)} + кормление {format_diamonds(hungry_count * FEEDING_COST)})",
             )
 
         # Charge babysitter first

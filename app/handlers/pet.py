@@ -12,7 +12,7 @@ from app.database.connection import get_db
 from app.database.models import Cooldown, Pet, User
 from app.handlers.quest import update_quest_progress
 from app.utils.decorators import require_registered
-from app.utils.formatters import format_diamonds, format_word
+from app.utils.formatters import format_diamonds
 from app.utils.telegram_helpers import delete_command_and_reply, safe_edit_message
 
 logger = structlog.get_logger()
@@ -320,8 +320,6 @@ async def _handle_feed(query, user_id: int):
         pet.happiness = min(100, pet.happiness + 10)
 
         hunger_val = pet.hunger
-        happiness_val = pet.happiness
-        pet_type = pet.pet_type
 
     await query.answer(f"🍖 Покормлено! Голод: {hunger_val}%")
 

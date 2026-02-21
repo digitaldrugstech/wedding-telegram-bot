@@ -9,7 +9,7 @@ from app.constants import TAX_RATE, TAX_THRESHOLD
 from app.database.connection import get_db
 from app.database.models import TaxPayment, User
 from app.utils.decorators import require_registered
-from app.utils.formatters import format_diamonds, format_word
+from app.utils.formatters import format_diamonds
 
 logger = structlog.get_logger()
 

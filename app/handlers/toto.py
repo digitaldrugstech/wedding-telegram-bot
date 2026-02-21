@@ -14,7 +14,7 @@ from app.database.connection import get_db
 from app.database.models import User
 from app.utils.decorators import require_registered
 from app.utils.formatters import format_diamonds, format_word
-from app.utils.telegram_helpers import safe_edit_message, schedule_delete
+from app.utils.telegram_helpers import schedule_delete
 
 logger = structlog.get_logger()
 

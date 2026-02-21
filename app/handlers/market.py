@@ -3,7 +3,7 @@
 import html
 import random
 from datetime import datetime
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 import structlog
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
@@ -317,7 +317,8 @@ async def market_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if user.balance < item["price"]:
                 await safe_edit_message(
                     query,
-                    f"❌ Недостаточно алмазов\n\nНужно: {format_diamonds(item['price'])}\nБаланс: {format_diamonds(user.balance)}",
+                    f"❌ Недостаточно алмазов\n\nНужно: {format_diamonds(item['price'])}"
+                    f"\nБаланс: {format_diamonds(user.balance)}",
                 )
                 return
 

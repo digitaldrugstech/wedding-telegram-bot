@@ -251,7 +251,9 @@ def start_scheduler(application: Application):
 
     logger.info(
         "Scheduler started successfully",
-        business_payout_schedule=f"Day {config.business_payout_day} at {config.business_payout_hour}:{config.business_payout_minute:02d}",
+        business_payout_schedule=(
+            f"Day {config.business_payout_day} at {config.business_payout_hour}:{config.business_payout_minute:02d}"
+        ),
     )
 
     scheduler.start()

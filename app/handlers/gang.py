@@ -288,9 +288,6 @@ async def _handle_upgrade(query, user_id: int):
 
         gang.bank -= cost
         gang.level = next_level
-        new_max = GANG_MAX_MEMBERS_BY_LEVEL.get(next_level, 5)
-        bank = gang.bank
-        gang_name = html.escape(gang.name)
 
     await query.answer(f"Уровень {next_level}!")
 
@@ -382,7 +379,8 @@ async def _handle_disband(query, user_id: int):
     await query.answer()
     await safe_edit_message(
         query,
-        f"💥 <b>Банда распущена</b>\n\n«{gang_name}» больше не существует{refund_text}\n\n💰 Баланс: {format_diamonds(balance)}",
+        f"💥 <b>Банда распущена</b>\n\n«{gang_name}» больше не существует{refund_text}\n\n"
+        f"💰 Баланс: {format_diamonds(balance)}",
     )
     logger.info("Gang disbanded", user_id=user_id, name=gang_name, refund=refund)
 
@@ -402,7 +400,8 @@ async def gang_create(update: Update, context: ContextTypes.DEFAULT_TYPE, user_i
     """Create a new gang."""
     if len(context.args) < 2:
         await update.message.reply_text(
-            f"❌ Укажи название\n\n<code>/gang create [название]</code>\n\nСтоимость: {format_diamonds(GANG_CREATE_COST)}",
+            f"❌ Укажи название\n\n<code>/gang create [название]</code>"
+            f"\n\nСтоимость: {format_diamonds(GANG_CREATE_COST)}",
             parse_mode="HTML",
         )
         return
@@ -691,7 +690,8 @@ async def gang_upgrade_typed(update: Update, user_id: int):
         gang_name = html.escape(gang.name)
 
     await update.message.reply_text(
-        f"⬆️ <b>Банда улучшена!</b>\n\n«{gang_name}» — уровень {next_level}\nМакс. участников: {new_max}\nБанк: {format_diamonds(bank)}",
+        f"⬆️ <b>Банда улучшена!</b>\n\n«{gang_name}» — уровень {next_level}"
+        f"\nМакс. участников: {new_max}\nБанк: {format_diamonds(bank)}",
         parse_mode="HTML",
     )
     logger.info("Gang upgraded", user_id=user_id, level=next_level, cost=cost)
@@ -715,7 +715,8 @@ async def gang_disband_typed(update: Update, user_id: int):
 
     refund_text = f"\n💰 Возврат из банка: {format_diamonds(refund)}" if refund > 0 else ""
     await update.message.reply_text(
-        f"💥 <b>Банда распущена</b>\n\n«{gang_name}» больше не существует{refund_text}\n\n💰 Баланс: {format_diamonds(balance)}",
+        f"💥 <b>Банда распущена</b>\n\n«{gang_name}» больше не существует{refund_text}\n\n"
+        f"💰 Баланс: {format_diamonds(balance)}",
         parse_mode="HTML",
     )
     logger.info("Gang disbanded", user_id=user_id, name=gang_name, refund=refund)
@@ -746,7 +747,9 @@ async def gangs_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             text += (
                 f"{i}. <b>{html.escape(gang.name)}</b> (ур.{gang.level})\n"
-                f"   👑 {leader_display} | {format_word(member_count, 'участник', 'участника', 'участников')} | Банк: {format_diamonds(gang.bank)}\n\n"
+                f"   👑 {leader_display} | "
+                f"{format_word(member_count, 'участник', 'участника', 'участников')}"
+                f" | Банк: {format_diamonds(gang.bank)}\n\n"
             )
 
     reply = await update.message.reply_text(text, parse_mode="HTML")

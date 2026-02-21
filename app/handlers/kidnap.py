@@ -153,7 +153,6 @@ async def kidnap_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db.add(kidnapping)
         db.flush()
 
-        kidnapping_id = kidnapping.id
         child_id = child.id
         child_name = child.name or "Безымянный"
         child_stage = child.age_stage

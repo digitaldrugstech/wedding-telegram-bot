@@ -202,7 +202,10 @@ async def crate_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text += f"✅ {info['emoji']} <b>{info['name']}</b> ({format_word(day, 'день', 'дня', 'дней')}) — получен!\n"
         else:
             days_left = day - streak
-            text += f"🔒 {info['emoji']} <b>{info['name']}</b> ({format_word(day, 'день', 'дня', 'дней')}) — через {format_word(days_left, 'день', 'дня', 'дней')}\n"
+            text += (
+                f"🔒 {info['emoji']} <b>{info['name']}</b> ({format_word(day, 'день', 'дня', 'дней')})"
+                f" — через {format_word(days_left, 'день', 'дня', 'дней')}\n"
+            )
 
     text += (
         "\n<b>Как получить:</b>\n"

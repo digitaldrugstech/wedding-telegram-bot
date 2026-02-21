@@ -81,7 +81,8 @@ async def rob_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Target must have enough
         if target.balance < ROB_MIN_TARGET_BALANCE:
             await update.message.reply_text(
-                f"❌ У @{target_name} слишком мало алмазов\n\nМинимум у жертвы: {format_diamonds(ROB_MIN_TARGET_BALANCE)}"
+                f"❌ У @{target_name} слишком мало алмазов\n\n"
+                f"Минимум у жертвы: {format_diamonds(ROB_MIN_TARGET_BALANCE)}"
             )
             return
 

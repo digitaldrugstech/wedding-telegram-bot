@@ -75,7 +75,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Profile — re-render actual profile
     if menu_type == "profile":
         from app.database.connection import get_db
-        from app.database.models import Business, Child, Job, User, UserAchievement
+        from app.database.models import Child, Job, User, UserAchievement
         from app.handlers.work import PROFESSION_EMOJI, PROFESSION_NAMES
         from app.services.business_service import BusinessService
         from app.services.marriage_service import MarriageService
@@ -150,7 +150,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         from app.database.connection import get_db
         from app.database.models import Job
         from app.handlers.work import JOB_TITLES, PROFESSION_EMOJI, PROFESSION_NAMES
-        from app.utils.formatters import format_word
+        from app.utils.formatters import format_word  # noqa: F811
         from app.utils.keyboards import work_menu_keyboard
 
         with get_db() as db:
@@ -440,7 +440,10 @@ async def econ_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             balance = user.balance
         if balance > 50000:
             tax = int((balance - 50000) * 0.05)
-            text = f"🏛 <b>Налоги</b>\n\n💰 Баланс: {format_diamonds(balance)}\n💸 Налог: ~{format_diamonds(tax)}/нед\n\n5% от суммы свыше 50,000"
+            text = (
+                f"🏛 <b>Налоги</b>\n\n💰 Баланс: {format_diamonds(balance)}"
+                f"\n💸 Налог: ~{format_diamonds(tax)}/нед\n\n5% от суммы свыше 50,000"
+            )
         else:
             text = f"🏛 <b>Налоги</b>\n\n💰 Баланс: {format_diamonds(balance)}\n✅ Налогов нет (до 50,000)"
         keyboard = [[InlineKeyboardButton("« Экономика", callback_data=f"menu:economy:{user_id}")]]
@@ -482,7 +485,10 @@ async def econ_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 hours = int(remaining.total_seconds() // 3600)
                 text = f"🛡 <b>Страховка</b>\n\n✅ Активна ({hours}ч осталось)\n\nЗащита от /rob"
             else:
-                text = f"🛡 <b>Страховка</b>\n\n❌ Нет страховки\n💰 Стоимость: 500💎/нед\n💰 Баланс: {format_diamonds(balance)}\n\nНапиши /insurance buy"
+                text = (
+                    f"🛡 <b>Страховка</b>\n\n❌ Нет страховки"
+                    f"\n💰 Стоимость: 500💎/нед\n💰 Баланс: {format_diamonds(balance)}\n\nНапиши /insurance buy"
+                )
         keyboard = [[InlineKeyboardButton("« Игры", callback_data=f"menu:games:{user_id}")]]
         await safe_edit_message(query, text, reply_markup=InlineKeyboardMarkup(keyboard))
         return
@@ -536,7 +542,10 @@ async def econ_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 text = "📋 <b>Квесты</b>\n\n"
                 for uq, quest in user_quests:
                     status = "✅" if uq.is_completed else "⏳"
-                    text += f"{status} {quest.description}\n   {uq.progress}/{quest.target_count} | {format_diamonds(quest.reward)}\n"
+                    text += (
+                        f"{status} {quest.description}\n"
+                        f"   {uq.progress}/{quest.target_count} | {format_diamonds(quest.reward)}\n"
+                    )
             else:
                 text = "📋 <b>Квесты</b>\n\nОбновятся завтра"
         keyboard = [[InlineKeyboardButton("« Игры", callback_data=f"menu:games:{user_id}")]]
@@ -639,7 +648,11 @@ async def econ_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 if fish_cd and fish_cd.expires_at > now
                 else "✅ /fish"
             )
-        text = f"🗺 <b>Исследование</b>\n\n⛏️ Шахта — {mine_status}\n   5-75💎, шанс x3 редкой жилы\n\n🎣 Рыбалка — {fish_status}\n   Наживка 20💎, улов до 100💎"
+        text = (
+            f"🗺 <b>Исследование</b>\n\n⛏️ Шахта — {mine_status}"
+            f"\n   5-75💎, шанс x3 редкой жилы\n\n🎣 Рыбалка — {fish_status}"
+            f"\n   Наживка 20💎, улов до 100💎"
+        )
         keyboard = [[InlineKeyboardButton("« Игры", callback_data=f"menu:games:{user_id}")]]
         await safe_edit_message(query, text, reply_markup=InlineKeyboardMarkup(keyboard))
         return
@@ -717,7 +730,10 @@ async def econ_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"Жми кнопки на сообщении в чате"
             )
         else:
-            text = "🎰 <b>Тотализатор</b>\n\nСейчас нет раунда\n\nРаунды каждые 3 часа\nСтавка: 100 — 5000💎\nКомиссия: 10%"
+            text = (
+                "🎰 <b>Тотализатор</b>\n\nСейчас нет раунда\n\n"
+                "Раунды каждые 3 часа\nСтавка: 100 — 5000💎\nКомиссия: 10%"
+            )
         keyboard = [[InlineKeyboardButton("« Игры", callback_data=f"menu:games:{user_id}")]]
         await safe_edit_message(query, text, reply_markup=InlineKeyboardMarkup(keyboard))
         return

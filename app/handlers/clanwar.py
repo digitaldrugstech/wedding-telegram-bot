@@ -170,14 +170,18 @@ async def clanwar_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     if gang_scores and gang_scores[0]["total"] > 0:
-        text += f"🏆 Призовой фонд: {format_diamonds(CLANWAR_PRIZE_POOL)} + {format_diamonds(CLANWAR_BONUS_PER_MEMBER)}/чел\n\n"
+        text += (
+            f"🏆 Призовой фонд: {format_diamonds(CLANWAR_PRIZE_POOL)}"
+            f" + {format_diamonds(CLANWAR_BONUS_PER_MEMBER)}/чел\n\n"
+        )
 
     for i, gs in enumerate(gang_scores[:10], 1):
         medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
         marker = " 👈" if gs["id"] == user_gang_id else ""
 
         text += (
-            f"{medal} <b>{gs['name']}</b> (ур.{gs['level']}) — {format_word(gs['total'], 'очко', 'очка', 'очков')}{marker}\n"
+            f"{medal} <b>{gs['name']}</b> (ур.{gs['level']}) —"
+            f" {format_word(gs['total'], 'очко', 'очка', 'очков')}{marker}\n"
             f"   💼{gs['workers']} 🎰{gs['casino']} ⚔️{gs['duels']} 🚔{gs['fines']} | 👥{gs['members']}\n\n"
         )
 

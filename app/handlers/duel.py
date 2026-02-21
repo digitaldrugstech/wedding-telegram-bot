@@ -115,7 +115,7 @@ async def duel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         if opponent.balance < bet_amount:
-            await update.message.reply_text(f"❌ У оппонента недостаточно алмазов для этой ставки")
+            await update.message.reply_text("❌ У оппонента недостаточно алмазов для этой ставки")
             return
 
         # Check for active duel between these users
