@@ -34,6 +34,18 @@ MAX_BUSINESSES_PER_TYPE = 3  # Maximum 3 businesses of each type
 MAX_BUSINESSES_TOTAL = 5  # Maximum 5 businesses total (prevents inflation spiral)
 SELL_REFUND_PERCENTAGE = 0.70  # 70% refund
 
+# Business upgrade system: level 1 (base), level 2 (+50%), level 3 (+100%)
+UPGRADE_COSTS = {
+    2: 2.0,  # 2x purchase price to upgrade to level 2
+    3: 5.0,  # 5x purchase price to upgrade to level 3
+}
+UPGRADE_MULTIPLIERS = {
+    1: 1.0,
+    2: 1.5,  # +50% payout
+    3: 2.0,  # +100% payout
+}
+MAX_UPGRADE_LEVEL = 3
+
 
 def get_maintenance_rate(business_count: int) -> float:
     """Progressive maintenance — scales with portfolio size to prevent income spiral."""
@@ -126,7 +138,8 @@ class BusinessService:
         result = []
         for business in businesses:
             business_info = BUSINESS_TYPES.get(business.business_type, BUSINESS_TYPES[1])
-            gross = business_info["weekly_payout"]
+            upgrade_mult = UPGRADE_MULTIPLIERS.get(business.upgrade_level, 1.0)
+            gross = int(business_info["weekly_payout"] * upgrade_mult)
             net = gross - int(gross * rate)
             result.append(
                 {
@@ -134,11 +147,54 @@ class BusinessService:
                     "name": business_info["name"],
                     "type": business.business_type,
                     "purchase_price": business.purchase_price,
+                    "upgrade_level": business.upgrade_level,
                     "weekly_payout": net,
+                    "gross_payout": gross,
                 }
             )
 
         return result
+
+    @staticmethod
+    def upgrade_business(db: Session, business_id: int, user_id: int) -> Tuple[bool, str]:
+        """Upgrade a business to the next level."""
+        business = db.query(Business).filter(Business.id == business_id, Business.user_id == user_id).first()
+        if not business:
+            return False, "Бизнес не найден"
+
+        current_level = business.upgrade_level
+        if current_level >= MAX_UPGRADE_LEVEL:
+            return False, f"Максимальный уровень ({MAX_UPGRADE_LEVEL})"
+
+        next_level = current_level + 1
+        business_info = BUSINESS_TYPES.get(business.business_type, BUSINESS_TYPES[1])
+        upgrade_cost = int(business_info["price"] * UPGRADE_COSTS[next_level])
+
+        user = db.query(User).filter(User.telegram_id == user_id).first()
+        if not user or user.balance < upgrade_cost:
+            return False, f"Нужно {format_diamonds(upgrade_cost)}"
+
+        user.balance -= upgrade_cost
+        business.upgrade_level = next_level
+
+        # Calculate new payout
+        all_biz = db.query(Business).filter(Business.user_id == user_id).count()
+        rate = get_maintenance_rate(all_biz)
+        new_mult = UPGRADE_MULTIPLIERS[next_level]
+        gross = int(business_info["weekly_payout"] * new_mult)
+        net = gross - int(gross * rate)
+        bonus_pct = int((new_mult - 1) * 100)
+
+        logger.info("Business upgraded", user_id=user_id, business_id=business_id, level=next_level)
+
+        message = (
+            f"⬆️ <b>Бизнес прокачан!</b>\n\n"
+            f"{business_info['name']} → уровень {next_level}\n"
+            f"💰 Цена: {format_diamonds(upgrade_cost)}\n"
+            f"📈 Доход: {format_diamonds(net)}/нед (+{bonus_pct}%)\n\n"
+            f"💰 Остаток: {format_diamonds(user.balance)}"
+        )
+        return True, message
 
     @staticmethod
     def sell_business(db: Session, business_id: int, user_id: int) -> Tuple[bool, str]:
@@ -201,7 +257,8 @@ class BusinessService:
 
             for business in businesses:
                 business_info = BUSINESS_TYPES.get(business.business_type, BUSINESS_TYPES[1])
-                gross_payout = business_info["weekly_payout"]
+                upgrade_mult = UPGRADE_MULTIPLIERS.get(business.upgrade_level, 1.0)
+                gross_payout = int(business_info["weekly_payout"] * upgrade_mult)
                 maintenance = int(gross_payout * rate)
                 payout = gross_payout - maintenance
 

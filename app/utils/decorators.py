@@ -55,6 +55,12 @@ def require_registered(func: Callable) -> Callable:
         if not update.effective_user:
             return
 
+        # Ignore channel-linked messages (sender_chat = channel forwarding as bot)
+        if update.effective_user.is_bot:
+            return
+        if update.message and update.message.sender_chat:
+            return
+
         user_id = update.effective_user.id
         username = update.effective_user.username or update.effective_user.first_name
 

@@ -6,13 +6,39 @@ from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes
 
 from app.database.connection import get_db
 from app.database.models import User
-from app.services.business_service import MAX_BUSINESSES_TOTAL, BusinessService, get_maintenance_rate
+from app.services.business_service import (
+    BUSINESS_TYPES,
+    MAX_BUSINESSES_TOTAL,
+    MAX_UPGRADE_LEVEL,
+    UPGRADE_COSTS,
+    BusinessService,
+    get_maintenance_rate,
+)
 from app.utils.decorators import require_registered
 from app.utils.formatters import format_diamonds
 from app.utils.keyboards import business_buy_keyboard, business_menu_keyboard
 from app.utils.telegram_helpers import safe_edit_message
 
 logger = structlog.get_logger()
+
+LEVEL_STARS = {1: "", 2: " ⭐", 3: " ⭐⭐"}
+
+
+def _format_business_list(businesses):
+    """Format business list with levels."""
+    count = len(businesses)
+    rate = get_maintenance_rate(count)
+    rate_pct = int(rate * 100)
+    message = f"<b>💼 Твои бизнесы</b> ({count}/{MAX_BUSINESSES_TOTAL})\n"
+    message += f"🔧 Обслуживание: {rate_pct}%\n\n"
+    total_income = 0
+    for biz in businesses:
+        lvl = biz.get("upgrade_level", 1)
+        stars = LEVEL_STARS.get(lvl, "")
+        message += f"{biz['name']}{stars}\n📈 {format_diamonds(biz['weekly_payout'])}/нед\n\n"
+        total_income += biz["weekly_payout"]
+    message += f"💰 <b>Итого:</b> {format_diamonds(total_income)}/неделя"
+    return message
 
 
 @require_registered
@@ -27,19 +53,7 @@ async def business_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         businesses = BusinessService.get_user_businesses(db, user_id)
 
         if businesses:
-            count = len(businesses)
-            rate = get_maintenance_rate(count)
-            rate_pct = int(rate * 100)
-            message = f"<b>💼 Твои бизнесы</b> ({count}/{MAX_BUSINESSES_TOTAL})\n"
-            message += f"🔧 Обслуживание: {rate_pct}% от дохода\n\n"
-
-            total_income = 0
-            for business in businesses:
-                message += f"{business['name']}\n" f"📈 {format_diamonds(business['weekly_payout'])}/неделя\n\n"
-                total_income += business["weekly_payout"]
-
-            message += f"💰 <b>Итого:</b> {format_diamonds(total_income)}/неделя"
-
+            message = _format_business_list(businesses)
             await update.message.reply_text(
                 message, reply_markup=business_menu_keyboard(user_id=user_id), parse_mode="HTML"
             )
@@ -134,20 +148,58 @@ async def business_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await safe_edit_message(query, "💼 <b>Бизнесы</b>\n\nУ тебя нет бизнесов")
                 return
 
-            count = len(businesses)
-            rate = get_maintenance_rate(count)
-            rate_pct = int(rate * 100)
-            message = f"<b>💼 Твои бизнесы</b> ({count}/{MAX_BUSINESSES_TOTAL})\n"
-            message += f"🔧 Обслуживание: {rate_pct}% от дохода\n\n"
-            total_income = 0
-
-            for business in businesses:
-                message += f"{business['name']}\n" f"📈 {format_diamonds(business['weekly_payout'])}/неделя\n\n"
-                total_income += business["weekly_payout"]
-
-            message += f"💰 <b>Итого:</b> {format_diamonds(total_income)}/неделя"
-
+            message = _format_business_list(businesses)
             await safe_edit_message(query, message, reply_markup=business_menu_keyboard(user_id=user_id))
+
+    elif action == "upgrade":
+        # Show upgrade menu
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+
+        with get_db() as db:
+            businesses = BusinessService.get_user_businesses(db, user_id)
+            upgradeable = [b for b in businesses if b.get("upgrade_level", 1) < MAX_UPGRADE_LEVEL]
+
+            if not businesses:
+                await safe_edit_message(query, "💼 <b>Прокачка</b>\n\nУ тебя нет бизнесов")
+                return
+
+            if not upgradeable:
+                await safe_edit_message(query, "💼 <b>Прокачка</b>\n\nВсе бизнесы на макс. уровне")
+                return
+
+            message = "⬆️ <b>Прокачка бизнеса</b>\n\n"
+            keyboard = []
+            for biz in upgradeable:
+                lvl = biz.get("upgrade_level", 1)
+                next_lvl = lvl + 1
+                biz_info = BUSINESS_TYPES.get(biz["type"], BUSINESS_TYPES[1])
+                cost = int(biz_info["price"] * UPGRADE_COSTS[next_lvl])
+                keyboard.append(
+                    [
+                        InlineKeyboardButton(
+                            f"{biz['name']} {lvl}→{next_lvl} ({format_diamonds(cost)})",
+                            callback_data=f"business:upgrade_confirm:{biz['id']}:{user_id}",
+                        )
+                    ]
+                )
+            keyboard.append([InlineKeyboardButton("« Назад", callback_data=f"business:back:{user_id}")])
+
+            message += "Каждый уровень увеличивает доход:\n"
+            message += "⭐ Ур. 2: +50% дохода\n"
+            message += "⭐⭐ Ур. 3: +100% дохода"
+
+            await safe_edit_message(query, message, reply_markup=InlineKeyboardMarkup(keyboard))
+
+    elif action == "upgrade_confirm":
+        # Upgrade specific business
+        try:
+            business_id = int(parts[2])
+        except (ValueError, IndexError):
+            return
+
+        with get_db() as db:
+            success, message = BusinessService.upgrade_business(db, business_id, user_id)
+            await safe_edit_message(query, message if success else f"❌ {message}")
 
     elif action == "sell":
         # Show sell menu with user's businesses
@@ -197,18 +249,7 @@ async def business_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             businesses = BusinessService.get_user_businesses(db, user_id)
 
             if businesses:
-                count = len(businesses)
-                rate = get_maintenance_rate(count)
-                rate_pct = int(rate * 100)
-                message = f"<b>💼 Твои бизнесы</b> ({count}/{MAX_BUSINESSES_TOTAL})\n"
-                message += f"🔧 Обслуживание: {rate_pct}% от дохода\n\n"
-                total_income = 0
-
-                for business in businesses:
-                    message += f"{business['name']}\n" f"📈 {format_diamonds(business['weekly_payout'])}/неделя\n\n"
-                    total_income += business["weekly_payout"]
-
-                message += f"💰 <b>Итого:</b> {format_diamonds(total_income)}/неделя"
+                message = _format_business_list(businesses)
             else:
                 message = "💼 <b>Бизнесы</b>\n\nУ тебя нет бизнесов\n\n💡 Бизнесы приносят пассивный доход раз в неделю"
 

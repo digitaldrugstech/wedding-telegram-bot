@@ -25,6 +25,10 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.effective_user or not update.message:
         return
 
+    # Ignore channel-linked messages
+    if update.effective_user.is_bot or update.message.sender_chat:
+        return
+
     user_id = update.effective_user.id
     username = update.effective_user.username or update.effective_user.first_name
 
@@ -68,13 +72,15 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(
         f"👋 Привет, {username}\n\n"
-        f"Wedding Bot — семейная жизнь на сервере\n{ref_text}\n"
-        f"💍 Женись, заводи детей\n"
-        f"💼 Работай, покупай дом\n"
-        f"💰 Открывай бизнес\n"
-        f"🎰 Играй в казино\n\n"
+        f"Экономика сервера <b>PRDX</b> — прямо в Telegram\n{ref_text}\n"
+        f"💼 Устройся на работу — от интерпола до IT-корпорации\n"
+        f"💰 Строй бизнес-империю и прокачивай доход\n"
+        f"💍 Создавай семью, покупай дом, расти детей\n"
+        f"🎰 Казино, дуэли, ограбления, банды\n\n"
+        f"🎮 <i>prdx.so — Minecraft RP сервер</i>\n\n"
         f"Выбери пол:",
         reply_markup=gender_selection_keyboard(user_id),
+        parse_mode="HTML",
     )
 
 

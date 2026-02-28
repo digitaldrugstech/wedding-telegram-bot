@@ -216,6 +216,7 @@ class Business(Base):
     user_id = Column(BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=False)
     business_type = Column(Integer, CheckConstraint("business_type BETWEEN 1 AND 12"), nullable=False)
     purchase_price = Column(BigInteger, nullable=False)
+    upgrade_level = Column(Integer, default=1, nullable=False)
     purchased_at = Column(DateTime, default=func.now(), nullable=False)
     last_payout_at = Column(DateTime, default=func.now(), nullable=False)
 
@@ -223,7 +224,7 @@ class Business(Base):
     user = relationship("User", back_populates="businesses")
 
     def __repr__(self):
-        return f"<Business(id={self.id}, user_id={self.user_id}, business_type={self.business_type})>"
+        return f"<Business(id={self.id}, user_id={self.user_id}, type={self.business_type}, lvl={self.upgrade_level})>"
 
 
 class CasinoGame(Base):
@@ -669,3 +670,23 @@ class Referral(Base):
             f"<Referral(referrer_id={self.referrer_id}, referred_id={self.referred_id}, "
             f"active_days={self.active_days}, reward_given={self.reward_given})>"
         )
+
+
+class BankDeposit(Base):
+    """Investment bank deposit model."""
+
+    __tablename__ = "bank_deposits"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(BigInteger, ForeignKey("users.telegram_id", ondelete="CASCADE"), nullable=False)
+    amount = Column(BigInteger, nullable=False)
+    deposited_at = Column(DateTime, default=func.now(), nullable=False)
+    last_interest_at = Column(DateTime, default=func.now(), nullable=False)
+    is_active = Column(Boolean, default=True, nullable=False)
+    withdrawn_at = Column(DateTime, nullable=True)
+
+    # Relationships
+    user = relationship("User")
+
+    def __repr__(self):
+        return f"<BankDeposit(user_id={self.user_id}, amount={self.amount}, active={self.is_active})>"

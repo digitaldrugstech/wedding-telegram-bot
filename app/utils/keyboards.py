@@ -199,6 +199,9 @@ def business_menu_keyboard(user_id: int = 0) -> InlineKeyboardMarkup:
         [InlineKeyboardButton("📊 Мои бизнесы", callback_data=f"business:list:{user_id}")],
         [
             InlineKeyboardButton("🛒 Купить", callback_data=f"business:buy:{user_id}"),
+            InlineKeyboardButton("⬆️ Прокачать", callback_data=f"business:upgrade:{user_id}"),
+        ],
+        [
             InlineKeyboardButton("💰 Продать", callback_data=f"business:sell:{user_id}"),
         ],
         [InlineKeyboardButton("« Меню", callback_data=f"menu:main:{user_id}")],
