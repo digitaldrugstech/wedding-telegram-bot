@@ -25,6 +25,7 @@ from app.handlers.feedback import register_feedback_handlers
 from app.handlers.fishing import register_fishing_handlers
 from app.handlers.gang import register_gang_handlers
 from app.handlers.giftbox import register_giftbox_handlers
+from app.handlers.growth import register_growth_handlers
 from app.handlers.heist import register_heist_handlers
 from app.handlers.house import register_house_handlers
 from app.handlers.insurance import register_insurance_handlers
@@ -143,6 +144,7 @@ def create_bot() -> Application:
     register_toto_handlers(application)
     register_market_handlers(application)
     register_feedback_handlers(application)
+    register_growth_handlers(application)
     register_admin_handlers(application)
 
     # Register error handler

@@ -339,17 +339,18 @@ def build_top_message(category: str, user_id: int):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    from app.handlers.premium import get_vip_badge
+    from app.handlers.premium import get_vip_ids_batch
 
     with get_db() as db:
         if category == "balance":
             users = db.query(User).filter(User.is_banned.is_(False)).order_by(User.balance.desc()).limit(10).all()
             title = "💰 Топ по балансу"
+            vip_ids = get_vip_ids_batch([u.telegram_id for u in users], db=db)
             rows = []
             for i, u in enumerate(users, 1):
                 medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
                 name = html.escape(u.username or f"User{u.telegram_id}")
-                badge = get_vip_badge(u.telegram_id, db=db)
+                badge = " 👑" if u.telegram_id in vip_ids else ""
                 rows.append(f"{medal} @{name}{badge} — {format_diamonds(u.balance)}")
 
         elif category == "rep":
@@ -361,11 +362,12 @@ def build_top_message(category: str, user_id: int):
                 .all()
             )
             title = "⭐ Топ по репутации"
+            vip_ids = get_vip_ids_batch([u.telegram_id for u in users], db=db)
             rows = []
             for i, u in enumerate(users, 1):
                 medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
                 name = html.escape(u.username or f"User{u.telegram_id}")
-                badge = get_vip_badge(u.telegram_id, db=db)
+                badge = " 👑" if u.telegram_id in vip_ids else ""
                 rows.append(f"{medal} @{name}{badge} — {u.reputation:+d}")
 
         elif category == "prestige":
@@ -377,11 +379,12 @@ def build_top_message(category: str, user_id: int):
                 .all()
             )
             title = "🔄 Топ по престижу"
+            vip_ids = get_vip_ids_batch([u.telegram_id for u in users], db=db)
             rows = []
             for i, u in enumerate(users, 1):
                 medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
                 name = html.escape(u.username or f"User{u.telegram_id}")
-                badge = get_vip_badge(u.telegram_id, db=db)
+                badge = " 👑" if u.telegram_id in vip_ids else ""
                 rows.append(f"{medal} @{name}{badge} — уровень {u.prestige_level} (+{u.prestige_level * 5}%)")
 
         elif category == "achievements":
@@ -397,11 +400,13 @@ def build_top_message(category: str, user_id: int):
                 .all()
             )
             title = "🏆 Топ по достижениям"
+            tids = [tid for _, tid, _ in results]
+            vip_ids = get_vip_ids_batch(tids, db=db)
             rows = []
             for i, (username, tid, cnt) in enumerate(results, 1):
                 medal = "🥇" if i == 1 else "🥈" if i == 2 else "🥉" if i == 3 else f"{i}."
                 name = html.escape(username or f"User{tid}")
-                badge = get_vip_badge(tid, db=db)
+                badge = " 👑" if tid in vip_ids else ""
                 rows.append(f"{medal} @{name}{badge} — {format_word(cnt, 'достижение', 'достижения', 'достижений')}")
 
         else:

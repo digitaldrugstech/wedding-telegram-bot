@@ -134,8 +134,21 @@ async def blackjack_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
 
     if context.user_data.get("bj_active"):
-        await update.message.reply_text("❌ У тебя уже идёт игра. Доиграй её")
-        return
+        # Check for stale game (>10 min) — refund and clear
+        started_at = context.user_data.get("bj_started_at")
+        if started_at and (datetime.utcnow() - started_at).total_seconds() > 600:
+            stale_bet = context.user_data.get("bj_bet", 0)
+            if stale_bet > 0:
+                with get_db() as db:
+                    user_obj = db.query(User).filter(User.telegram_id == user_id).first()
+                    if user_obj:
+                        user_obj.balance += stale_bet
+            context.user_data["bj_active"] = False
+            context.user_data.pop("bj_started_at", None)
+            logger.info("Stale blackjack refunded", user_id=user_id, bet=stale_bet)
+        else:
+            await update.message.reply_text("❌ У тебя уже идёт игра. Доиграй её")
+            return
 
     if not context.args:
         await update.message.reply_text(
@@ -191,6 +204,7 @@ async def blackjack_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Store game state
     context.user_data["bj_active"] = True
+    context.user_data["bj_started_at"] = datetime.utcnow()
     context.user_data["bj_deck"] = deck
     context.user_data["bj_player"] = player_cards
     context.user_data["bj_dealer"] = dealer_cards
@@ -274,6 +288,22 @@ async def blackjack_callback(update: Update, context: ContextTypes.DEFAULT_TYPE)
     if not context.user_data.get("bj_active"):
         try:
             await query.edit_message_text("❌ Игра не найдена. Начни новую: /blackjack")
+        except Exception:
+            pass
+        return
+
+    # Check for stale game
+    started_at = context.user_data.get("bj_started_at")
+    if started_at and (datetime.utcnow() - started_at).total_seconds() > 600:
+        stale_bet = context.user_data.get("bj_bet", 0)
+        if stale_bet > 0:
+            with get_db() as db:
+                user_obj = db.query(User).filter(User.telegram_id == user_id).first()
+                if user_obj:
+                    user_obj.balance += stale_bet
+        context.user_data["bj_active"] = False
+        try:
+            await query.edit_message_text("⏰ Игра истекла (10 мин). Ставка возвращена")
         except Exception:
             pass
         return
@@ -460,6 +490,7 @@ async def blackjack_bet_callback(update: Update, context: ContextTypes.DEFAULT_T
 
     # Store game state
     context.user_data["bj_active"] = True
+    context.user_data["bj_started_at"] = datetime.utcnow()
     context.user_data["bj_deck"] = deck
     context.user_data["bj_player"] = player_cards
     context.user_data["bj_dealer"] = dealer_cards

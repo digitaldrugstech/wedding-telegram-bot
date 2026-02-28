@@ -139,7 +139,7 @@ async def rr_join_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if elapsed > RR_JOIN_TIMEOUT_SECONDS:
         # Refund all players
         _refund_all(rnd)
-        del active_rounds[chat_id]
+        active_rounds.pop(chat_id, None)
         await query.answer("❌ Время вышло, ставки возвращены", show_alert=True)
         return
 

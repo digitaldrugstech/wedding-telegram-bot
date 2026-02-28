@@ -30,16 +30,16 @@ NUDGE_COOLDOWN_SECONDS = 1800  # 30 minutes per nudge type per user
 
 # ==================== PRODUCT CATALOG ====================
 
-# Base price per diamond (cheapest pack): 500 / 15 = 33.3 diamonds per star
+# Base price per diamond (cheapest pack): 500 / 25 = 20 diamonds per star
 # Used to calculate savings percentages for larger packs
-_BASE_RATIO = 500 / 15
+_BASE_RATIO = 500 / 25
 
 PRODUCTS = {
     # Diamond Packs
     "diamonds_500": {
         "name": "500 алмазов",
         "description": "Хватит на первый бизнес или пару дней в казино",
-        "stars": 15,
+        "stars": 25,
         "diamonds": 500,
         "emoji": "💎",
         "category": "diamonds",
@@ -47,7 +47,7 @@ PRODUCTS = {
     "diamonds_1500": {
         "name": "1,500 алмазов",
         "description": "Открой бизнес + купи дом — самый популярный пакет",
-        "stars": 30,
+        "stars": 50,
         "diamonds": 1500,
         "emoji": "💎",
         "category": "diamonds",
@@ -56,7 +56,7 @@ PRODUCTS = {
     "diamonds_5000": {
         "name": "5,000 алмазов",
         "description": "Хватит на титул + бизнес + страховку на месяц",
-        "stars": 75,
+        "stars": 125,
         "diamonds": 5000,
         "emoji": "💎",
         "category": "diamonds",
@@ -65,7 +65,7 @@ PRODUCTS = {
     "diamonds_12000": {
         "name": "12,000 алмазов",
         "description": "Полная свобода — титул Король + бизнес-империя + запас",
-        "stars": 150,
+        "stars": 250,
         "diamonds": 12000,
         "emoji": "💎",
         "category": "diamonds",
@@ -695,7 +695,7 @@ def _should_show_nudge(user_id: int, nudge_type: str) -> bool:
     _nudge_timestamps[key] = now
 
     # Prune old entries periodically (keep memory bounded)
-    if len(_nudge_timestamps) > 5000:
+    if len(_nudge_timestamps) > 1000:
         cutoff = now - timedelta(seconds=NUDGE_COOLDOWN_SECONDS * 2)
         stale = [k for k, v in _nudge_timestamps.items() if v < cutoff]
         for k in stale:
@@ -745,6 +745,24 @@ def get_vip_badge(user_id: int, db=None) -> str:
             .first()
         )
         return " 👑" if has_any else ""
+
+    if db is not None:
+        return _check(db)
+    with get_db() as session:
+        return _check(session)
+
+
+def get_vip_ids_batch(user_ids: list, db=None) -> set:
+    """Batch check: return set of user_ids that have any active boost. Avoids N+1."""
+
+    def _check(session):
+        rows = (
+            session.query(ActiveBoost.user_id)
+            .filter(ActiveBoost.user_id.in_(user_ids), ActiveBoost.expires_at > datetime.utcnow())
+            .distinct()
+            .all()
+        )
+        return {r[0] for r in rows}
 
     if db is not None:
         return _check(db)

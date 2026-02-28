@@ -205,7 +205,7 @@ async def heist_join_callback(update: Update, context: ContextTypes.DEFAULT_TYPE
     elapsed = (datetime.utcnow() - heist["created_at"]).total_seconds()
     if elapsed > HEIST_JOIN_TIMEOUT_SECONDS:
         _refund_all(heist)
-        del active_heists[chat_id]
+        active_heists.pop(chat_id, None)
         await query.answer("❌ Время вышло, ставки возвращены", show_alert=True)
         return
 
