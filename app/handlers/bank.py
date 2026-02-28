@@ -161,6 +161,7 @@ async def bank_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             db.add(deposit)
             db.flush()
 
+            remaining_balance = user.balance
             unlock_date = (datetime.utcnow() + timedelta(days=LOCK_DAYS)).strftime("%d.%m")
             weekly_interest = int(amount * INTEREST_RATE)
 
@@ -170,7 +171,7 @@ async def bank_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"💰 Сумма: {format_diamonds(amount)}\n"
             f"📈 Доход: ~{format_diamonds(weekly_interest)}/нед\n"
             f"🔒 Разблокировка: {unlock_date}\n\n"
-            f"💰 Остаток: {format_diamonds(user.balance)}",
+            f"💰 Остаток: {format_diamonds(remaining_balance)}",
         )
         logger.info("Bank deposit", user_id=user_id, amount=amount)
 
@@ -239,19 +240,23 @@ async def bank_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             user = db.query(User).filter(User.telegram_id == user_id).first()
             if user:
                 user.balance += total_return
+                new_balance = user.balance
+            else:
+                new_balance = 0
 
+            deposit_amount = deposit.amount
             deposit.is_active = False
             deposit.withdrawn_at = now
 
         await safe_edit_message(
             query,
             f"💸 <b>Вклад закрыт</b>\n\n"
-            f"💰 Вклад: {format_diamonds(deposit.amount)}\n"
+            f"💰 Вклад: {format_diamonds(deposit_amount)}\n"
             f"📈 Проценты: +{format_diamonds(interest)}\n"
             f"💰 Получено: {format_diamonds(total_return)}\n\n"
-            f"💰 Баланс: {format_diamonds(user.balance)}",
+            f"💰 Баланс: {format_diamonds(new_balance)}",
         )
-        logger.info("Bank withdrawal", user_id=user_id, amount=deposit.amount, interest=interest)
+        logger.info("Bank withdrawal", user_id=user_id, amount=deposit_amount, interest=interest)
 
     elif action == "collect":
         # Collect accumulated interest without closing deposits
@@ -280,12 +285,15 @@ async def bank_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             user = db.query(User).filter(User.telegram_id == user_id).first()
             if user:
                 user.balance += total_interest
+                new_balance = user.balance
+            else:
+                new_balance = 0
 
         await safe_edit_message(
             query,
             f"📈 <b>Проценты собраны!</b>\n\n"
             f"+{format_diamonds(total_interest)}\n\n"
-            f"💰 Баланс: {format_diamonds(user.balance)}",
+            f"💰 Баланс: {format_diamonds(new_balance)}",
         )
         logger.info("Bank interest collected", user_id=user_id, interest=total_interest)
 
