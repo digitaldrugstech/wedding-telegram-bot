@@ -503,7 +503,7 @@ async def admin_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         if user_id != owner_id:
             await query.answer("Эта кнопка не для тебя", show_alert=True)
-        return
+            return
 
     if action == "stats":
         # Build stats inline for callback (stats_command requires update.message)

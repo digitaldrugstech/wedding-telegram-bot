@@ -22,9 +22,11 @@ logger = structlog.get_logger()
 class _FakeUser:
     """Minimal user object for username-based lookups."""
 
-    def __init__(self, user_id):
+    def __init__(self, user_id, first_name=None, username=None):
         self.id = user_id
         self.is_bot = False
+        self.first_name = first_name or f"ID {user_id}"
+        self.username = username
 
 
 # Check if DEBUG mode (DEV environment)
@@ -55,8 +57,9 @@ async def propose_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_text(f"Пользователь @{username} не найден")
                 return
             target_id = target_user.telegram_id
+            target_username = target_user.username
 
-            target = _FakeUser(target_id)
+            target = _FakeUser(target_id, first_name=target_username or f"ID {target_id}", username=target_username)
     else:
         await update.message.reply_text(
             "💍 <b>Предложение руки и сердца</b>\n\n"
@@ -625,8 +628,9 @@ async def cheat_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await update.message.reply_text(f"Пользователь @{username} не найден")
                 return
             target_id = target_user.telegram_id
+            target_username = target_user.username
 
-            target = _FakeUser(target_id)
+            target = _FakeUser(target_id, first_name=target_username or f"ID {target_id}", username=target_username)
     else:
         await update.message.reply_text(
             "⚠️ <b>Измена</b>\n\n"

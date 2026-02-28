@@ -268,7 +268,10 @@ async def friend_accept_callback(update: Update, context: ContextTypes.DEFAULT_T
     query = update.callback_query
     await query.answer()
 
-    friendship_id = int(query.data.split(":")[2])
+    try:
+        friendship_id = int(query.data.split(":")[2])
+    except (ValueError, IndexError):
+        return
 
     with get_db() as db:
         # Ban check

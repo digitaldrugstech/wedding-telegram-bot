@@ -323,9 +323,12 @@ async def toto_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         schedule_delete(context, query.message.chat_id, [msg.message_id], delay=60)
 
     elif action == "bet":
-        side = parts[2]
-        amount = int(parts[3])
-        owner_id = int(parts[4])
+        try:
+            side = parts[2]
+            amount = int(parts[3])
+            owner_id = int(parts[4])
+        except (ValueError, IndexError):
+            return
 
         if user_id != owner_id:
             await query.answer("Эта кнопка не для тебя", show_alert=True)
@@ -347,8 +350,8 @@ async def toto_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Validate and deduct
         with get_db() as db:
             user = db.query(User).filter(User.telegram_id == user_id).first()
-            if not user:
-                await query.answer("Ошибка", show_alert=True)
+            if not user or user.is_banned:
+                await query.answer("Доступ запрещён", show_alert=True)
                 return
 
             if user.balance < amount:

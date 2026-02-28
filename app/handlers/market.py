@@ -50,11 +50,11 @@ MARKET_ITEMS = [
     {
         "id": "contraband",
         "name": "🚬 Контрабанда",
-        "desc": "2000💎 за четверть цены, 40% шанс ареста",
+        "desc": "2000💎 за четверть цены, 50% шанс ареста",
         "price": 500,
         "stock": 2,
         "action": "stolen",
-        "params": {"reward": 2000, "catch_chance": 0.40, "fine": 750},
+        "params": {"reward": 2000, "catch_chance": 0.50, "fine": 750},
     },
     {
         "id": "cooldown_reset",
@@ -68,20 +68,20 @@ MARKET_ITEMS = [
     {
         "id": "diamond_dust",
         "name": "✨ Алмазная пыль",
-        "desc": "50% шанс x3, 50% потерять всё",
+        "desc": "40% шанс x3, 60% потерять всё",
         "price": 300,
         "stock": 4,
         "action": "gamble",
-        "params": {"multiplier": 3, "win_chance": 0.50},
+        "params": {"multiplier": 3, "win_chance": 0.40},
     },
     {
         "id": "loaded_dice",
         "name": "🎲 Шулерские кости",
-        "desc": "40% шанс x4, 60% потеря",
+        "desc": "30% шанс x4, 70% потеря",
         "price": 400,
         "stock": 3,
         "action": "gamble",
-        "params": {"multiplier": 4, "win_chance": 0.40},
+        "params": {"multiplier": 4, "win_chance": 0.30},
     },
     {
         "id": "info_broker",
@@ -104,11 +104,11 @@ MARKET_ITEMS = [
     {
         "id": "dark_deal",
         "name": "🃏 Тёмная сделка",
-        "desc": "33% шанс x5, 67% потеря",
+        "desc": "20% шанс x5, 80% потеря",
         "price": 500,
         "stock": 2,
         "action": "gamble",
-        "params": {"multiplier": 5, "win_chance": 0.33},
+        "params": {"multiplier": 5, "win_chance": 0.20},
     },
 ]
 
@@ -307,12 +307,12 @@ async def market_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await safe_edit_message(query, "❌ Товар не найден")
             return
 
-        if item["remaining"] <= 0:
-            await safe_edit_message(query, "❌ Товар распродан")
-            return
-
-        # Deduct price + process item in single transaction
+        # Deduct price + process item in single transaction (check remaining inside to avoid TOCTOU)
         with get_db() as db:
+            if item["remaining"] <= 0:
+                await safe_edit_message(query, "❌ Товар распродан")
+                return
+
             user = db.query(User).filter(User.telegram_id == user_id).first()
             if user.balance < item["price"]:
                 await safe_edit_message(
@@ -338,6 +338,12 @@ async def market_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if user_id != owner_id:
             await query.answer("Эта кнопка не для тебя", show_alert=True)
             return
+
+        with get_db() as db:
+            user = db.query(User).filter(User.telegram_id == user_id).first()
+            if not user or user.is_banned:
+                await query.answer("Доступ запрещён", show_alert=True)
+                return
 
         await query.answer()
         stock = _get_stock()
